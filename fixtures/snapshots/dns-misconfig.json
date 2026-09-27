@@ -1,0 +1,1371 @@
+{
+ "logs": {
+  "notifications/mailer-6878b79994-qj99g/mailer/current": "mailer starting, relay=smtp-relay:25\nERROR: relay check failed (attempt 1): nc: bad address 'smtp-relay'\n",
+  "notifications/mailer-6878b79994-qj99g/mailer/previous": "mailer starting, relay=smtp-relay:25\nERROR: relay check failed (attempt 1): nc: bad address 'smtp-relay'\nERROR: relay check failed (attempt 2): nc: bad address 'smtp-relay'\nERROR: relay check failed (attempt 3): nc: bad address 'smtp-relay'\nFATAL: giving up on smtp-relay\n",
+  "notifications/smtp-relay-ddbf8b688-z5tg7/smtp-relay/current": "relay ready on 25\n"
+ },
+ "namespaces": {
+  "notifications": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T13:07:03Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "notifications",
+      "uid": "7d5eb631-e65e-4b63-8daa-0656b25586a5"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "generation": 1,
+      "name": "mailer",
+      "namespace": "notifications",
+      "uid": "61805dea-ce8d-4df4-9530-bdbc8d6d1f22"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "mailer"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "mailer"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"mailer starting, relay=smtp-relay:25\"; n=0; while true; do out=$(nc -z -w 3 smtp-relay 25 2>&1); if [ $? -eq 0 ]; then echo \"relay ok\"; n=0; else n=$((n+1)); echo \"ERROR: relay check failed (attempt $n): $out\"; fi; if [ $n -ge 3 ]; then echo \"FATAL: giving up on smtp-relay\"; exit 1; fi; sleep 3; done"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "mailer",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsConfig": {
+         "nameservers": [
+          "10.96.0.99"
+         ],
+         "options": [
+          {
+           "name": "ndots",
+           "value": "5"
+          }
+         ],
+         "searches": [
+          "notifications.svc.cluster.local",
+          "svc.cluster.local",
+          "cluster.local"
+         ]
+        },
+        "dnsPolicy": "None",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:07:05Z",
+        "lastUpdateTime": "2026-09-27T13:07:06Z",
+        "message": "ReplicaSet \"mailer-6878b79994\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:09:33Z",
+        "lastUpdateTime": "2026-09-27T13:09:33Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "generation": 1,
+      "name": "smtp-relay",
+      "namespace": "notifications",
+      "uid": "72f64441-9b69-42a9-a737-61a80e545959"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "smtp-relay"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "smtp-relay"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"relay ready on 25\"; nc -lk -p 25 -e echo \"220 relay ready\""
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "smtp-relay",
+          "ports": [
+           {
+            "containerPort": 25,
+            "protocol": "TCP"
+           }
+          ],
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:07:06Z",
+        "lastUpdateTime": "2026-09-27T13:07:06Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:07:05Z",
+        "lastUpdateTime": "2026-09-27T13:07:06Z",
+        "message": "ReplicaSet \"smtp-relay-ddbf8b688\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [
+    {
+     "addressType": "IPv4",
+     "apiVersion": "discovery.k8s.io/v1",
+     "endpoints": [
+      {
+       "addresses": [
+        "10.244.0.26"
+       ],
+       "conditions": {
+        "ready": true,
+        "serving": true,
+        "terminating": false
+       },
+       "nodeName": "doctor-lab-control-plane",
+       "targetRef": {
+        "kind": "Pod",
+        "name": "smtp-relay-ddbf8b688-z5tg7",
+        "namespace": "notifications",
+        "uid": "630e2197-44b7-48f7-9420-d4c33b35a6d4"
+       }
+      }
+     ],
+     "kind": "EndpointSlice",
+     "metadata": {
+      "annotations": {
+       "endpoints.kubernetes.io/last-change-trigger-time": "2026-09-27T13:07:06Z"
+      },
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "generateName": "smtp-relay-",
+      "generation": 2,
+      "labels": {
+       "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+       "kubernetes.io/service-name": "smtp-relay"
+      },
+      "name": "smtp-relay-6kfzm",
+      "namespace": "notifications",
+      "ownerReferences": [
+       {
+        "apiVersion": "v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Service",
+        "name": "smtp-relay",
+        "uid": "37c47d78-da29-4c5d-9a78-ab885770eeb2"
+       }
+      ],
+      "uid": "61ce2fdb-29c3-4377-b9b6-45a2e695f922"
+     },
+     "ports": [
+      {
+       "name": "",
+       "port": 25,
+       "protocol": "TCP"
+      }
+     ]
+    }
+   ],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:05Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "mailer-6878b79994-qj99g",
+      "namespace": "notifications",
+      "resourceVersion": "8192",
+      "uid": "2f5ea192-63fa-4411-bd38-087927673e83"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:05Z",
+     "message": "Successfully assigned notifications/mailer-6878b79994-qj99g to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "mailer-6878b79994-qj99g.18d92f6246c53fe9",
+      "namespace": "notifications",
+      "uid": "0d6a07ce-3ba2-4b76-b3a6-fd77109eff0c"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:06Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{mailer}",
+      "kind": "Pod",
+      "name": "mailer-6878b79994-qj99g",
+      "namespace": "notifications",
+      "resourceVersion": "8198",
+      "uid": "2f5ea192-63fa-4411-bd38-087927673e83"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:09:33Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:06Z",
+      "name": "mailer-6878b79994-qj99g.18d92f625c69b98a",
+      "namespace": "notifications",
+      "uid": "283fced5-226c-44f0-b10e-fa38b365966d"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:06Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{mailer}",
+      "kind": "Pod",
+      "name": "mailer-6878b79994-qj99g",
+      "namespace": "notifications",
+      "resourceVersion": "8198",
+      "uid": "2f5ea192-63fa-4411-bd38-087927673e83"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:09:33Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:06Z",
+      "name": "mailer-6878b79994-qj99g.18d92f625cc942c3",
+      "namespace": "notifications",
+      "uid": "d496074b-a5b6-4631-93ec-8c3b1f0f2881"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:06Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{mailer}",
+      "kind": "Pod",
+      "name": "mailer-6878b79994-qj99g",
+      "namespace": "notifications",
+      "resourceVersion": "8198",
+      "uid": "2f5ea192-63fa-4411-bd38-087927673e83"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:09:33Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:06Z",
+      "name": "mailer-6878b79994-qj99g.18d92f625eb6548f",
+      "namespace": "notifications",
+      "uid": "d28bf781-b841-4357-b82a-6426cfd6119a"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:09:19Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{mailer}",
+      "kind": "Pod",
+      "name": "mailer-6878b79994-qj99g",
+      "namespace": "notifications",
+      "resourceVersion": "8198",
+      "uid": "2f5ea192-63fa-4411-bd38-087927673e83"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:09:19Z",
+     "message": "Back-off restarting failed container mailer in pod mailer-6878b79994-qj99g_notifications(2f5ea192-63fa-4411-bd38-087927673e83)",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:09:19Z",
+      "name": "mailer-6878b79994-qj99g.18d92f8165a2aa21",
+      "namespace": "notifications",
+      "uid": "d6a1ea42-cfe2-4098-93af-51d10fb73a3f"
+     },
+     "reason": "BackOff",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:05Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "mailer-6878b79994",
+      "namespace": "notifications",
+      "resourceVersion": "8188",
+      "uid": "5d0a6a74-c111-4cf0-8327-9f6cb45d096f"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:05Z",
+     "message": "Created pod: mailer-6878b79994-qj99g",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "mailer-6878b79994.18d92f6246492910",
+      "namespace": "notifications",
+      "uid": "9fb58367-1260-4577-87b4-a084d50b7947"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:05Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "mailer",
+      "namespace": "notifications",
+      "resourceVersion": "8187",
+      "uid": "61805dea-ce8d-4df4-9530-bdbc8d6d1f22"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:05Z",
+     "message": "Scaled up replica set mailer-6878b79994 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "mailer.18d92f6244edee64",
+      "namespace": "notifications",
+      "uid": "abe16fdd-060a-47a1-90a6-533598577bec"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:05Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "smtp-relay-ddbf8b688-z5tg7",
+      "namespace": "notifications",
+      "resourceVersion": "8193",
+      "uid": "630e2197-44b7-48f7-9420-d4c33b35a6d4"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:05Z",
+     "message": "Successfully assigned notifications/smtp-relay-ddbf8b688-z5tg7 to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "smtp-relay-ddbf8b688-z5tg7.18d92f62469f4cfc",
+      "namespace": "notifications",
+      "uid": "8039ff84-dafb-4df1-a779-c379bdd27dd3"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:06Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{smtp-relay}",
+      "kind": "Pod",
+      "name": "smtp-relay-ddbf8b688-z5tg7",
+      "namespace": "notifications",
+      "resourceVersion": "8197",
+      "uid": "630e2197-44b7-48f7-9420-d4c33b35a6d4"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:06Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:06Z",
+      "name": "smtp-relay-ddbf8b688-z5tg7.18d92f625c2582fb",
+      "namespace": "notifications",
+      "uid": "769fedcb-b05b-4669-968a-8fae66083f30"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:06Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{smtp-relay}",
+      "kind": "Pod",
+      "name": "smtp-relay-ddbf8b688-z5tg7",
+      "namespace": "notifications",
+      "resourceVersion": "8197",
+      "uid": "630e2197-44b7-48f7-9420-d4c33b35a6d4"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:06Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:06Z",
+      "name": "smtp-relay-ddbf8b688-z5tg7.18d92f625caf8ca9",
+      "namespace": "notifications",
+      "uid": "f7647384-9aa5-489e-9d6c-f18c270726c2"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:06Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{smtp-relay}",
+      "kind": "Pod",
+      "name": "smtp-relay-ddbf8b688-z5tg7",
+      "namespace": "notifications",
+      "resourceVersion": "8197",
+      "uid": "630e2197-44b7-48f7-9420-d4c33b35a6d4"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:06Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:06Z",
+      "name": "smtp-relay-ddbf8b688-z5tg7.18d92f625eb65bb9",
+      "namespace": "notifications",
+      "uid": "b9e4e8e4-860e-4197-956c-a66c1eef04f9"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:05Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "smtp-relay-ddbf8b688",
+      "namespace": "notifications",
+      "resourceVersion": "8179",
+      "uid": "cc0a8d1e-dfa3-4e5f-ab95-dd07704c6f0d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:05Z",
+     "message": "Created pod: smtp-relay-ddbf8b688-z5tg7",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "smtp-relay-ddbf8b688.18d92f62464cc16f",
+      "namespace": "notifications",
+      "uid": "3d8de0f5-984e-4351-88a4-ea85092f4c79"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:07:05Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "smtp-relay",
+      "namespace": "notifications",
+      "resourceVersion": "8178",
+      "uid": "72f64441-9b69-42a9-a737-61a80e545959"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:07:05Z",
+     "message": "Scaled up replica set smtp-relay-ddbf8b688 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "smtp-relay.18d92f6243936d7c",
+      "namespace": "notifications",
+      "uid": "d3db1274-6a96-45b1-a5e2-a1b318097049"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "ingresses": [],
+   "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "generateName": "mailer-6878b79994-",
+      "generation": 1,
+      "labels": {
+       "app": "mailer",
+       "pod-template-hash": "6878b79994"
+      },
+      "name": "mailer-6878b79994-qj99g",
+      "namespace": "notifications",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "mailer-6878b79994",
+        "uid": "5d0a6a74-c111-4cf0-8327-9f6cb45d096f"
+       }
+      ],
+      "uid": "2f5ea192-63fa-4411-bd38-087927673e83"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"mailer starting, relay=smtp-relay:25\"; n=0; while true; do out=$(nc -z -w 3 smtp-relay 25 2>&1); if [ $? -eq 0 ]; then echo \"relay ok\"; n=0; else n=$((n+1)); echo \"ERROR: relay check failed (attempt $n): $out\"; fi; if [ $n -ge 3 ]; then echo \"FATAL: giving up on smtp-relay\"; exit 1; fi; sleep 3; done"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "mailer",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-vq24s",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsConfig": {
+       "nameservers": [
+        "10.96.0.99"
+       ],
+       "options": [
+        {
+         "name": "ndots",
+         "value": "5"
+        }
+       ],
+       "searches": [
+        "notifications.svc.cluster.local",
+        "svc.cluster.local",
+        "cluster.local"
+       ]
+      },
+      "dnsPolicy": "None",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-vq24s",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:06Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:05Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:09:33Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:09:33Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:05Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://50a83879cce61fad9143847149cde93ec1e434723663ff4f8523e65b310c068f",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {
+         "terminated": {
+          "containerID": "containerd://016a6ef49409cd3dceab7be60c1f17fafc4119deb412f465a89cf6842cc0fd83",
+          "exitCode": 1,
+          "finishedAt": "2026-09-27T13:09:19Z",
+          "reason": "Error",
+          "startedAt": "2026-09-27T13:08:13Z"
+         }
+        },
+        "name": "mailer",
+        "ready": true,
+        "resources": {},
+        "restartCount": 2,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:09:33Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-vq24s",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.27",
+      "podIPs": [
+       {
+        "ip": "10.244.0.27"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:07:05Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "generateName": "smtp-relay-ddbf8b688-",
+      "generation": 1,
+      "labels": {
+       "app": "smtp-relay",
+       "pod-template-hash": "ddbf8b688"
+      },
+      "name": "smtp-relay-ddbf8b688-z5tg7",
+      "namespace": "notifications",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "smtp-relay-ddbf8b688",
+        "uid": "cc0a8d1e-dfa3-4e5f-ab95-dd07704c6f0d"
+       }
+      ],
+      "uid": "630e2197-44b7-48f7-9420-d4c33b35a6d4"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"relay ready on 25\"; nc -lk -p 25 -e echo \"220 relay ready\""
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "smtp-relay",
+        "ports": [
+         {
+          "containerPort": 25,
+          "protocol": "TCP"
+         }
+        ],
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-ksvrn",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-ksvrn",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:06Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:05Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:06Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:06Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:07:05Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://d1f75cc1e06477284861776b9221e5126cba83dd04e2a8bd5c4f930e43292ce2",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {},
+        "name": "smtp-relay",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:07:06Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-ksvrn",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.26",
+      "podIPs": [
+       {
+        "ip": "10.244.0.26"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:07:05Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "generation": 1,
+      "labels": {
+       "app": "mailer",
+       "pod-template-hash": "6878b79994"
+      },
+      "name": "mailer-6878b79994",
+      "namespace": "notifications",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "mailer",
+        "uid": "61805dea-ce8d-4df4-9530-bdbc8d6d1f22"
+       }
+      ],
+      "uid": "5d0a6a74-c111-4cf0-8327-9f6cb45d096f"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "mailer",
+        "pod-template-hash": "6878b79994"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "mailer",
+         "pod-template-hash": "6878b79994"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"mailer starting, relay=smtp-relay:25\"; n=0; while true; do out=$(nc -z -w 3 smtp-relay 25 2>&1); if [ $? -eq 0 ]; then echo \"relay ok\"; n=0; else n=$((n+1)); echo \"ERROR: relay check failed (attempt $n): $out\"; fi; if [ $n -ge 3 ]; then echo \"FATAL: giving up on smtp-relay\"; exit 1; fi; sleep 3; done"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "mailer",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsConfig": {
+         "nameservers": [
+          "10.96.0.99"
+         ],
+         "options": [
+          {
+           "name": "ndots",
+           "value": "5"
+          }
+         ],
+         "searches": [
+          "notifications.svc.cluster.local",
+          "svc.cluster.local",
+          "cluster.local"
+         ]
+        },
+        "dnsPolicy": "None",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "generation": 1,
+      "labels": {
+       "app": "smtp-relay",
+       "pod-template-hash": "ddbf8b688"
+      },
+      "name": "smtp-relay-ddbf8b688",
+      "namespace": "notifications",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "smtp-relay",
+        "uid": "72f64441-9b69-42a9-a737-61a80e545959"
+       }
+      ],
+      "uid": "cc0a8d1e-dfa3-4e5f-ab95-dd07704c6f0d"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "smtp-relay",
+        "pod-template-hash": "ddbf8b688"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "smtp-relay",
+         "pod-template-hash": "ddbf8b688"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"relay ready on 25\"; nc -lk -p 25 -e echo \"220 relay ready\""
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "smtp-relay",
+          "ports": [
+           {
+            "containerPort": 25,
+            "protocol": "TCP"
+           }
+          ],
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "resourcequotas": [],
+   "services": [
+    {
+     "apiVersion": "v1",
+     "kind": "Service",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "smtp-relay",
+      "namespace": "notifications",
+      "uid": "37c47d78-da29-4c5d-9a78-ab885770eeb2"
+     },
+     "spec": {
+      "clusterIP": "10.96.207.45",
+      "clusterIPs": [
+       "10.96.207.45"
+      ],
+      "internalTrafficPolicy": "Cluster",
+      "ipFamilies": [
+       "IPv4"
+      ],
+      "ipFamilyPolicy": "SingleStack",
+      "ports": [
+       {
+        "port": 25,
+        "protocol": "TCP",
+        "targetPort": 25
+       }
+      ],
+      "selector": {
+       "app": "smtp-relay"
+      },
+      "sessionAffinity": "None",
+      "type": "ClusterIP"
+     },
+     "status": {
+      "loadBalancer": {}
+     }
+    }
+   ]
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "dns-misconfig",
+  "time": "2026-09-27T13:10:00Z"
+ },
+ "usage": {
+  "notifications": [
+   {
+    "container": "mailer",
+    "cpu": "2m",
+    "memory": "0Mi",
+    "pod": "mailer-6878b79994-qj99g"
+   },
+   {
+    "container": "smtp-relay",
+    "cpu": "0m",
+    "memory": "0Mi",
+    "pod": "smtp-relay-ddbf8b688-z5tg7"
+   }
+  ]
+ }
+}

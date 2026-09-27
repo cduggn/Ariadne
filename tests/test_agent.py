@@ -29,7 +29,7 @@ def test_reference_run_passes_the_checker(tasks, refs):
     ns = t["namespaces"][0]
     chat = scripted(("list_problem_pods", {"namespace": ns}),
                     ("get_events", {"namespace": ns, "object_name": "any", "limit": 10}),
-                    ("pod_logs", {"namespace": ns, "pod": b.objects("pods", ns)[0]["metadata"]["name"], "previous": False, "tail": 40}),
+                    ("pod_logs", {"namespace": ns, "pod": b.objects("pods", ns)[0]["metadata"]["name"], "container": "", "previous": False, "tail": 40}),
                     ("submit_diagnosis", refs["dx-crashloop"]))
     run = agent.run_task(t, b, chat)
     assert run["stop"] == "submitted"
@@ -37,9 +37,9 @@ def test_reference_run_passes_the_checker(tasks, refs):
 
 
 def test_prompt_layout_and_headers(tasks, refs):
-    t1, t2 = tasks["dx-oom"], tasks["dx-audit-1"]
+    t1, t2 = tasks["dx-oom"], tasks["dx-audit-3"]
     c1 = scripted(("submit_diagnosis", refs["dx-oom"]))
-    c2 = scripted(("submit_diagnosis", refs["dx-audit-1"]))
+    c2 = scripted(("submit_diagnosis", refs["dx-audit-3"]))
     agent.run_task(t1, backend_for(t1["snapshots"]), c1)
     agent.run_task(t2, backend_for(t2["snapshots"]), c2)
     (m1, h1), (m2, h2) = c1.seen[0], c2.seen[0]
@@ -77,3 +77,16 @@ def test_duplicate_calls_refused_and_harness_off(tasks):
     assert "duplicate call" in tool_msgs[1]["error"]                     # identical repeat refused
     run = agent.run_task({**t, "max_steps": 3}, b, lambda m, r, h: _call("list_problem_pods", args), harness=False)
     assert all(not c["error"] for s in run["steps"] for c in s["calls"])
+
+
+def test_multi_hop_reference_run_passes(tasks, refs):
+    t = tasks["dx-cascade-db"]
+    b = backend_for(t["snapshots"])
+    api = next(p["metadata"]["name"] for p in b.objects("pods", "inventory") if p["metadata"]["name"].startswith("stock-api"))
+    chat = scripted(("list_problem_pods", {"namespace": "inventory"}),
+                    ("pod_logs", {"namespace": "inventory", "pod": api, "container": "", "previous": False, "tail": 40}),
+                    ("describe", {"kind": "deployment", "namespace": "inventory", "name": "stock-db"}),
+                    ("submit_diagnosis", refs["dx-cascade-db"]))
+    run = agent.run_task(t, b, chat)
+    assert run["stop"] == "submitted" and check(t, run["diagnosis"], run["trace"], b)["pass"]
+    assert agent.request_headers(tasks["dx-rightsizing"])["X-Priority"] == "batch"

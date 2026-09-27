@@ -1,0 +1,1325 @@
+{
+ "logs": {
+  "batch/renderer-85d9d4b59d-dbqqj/renderer/current": "renderer worker ready\n",
+  "batch/renderer-85d9d4b59d-qqmvt/renderer/current": "renderer worker ready\n"
+ },
+ "namespaces": {
+  "batch": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T13:07:04Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "batch",
+      "uid": "d4a237fa-ca20-4e5e-9592-3a88b1082c18"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "generation": 1,
+      "name": "renderer",
+      "namespace": "batch",
+      "uid": "11560a05-e7fb-45f8-a5f0-65e585c382e2"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 5,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "renderer"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "renderer"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"renderer worker ready\"; sleep 3600"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "renderer",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 2,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "lastUpdateTime": "2026-09-27T13:17:08Z",
+        "message": "Deployment does not have minimum availability.",
+        "reason": "MinimumReplicasUnavailable",
+        "status": "False",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "lastUpdateTime": "2026-09-27T13:17:08Z",
+        "message": "pods \"renderer-85d9d4b59d-kgcb6\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+        "reason": "FailedCreate",
+        "status": "True",
+        "type": "ReplicaFailure"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "lastUpdateTime": "2026-09-27T13:17:08Z",
+        "message": "ReplicaSet \"renderer-85d9d4b59d\" is progressing.",
+        "reason": "ReplicaSetUpdated",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 2,
+      "replicas": 2,
+      "terminatingReplicas": 0,
+      "unavailableReplicas": 3,
+      "updatedReplicas": 2
+     }
+    }
+   ],
+   "endpointslices": [],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-dbqqj",
+      "namespace": "batch",
+      "resourceVersion": "10399",
+      "uid": "992e16e8-5def-46a7-99a3-8dea40dfa6ad"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Successfully assigned batch/renderer-85d9d4b59d-dbqqj to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-dbqqj.18d92fee7efdea67",
+      "namespace": "batch",
+      "uid": "73fe9db7-2ff9-4ef2-86b5-1b033ba04669"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{renderer}",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-dbqqj",
+      "namespace": "batch",
+      "resourceVersion": "10402",
+      "uid": "992e16e8-5def-46a7-99a3-8dea40dfa6ad"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-dbqqj.18d92fee9453f9cf",
+      "namespace": "batch",
+      "uid": "4ff5e587-3cb6-4772-98e1-b1830c75dcd1"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{renderer}",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-dbqqj",
+      "namespace": "batch",
+      "resourceVersion": "10402",
+      "uid": "992e16e8-5def-46a7-99a3-8dea40dfa6ad"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-dbqqj.18d92fee94c32675",
+      "namespace": "batch",
+      "uid": "c493ab2b-1cd4-42f3-a059-3364b3f6860d"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{renderer}",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-dbqqj",
+      "namespace": "batch",
+      "resourceVersion": "10402",
+      "uid": "992e16e8-5def-46a7-99a3-8dea40dfa6ad"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-dbqqj.18d92fee9aa4e435",
+      "namespace": "batch",
+      "uid": "ac7b6f6f-6c71-4a64-a118-48cfd7a42cef"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-qqmvt",
+      "namespace": "batch",
+      "resourceVersion": "10394",
+      "uid": "384f182a-550d-4be1-8653-4a72c7f8e6d6"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Successfully assigned batch/renderer-85d9d4b59d-qqmvt to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-qqmvt.18d92fee7eb18c96",
+      "namespace": "batch",
+      "uid": "062b88dc-32a5-4907-b773-75fc318ee834"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{renderer}",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-qqmvt",
+      "namespace": "batch",
+      "resourceVersion": "10397",
+      "uid": "384f182a-550d-4be1-8653-4a72c7f8e6d6"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-qqmvt.18d92fee944d73ec",
+      "namespace": "batch",
+      "uid": "f4ca1939-7555-43f0-b41e-5181d92fb3f6"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{renderer}",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-qqmvt",
+      "namespace": "batch",
+      "resourceVersion": "10397",
+      "uid": "384f182a-550d-4be1-8653-4a72c7f8e6d6"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-qqmvt.18d92fee94be3fa4",
+      "namespace": "batch",
+      "uid": "11e831ad-60d0-4571-af7b-cbfaad741c14"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{renderer}",
+      "kind": "Pod",
+      "name": "renderer-85d9d4b59d-qqmvt",
+      "namespace": "batch",
+      "resourceVersion": "10397",
+      "uid": "384f182a-550d-4be1-8653-4a72c7f8e6d6"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d-qqmvt.18d92fee9a317c78",
+      "namespace": "batch",
+      "uid": "1eb86e94-283f-4661-9b7c-66b585430616"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10390",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Created pod: renderer-85d9d4b59d-qqmvt",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee7e7860b6",
+      "namespace": "batch",
+      "uid": "1e54b060-fddf-45f1-9b1d-41ce29222ce1"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10390",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-kgcb6\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee7ead95b2",
+      "namespace": "batch",
+      "uid": "ab3be331-def2-437b-bc9e-7ad7194738e7"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10390",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Created pod: renderer-85d9d4b59d-dbqqj",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee7ed51112",
+      "namespace": "batch",
+      "uid": "ce264df9-8b16-43e8-b8fb-8951b9e1b2b1"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10403",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-4zvm6\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee7f343085",
+      "namespace": "batch",
+      "uid": "20346fb9-17c8-47a4-862b-2a15afa80561"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10408",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-wpr94\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee7f58d065",
+      "namespace": "batch",
+      "uid": "888a3add-c887-4a10-80fd-4fa5ccc08e41"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10408",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-kxhd8\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee7f7dd559",
+      "namespace": "batch",
+      "uid": "0460d648-9c22-4170-83cc-8291c44dba8a"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10408",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-tk6xl\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee7f8f97c0",
+      "namespace": "batch",
+      "uid": "c95c6257-2e82-449b-926f-e666a7a71a0a"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10408",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-pfl8h\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee81fdbe19",
+      "namespace": "batch",
+      "uid": "b05d6030-c61f-49bf-8e3b-aeddbf975381"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10408",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-7vhr7\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee928fa0bb",
+      "namespace": "batch",
+      "uid": "1e66cc78-d680-4cfa-b074-93ec3c13928a"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10408",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-m66z7\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer-85d9d4b59d.18d92fee9b841363",
+      "namespace": "batch",
+      "uid": "7260fd23-f21e-4a6a-9d44-ef89fe6ba559"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10408",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Error creating: pods \"renderer-85d9d4b59d-pfd4z\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:09Z",
+      "name": "renderer-85d9d4b59d.18d92feea180f4ed",
+      "namespace": "batch",
+      "uid": "97eee163-5c5e-435a-9fc9-793d77710e42"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 7,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:09Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "resourceVersion": "10515",
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:19:48Z",
+     "message": "(combined from similar events): Error creating: pods \"renderer-85d9d4b59d-tr59d\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:09Z",
+      "name": "renderer-85d9d4b59d.18d92feeb64f9650",
+      "namespace": "batch",
+      "uid": "b99954d7-7d2a-40f3-bb76-9b46340c968d"
+     },
+     "reason": "FailedCreate",
+     "reportingComponent": "",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:17:08Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "renderer",
+      "namespace": "batch",
+      "resourceVersion": "10389",
+      "uid": "11560a05-e7fb-45f8-a5f0-65e585c382e2"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Scaled up replica set renderer-85d9d4b59d from 0 to 5",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "renderer.18d92fee7e3c17e8",
+      "namespace": "batch",
+      "uid": "e8a2e453-0232-45c5-8c3d-32247d254b96"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "ingresses": [],
+   "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "generateName": "renderer-85d9d4b59d-",
+      "generation": 1,
+      "labels": {
+       "app": "renderer",
+       "pod-template-hash": "85d9d4b59d"
+      },
+      "name": "renderer-85d9d4b59d-dbqqj",
+      "namespace": "batch",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "renderer-85d9d4b59d",
+        "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+       }
+      ],
+      "uid": "992e16e8-5def-46a7-99a3-8dea40dfa6ad"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"renderer worker ready\"; sleep 3600"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "renderer",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-8xm8s",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-8xm8s",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://adc9569562baa0b0f798f5a483adcf93bae7c9420ab261458cb43031e822d379",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {},
+        "name": "renderer",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:17:08Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-8xm8s",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.46",
+      "podIPs": [
+       {
+        "ip": "10.244.0.46"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:17:08Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "generateName": "renderer-85d9d4b59d-",
+      "generation": 1,
+      "labels": {
+       "app": "renderer",
+       "pod-template-hash": "85d9d4b59d"
+      },
+      "name": "renderer-85d9d4b59d-qqmvt",
+      "namespace": "batch",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "renderer-85d9d4b59d",
+        "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+       }
+      ],
+      "uid": "384f182a-550d-4be1-8653-4a72c7f8e6d6"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"renderer worker ready\"; sleep 3600"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "renderer",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-pmrnc",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-pmrnc",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://0e05f932b54d997c704c68b9841c9475e0b540759670f312268665f6f8157ebc",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {},
+        "name": "renderer",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:17:08Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-pmrnc",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.45",
+      "podIPs": [
+       {
+        "ip": "10.244.0.45"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:17:08Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "generation": 1,
+      "labels": {
+       "app": "renderer",
+       "pod-template-hash": "85d9d4b59d"
+      },
+      "name": "renderer-85d9d4b59d",
+      "namespace": "batch",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "renderer",
+        "uid": "11560a05-e7fb-45f8-a5f0-65e585c382e2"
+       }
+      ],
+      "uid": "e3b341b4-d0cf-48b5-83c7-115ef4f89c1d"
+     },
+     "spec": {
+      "replicas": 5,
+      "selector": {
+       "matchLabels": {
+        "app": "renderer",
+        "pod-template-hash": "85d9d4b59d"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "renderer",
+         "pod-template-hash": "85d9d4b59d"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"renderer worker ready\"; sleep 3600"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "renderer",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 2,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "message": "pods \"renderer-85d9d4b59d-kgcb6\" is forbidden: exceeded quota: team-quota, requested: pods=1, used: pods=2, limited: pods=2",
+        "reason": "FailedCreate",
+        "status": "True",
+        "type": "ReplicaFailure"
+       }
+      ],
+      "fullyLabeledReplicas": 2,
+      "observedGeneration": 1,
+      "readyReplicas": 2,
+      "replicas": 2,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "resourcequotas": [
+    {
+     "apiVersion": "v1",
+     "kind": "ResourceQuota",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "team-quota",
+      "namespace": "batch",
+      "uid": "646b2f8c-cb0a-45b9-b93b-43b6480bcd32"
+     },
+     "spec": {
+      "hard": {
+       "pods": "2"
+      }
+     },
+     "status": {
+      "hard": {
+       "pods": "2"
+      },
+      "used": {
+       "pods": "2"
+      }
+     }
+    }
+   ],
+   "services": []
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "quota-exhausted",
+  "time": "2026-09-27T13:20:52Z"
+ },
+ "usage": {
+  "batch": [
+   {
+    "container": "renderer",
+    "cpu": "0m",
+    "memory": "0Mi",
+    "pod": "renderer-85d9d4b59d-dbqqj"
+   },
+   {
+    "container": "renderer",
+    "cpu": "0m",
+    "memory": "0Mi",
+    "pod": "renderer-85d9d4b59d-qqmvt"
+   }
+  ]
+ }
+}

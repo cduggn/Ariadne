@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thumbnailer
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thumbnailer
+  template:
+    metadata:
+      labels:
+        app: thumbnailer
+    spec:
+      containers:
+        - name: thumbnailer
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"thumbnailer ready\"; sleep 3600"]
+        - name: log-shipper
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"log-shipper: buffering to /buffer (upstream collector unreachable)\"; i=0; while true; do dd if=/dev/zero of=/buffer/batch-$i.log bs=1M count=4 2>/dev/null; echo \"log-shipper: buffered batch $i, collector still unreachable\"; i=$((i+1)); sleep 2; done"]
+          resources:
+            limits:
+              ephemeral-storage: 20Mi
+          volumeMounts:
+            - name: buffer
+              mountPath: /buffer
+      volumes:
+        - name: buffer
+          emptyDir: {}

@@ -12,7 +12,8 @@
   "objects": [
     {
       "kind": "Deployment",
-      "name": "vllm-small"
+      "name": "vllm-small",
+      "affects": []
     }
   ],
   "evidence": [
@@ -22,5 +23,11 @@
     "pod_logs"
   ],
   "cluster": "lambda-k3s",
-  "apply": []
+  "apply": [],
+  "tier": "live",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

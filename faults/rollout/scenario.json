@@ -12,7 +12,8 @@
   "objects": [
     {
       "kind": "Deployment",
-      "name": "catalog"
+      "name": "catalog",
+      "affects": []
     }
   ],
   "evidence": [
@@ -27,5 +28,11 @@
     "update.yaml"
   ],
   "cluster": "kind",
-  "settle": "deploy_stalled"
+  "settle": "deploy_stalled",
+  "tier": "easy",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

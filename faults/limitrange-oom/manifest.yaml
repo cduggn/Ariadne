@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: finance
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: finance
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: 32Mi
+      defaultRequest:
+        memory: 16Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: statement-builder
+  namespace: finance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: statement-builder
+  template:
+    metadata:
+      labels:
+        app: statement-builder
+    spec:
+      containers:
+        - name: statement-builder
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"building monthly statements\"; echo \"loading ledger rows into memory\"; head -c 50000000 /dev/zero | tail > /dev/null; echo \"done\"; sleep 3600"]

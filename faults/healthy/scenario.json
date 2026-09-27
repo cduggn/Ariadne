@@ -17,5 +17,11 @@
     "manifest.yaml"
   ],
   "cluster": "kind",
-  "settle": "ready_all"
+  "settle": "ready_all",
+  "tier": "easy",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

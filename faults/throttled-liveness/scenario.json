@@ -1,0 +1,40 @@
+{
+  "id": "throttled-liveness",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {},
+  "namespace": "search",
+  "tier": "red_herring",
+  "settle": [
+    "event:Unhealthy",
+    "restarts>=1"
+  ],
+  "title": "Liveness probe times out under a 10m CPU limit; kubelet restarts a healthy app",
+  "report": "search-web restarts every few minutes, but its logs show no errors at all.",
+  "category": "cpu_throttling",
+  "allowed": [
+    "cpu_throttling",
+    "probe_failure"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "search-web",
+      "affects": []
+    }
+  ],
+  "evidence": [
+    "event",
+    "describe"
+  ],
+  "must_call": [
+    "get_events"
+  ]
+}

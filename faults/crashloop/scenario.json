@@ -11,7 +11,8 @@
   "objects": [
     {
       "kind": "Deployment",
-      "name": "orders-api"
+      "name": "orders-api",
+      "affects": []
     }
   ],
   "evidence": [
@@ -25,5 +26,11 @@
     "manifest.yaml"
   ],
   "cluster": "kind",
-  "settle": "restarts>=2"
+  "settle": "restarts>=2",
+  "tier": "easy",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

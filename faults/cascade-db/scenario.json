@@ -1,0 +1,54 @@
+{
+  "id": "cascade-db",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [
+    {
+      "kind": "Deployment",
+      "name": "stock-api"
+    }
+  ],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {
+    "log_objects": [
+      "stock-api"
+    ]
+  },
+  "namespace": "inventory",
+  "tier": "multi_hop",
+  "settle": [
+    "oom",
+    "restarts>=2"
+  ],
+  "title": "Database OOM-killed; its client crash-loops as a victim",
+  "report": "stock-api keeps crashing and restarting; its logs say it cannot connect.",
+  "category": "oom_killed",
+  "allowed": [
+    "oom_killed"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "stock-db",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "name": "stock-api"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    "status",
+    "describe",
+    "event"
+  ],
+  "must_call": [
+    "list_problem_pods"
+  ]
+}

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: search
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-web
+  namespace: search
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-web
+  template:
+    metadata:
+      labels:
+        app: search-web
+    spec:
+      containers:
+        - name: search-web
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 10m
+              memory: 64Mi
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done; wget -q -O /dev/null http://127.0.0.1/"]
+            timeoutSeconds: 1
+            periodSeconds: 10
+            failureThreshold: 2

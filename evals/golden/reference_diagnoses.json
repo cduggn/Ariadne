@@ -1,4 +1,35 @@
 {
+ "dx-cascade-db": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "oom_killed",
+    "namespace": "inventory",
+    "kind": "Deployment",
+    "name": "stock-db",
+    "root_cause": "the container is killed for exceeding its memory limit",
+    "affects": [
+     {
+      "kind": "Deployment",
+      "namespace": "inventory",
+      "name": "stock-api"
+     }
+    ],
+    "evidence": [
+     "st-stock-db-67b56c88c9-snbmp",
+     "ds-deployment-stock-db",
+     "ev-637214"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
+ },
  "dx-config-missing": {
   "status": "issue",
   "findings": [
@@ -8,15 +39,20 @@
     "kind": "Deployment",
     "name": "billing",
     "root_cause": "a referenced ConfigMap does not exist",
+    "affects": [],
     "evidence": [
-     "st-billing-597d6775c9-2lgk8",
-     "ev-c90746"
+     "st-billing-597d6775c9-ht8g5",
+     "ev-c00c8d"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
  },
  "dx-crashloop": {
   "status": "issue",
@@ -27,14 +63,67 @@
     "kind": "Deployment",
     "name": "orders-api",
     "root_cause": "the container exits at start-up with an application error (see log)",
+    "affects": [],
     "evidence": [
-     "lg-orders-api-54b7775f96-ds4kf-c2"
+     "lg-orders-api-54b7775f96-6wmnn-orders-api-c2"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
+ },
+ "dx-dns-misconfig": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "dns_failure",
+    "namespace": "notifications",
+    "kind": "Deployment",
+    "name": "mailer",
+    "root_cause": "the pod's DNS config points at a nameserver that does not answer",
+    "affects": [],
+    "evidence": [
+     "lg-mailer-6878b79994-qj99g-mailer-c1",
+     "ds-deployment-mailer"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
+ },
+ "dx-eviction": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "ephemeral_storage",
+    "namespace": "media",
+    "kind": "Deployment",
+    "name": "thumbnailer",
+    "root_cause": "a sidecar fills ephemeral storage past its limit and kubelet evicts the pod",
+    "affects": [],
+    "evidence": [
+     "st-thumbnailer-6ff66b6ddd-dmsmn",
+     "ev-da3a8b"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
  },
  "dx-healthy": {
   "status": "healthy",
@@ -50,15 +139,45 @@
     "kind": "Deployment",
     "name": "frontend",
     "root_cause": "the image or tag cannot be pulled",
+    "affects": [],
     "evidence": [
-     "ev-280222",
-     "st-frontend-b86cc5bdc-mqf7p"
+     "ev-504ee6",
+     "st-frontend-b86cc5bdc-ct555"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
+ },
+ "dx-init-wait": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "dependency_missing",
+    "namespace": "accounts",
+    "kind": "Deployment",
+    "name": "accounts-api",
+    "root_cause": "an init container waits for a service name that does not exist",
+    "affects": [],
+    "evidence": [
+     "lg-accounts-api-5dfb88bf5d-z55wg-wait-for-db-c29",
+     "rs-service-accounts-database",
+     "st-accounts-api-5dfb88bf5d-z55wg"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
  },
  "dx-job-failed": {
   "status": "issue",
@@ -69,14 +188,49 @@
     "kind": "Job",
     "name": "nightly-export",
     "root_cause": "the job's pods fail and it exhausted its retries",
+    "affects": [],
     "evidence": [
-     "lg-nightly-export-pmmzk-c1"
+     "lg-nightly-export-lhlrb-export-c1"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
+ },
+ "dx-limitrange-oom": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "resource_policy",
+    "namespace": "finance",
+    "kind": "LimitRange",
+    "name": "defaults",
+    "root_cause": "a namespace policy (LimitRange or ResourceQuota) constrains the workload",
+    "affects": [
+     {
+      "kind": "Deployment",
+      "namespace": "finance",
+      "name": "statement-builder"
+     }
+    ],
+    "evidence": [
+     "ds-limitrange-defaults",
+     "rs-limitrange-defaults"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
  },
  "dx-mixed": {
   "status": "issue",
@@ -87,11 +241,16 @@
     "kind": "Deployment",
     "name": "ledger",
     "root_cause": "the container exits at start-up with an application error (see log)",
+    "affects": [],
     "evidence": [
-     "lg-ledger-5c968c7fbb-fqxsv-c1",
+     "lg-ledger-5c968c7fbb-wbjl8-ledger-c1",
      "ds-deployment-ledger"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    },
    {
@@ -100,15 +259,19 @@
     "kind": "Service",
     "name": "ledger-api",
     "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "affects": [],
     "evidence": [
-     "lg-ledger-api-cb6cb6f66-nqrzb-c16",
      "ds-service-ledger-api"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "2 problem(s) found."
+  "summary": "2 root cause(s) found."
  },
  "dx-no-endpoints": {
   "status": "issue",
@@ -119,15 +282,20 @@
     "kind": "Service",
     "name": "checkout",
     "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "affects": [],
     "evidence": [
      "ds-service-checkout",
      "rs-service-checkout"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
  },
  "dx-oom": {
   "status": "issue",
@@ -138,15 +306,20 @@
     "kind": "Deployment",
     "name": "report-worker",
     "root_cause": "the container is killed for exceeding its memory limit",
+    "affects": [],
     "evidence": [
-     "st-report-worker-677cff484b-qxp6c",
+     "st-report-worker-677cff484b-hxr8r",
      "ds-deployment-report-worker"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
  },
  "dx-pending-constraints": {
   "status": "issue",
@@ -157,14 +330,19 @@
     "kind": "Deployment",
     "name": "cache",
     "root_cause": "the pod's node selector matches no node",
+    "affects": [],
     "evidence": [
-     "ev-babf2b"
+     "ev-adf2a2"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
  },
  "dx-pending-resources": {
   "status": "issue",
@@ -175,14 +353,43 @@
     "kind": "Deployment",
     "name": "ml-trainer",
     "root_cause": "no node has enough of the requested resources",
+    "affects": [],
     "evidence": [
-     "ev-a37a10"
+     "ev-043893"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
+ },
+ "dx-port-mismatch": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "service_misconfig",
+    "namespace": "pricing",
+    "kind": "Service",
+    "name": "pricing-api",
+    "root_cause": "the service targetPort does not match the port the container listens on",
+    "affects": [],
+    "evidence": [
+     "ds-service-pricing-api",
+     "rs-service-pricing-api"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
  },
  "dx-probe": {
   "status": "issue",
@@ -193,15 +400,74 @@
     "kind": "Deployment",
     "name": "web",
     "root_cause": "the readiness probe fails, so the pod never becomes ready",
+    "affects": [],
     "evidence": [
-     "ev-d1c260",
+     "ev-12bbd1",
      "ds-deployment-web"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
+ },
+ "dx-quota-exhausted": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "resource_policy",
+    "namespace": "batch",
+    "kind": "ResourceQuota",
+    "name": "team-quota",
+    "root_cause": "a namespace policy (LimitRange or ResourceQuota) constrains the workload",
+    "affects": [
+     {
+      "kind": "Deployment",
+      "namespace": "batch",
+      "name": "renderer"
+     }
+    ],
+    "evidence": [
+     "ev-9d9454",
+     "ds-resourcequota-team-quota",
+     "rs-resourcequota-team-quota"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
+ },
+ "dx-rightsizing": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "overprovisioned",
+    "namespace": "analytics",
+    "kind": "Deployment",
+    "name": "reporting-api",
+    "root_cause": "requests are far above observed usage",
+    "affects": [],
+    "evidence": [
+     "rz-analytics-reporting-api-reporting-api"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "10m",
+     "memory_request": "16Mi"
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
  },
  "dx-rollout": {
   "status": "issue",
@@ -212,15 +478,99 @@
     "kind": "Deployment",
     "name": "catalog",
     "root_cause": "the new ReplicaSet cannot become ready, so the rollout stalled on the old version",
+    "affects": [],
     "evidence": [
      "ds-deployment-catalog",
-     "ev-3af2d8"
+     "ev-ab97f1"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "1 problem(s) found."
+  "summary": "1 root cause(s) found."
+ },
+ "dx-throttled-liveness": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "cpu_throttling",
+    "namespace": "search",
+    "kind": "Deployment",
+    "name": "search-web",
+    "root_cause": "a tiny CPU limit makes the liveness probe time out, so kubelet restarts a healthy app",
+    "affects": [],
+    "evidence": [
+     "ev-eefcb9",
+     "ds-deployment-search-web"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
+ },
+ "dx-tls-expired": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "tls_expired",
+    "namespace": "identity",
+    "kind": "Deployment",
+    "name": "auth-api",
+    "root_cause": "the upstream serving certificate has expired; callers fail verification",
+    "affects": [
+     {
+      "kind": "Deployment",
+      "namespace": "identity",
+      "name": "session-svc"
+     }
+    ],
+    "evidence": [
+     "ct-auth-api-cert-tls.crt",
+     "lg-session-svc-58477fd99d-lp825-session-svc-c45"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
+ },
+ "dx-tls-truststore": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "tls_trust",
+    "namespace": "payments",
+    "kind": "Deployment",
+    "name": "checkout-web",
+    "root_cause": "the client trusts the wrong CA bundle, so upstream certificate verification fails",
+    "affects": [],
+    "evidence": [
+     "lg-checkout-web-6447595cb4-4bn7r-checkout-web-c45",
+     "ct-legacy-ca-ca.crt",
+     "ds-deployment-checkout-web"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 root cause(s) found."
  },
  "dx-audit-1": {
   "status": "issue",
@@ -231,10 +581,15 @@
     "kind": "Deployment",
     "name": "orders-api",
     "root_cause": "the container exits at start-up with an application error (see log)",
+    "affects": [],
     "evidence": [
-     "lg-orders-api-54b7775f96-ds4kf-c2"
+     "lg-orders-api-54b7775f96-6wmnn-orders-api-c2"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    },
    {
@@ -243,15 +598,20 @@
     "kind": "Service",
     "name": "checkout",
     "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "affects": [],
     "evidence": [
      "ds-service-checkout",
      "rs-service-checkout"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "2 problem(s) found."
+  "summary": "2 root cause(s) found."
  },
  "dx-audit-2": {
   "status": "issue",
@@ -262,11 +622,16 @@
     "kind": "Deployment",
     "name": "report-worker",
     "root_cause": "the container is killed for exceeding its memory limit",
+    "affects": [],
     "evidence": [
-     "st-report-worker-677cff484b-qxp6c",
+     "st-report-worker-677cff484b-hxr8r",
      "ds-deployment-report-worker"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    },
    {
@@ -275,10 +640,15 @@
     "kind": "Deployment",
     "name": "ml-trainer",
     "root_cause": "no node has enough of the requested resources",
+    "affects": [],
     "evidence": [
-     "ev-a37a10"
+     "ev-043893"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    },
    {
@@ -287,11 +657,16 @@
     "kind": "Deployment",
     "name": "web",
     "root_cause": "the readiness probe fails, so the pod never becomes ready",
+    "affects": [],
     "evidence": [
-     "ev-d1c260",
+     "ev-12bbd1",
      "ds-deployment-web"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    },
    {
@@ -300,14 +675,92 @@
     "kind": "Deployment",
     "name": "billing",
     "root_cause": "a referenced ConfigMap does not exist",
+    "affects": [],
     "evidence": [
-     "st-billing-597d6775c9-2lgk8",
-     "ev-c90746"
+     "st-billing-597d6775c9-ht8g5",
+     "ev-c00c8d"
     ],
-    "fix": "see root cause; change the object's spec or config",
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
     "confidence": "high"
    }
   ],
-  "summary": "4 problem(s) found."
+  "summary": "4 root cause(s) found."
+ },
+ "dx-audit-3": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "oom_killed",
+    "namespace": "inventory",
+    "kind": "Deployment",
+    "name": "stock-db",
+    "root_cause": "the container is killed for exceeding its memory limit",
+    "affects": [
+     {
+      "kind": "Deployment",
+      "namespace": "inventory",
+      "name": "stock-api"
+     }
+    ],
+    "evidence": [
+     "st-stock-db-67b56c88c9-snbmp",
+     "ds-deployment-stock-db",
+     "ev-637214"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   },
+   {
+    "category": "service_misconfig",
+    "namespace": "pricing",
+    "kind": "Service",
+    "name": "pricing-api",
+    "root_cause": "the service targetPort does not match the port the container listens on",
+    "affects": [],
+    "evidence": [
+     "ds-service-pricing-api",
+     "rs-service-pricing-api"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   },
+   {
+    "category": "resource_policy",
+    "namespace": "finance",
+    "kind": "LimitRange",
+    "name": "defaults",
+    "root_cause": "a namespace policy (LimitRange or ResourceQuota) constrains the workload",
+    "affects": [
+     {
+      "kind": "Deployment",
+      "namespace": "finance",
+      "name": "statement-builder"
+     }
+    ],
+    "evidence": [
+     "ds-limitrange-defaults",
+     "rs-limitrange-defaults"
+    ],
+    "fix": "see root cause; change this object's spec or config",
+    "resize": {
+     "cpu_request": "",
+     "memory_request": ""
+    },
+    "confidence": "high"
+   }
+  ],
+  "summary": "3 root cause(s) found."
  }
 }

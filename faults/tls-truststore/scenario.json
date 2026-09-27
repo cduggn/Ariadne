@@ -1,0 +1,73 @@
+{
+  "id": "tls-truststore",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [
+    {
+      "kind": "Deployment",
+      "name": "payments-api"
+    }
+  ],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {
+    "certificate": [
+      {
+        "configmap": "legacy-ca",
+        "key": "ca.crt"
+      }
+    ],
+    "log_objects": [
+      "checkout-web"
+    ]
+  },
+  "namespace": "payments",
+  "tier": "red_herring",
+  "settle": [
+    "log:upstream SSL certificate verify error"
+  ],
+  "title": "Frontend trusts the wrong CA bundle for its TLS upstream",
+  "report": "Customers get 502 errors on the checkout page since this morning's payments migration. Is payments-api down?",
+  "category": "tls_trust",
+  "allowed": [
+    "tls_trust"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "checkout-web",
+      "affects": []
+    }
+  ],
+  "evidence": [
+    "log",
+    "certificate",
+    "describe"
+  ],
+  "must_call": [
+    "pod_logs"
+  ],
+  "tls_setup": [
+    {
+      "type": "secret",
+      "name": "payments-api-tls",
+      "cert": "payments-api"
+    },
+    {
+      "type": "configmap",
+      "name": "internal-ca",
+      "key": "ca.crt",
+      "cert": "internal-ca"
+    },
+    {
+      "type": "configmap",
+      "name": "legacy-ca",
+      "key": "ca.crt",
+      "cert": "legacy-ca"
+    }
+  ]
+}

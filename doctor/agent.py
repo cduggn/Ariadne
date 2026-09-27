@@ -34,26 +34,28 @@ TOOLS = json.loads((HERE / "schemas" / "tools.json").read_text())
 RULESET = (HERE / "packs" / "triage.md").read_text()
 
 MAX_TOKENS_PER_STEP = 768
-CONTEXT_BUDGET = 15_000          # stop before prompt + max_tokens can pass --max-model-len 16384
+CONTEXT_BUDGET = 23_000          # stop before prompt + max_tokens (768) can pass --max-model-len 24576
 HTTP_TIMEOUT_S = 120
 MAX_REPAIRS = 2
 WARN_STEPS_LEFT = 2
-TOOL_BUDGET = {"list_problem_pods": 2, "get_events": 3, "describe": 4, "pod_logs": 4, "list_resources": 3,
-               "resource_usage": 2, "s3_bucket_stats": 1, "cost_report": 2}          # per namespace in the task
+TOOL_BUDGET = {"list_problem_pods": 2, "get_events": 3, "describe": 5, "pod_logs": 5, "list_resources": 3,
+               "resource_usage": 2, "inspect_certificate": 3, "rightsizing": 1, "s3_bucket_stats": 1,
+               "cost_report": 2}                                                     # per namespace in the task
 
 Chat = Callable[[list[dict], str, dict], dict]      # (messages, request_id, headers) -> chat.completion
 
 
 def user_prompt(task: dict) -> str:
     body = {"task_type": task["task_type"], "namespaces": task["namespaces"], "report": task["report"]}
-    verb = "Investigate this report" if task["task_type"] == "investigate" else "Audit these namespaces"
+    verb = {"investigate": "Investigate this report", "audit": "Audit these namespaces",
+            "rightsize": "Find over-provisioned workloads"}[task["task_type"]]
     return f"{verb}. Finish by calling submit_diagnosis exactly once.\n" + json.dumps(body, ensure_ascii=False)
 
 
 def request_headers(task: dict) -> dict:
     """What the gateway sees: who, which app, how urgent, and a data class that must never leave (D-25)."""
     return {"X-Tenant": task.get("tenant", "platform"), "X-App": "cluster-doctor",
-            "X-Priority": "interactive" if task["task_type"] == "investigate" else "batch",
+            "X-Priority": "interactive" if task["task_type"] == "investigate" else "batch",   # audit, rightsize
             "X-Data-Class": "restricted"}
 
 

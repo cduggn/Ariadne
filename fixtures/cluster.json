@@ -1,20 +1,31 @@
 {
  "cluster": {
   "namespaces": [
+   "accounts",
+   "analytics",
+   "batch",
    "billing",
    "cache",
    "catalog",
    "checkout",
    "default",
    "exports",
+   "finance",
+   "identity",
+   "inventory",
    "kube-node-lease",
    "kube-public",
    "kube-system",
    "ledger",
    "local-path-storage",
+   "media",
    "ml",
+   "notifications",
    "orders",
+   "payments",
+   "pricing",
    "reports",
+   "search",
    "status",
    "storefront",
    "web"
@@ -81,7 +92,7 @@
      },
      "conditions": [
       {
-       "lastHeartbeatTime": "2026-09-27T10:21:48Z",
+       "lastHeartbeatTime": "2026-09-27T13:06:14Z",
        "lastTransitionTime": "2026-09-27T10:14:37Z",
        "message": "kubelet has sufficient memory available",
        "reason": "KubeletHasSufficientMemory",
@@ -89,7 +100,7 @@
        "type": "MemoryPressure"
       },
       {
-       "lastHeartbeatTime": "2026-09-27T10:21:48Z",
+       "lastHeartbeatTime": "2026-09-27T13:06:14Z",
        "lastTransitionTime": "2026-09-27T10:14:37Z",
        "message": "kubelet has no disk pressure",
        "reason": "KubeletHasNoDiskPressure",
@@ -97,7 +108,7 @@
        "type": "DiskPressure"
       },
       {
-       "lastHeartbeatTime": "2026-09-27T10:21:48Z",
+       "lastHeartbeatTime": "2026-09-27T13:06:14Z",
        "lastTransitionTime": "2026-09-27T10:14:37Z",
        "message": "kubelet has sufficient PID available",
        "reason": "KubeletHasSufficientPID",
@@ -105,7 +116,7 @@
        "type": "PIDPressure"
       },
       {
-       "lastHeartbeatTime": "2026-09-27T10:21:48Z",
+       "lastHeartbeatTime": "2026-09-27T13:06:14Z",
        "lastTransitionTime": "2026-09-27T10:14:59Z",
        "message": "kubelet is posting ready status",
        "reason": "KubeletReady",

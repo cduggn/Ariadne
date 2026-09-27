@@ -1,0 +1,53 @@
+{
+  "id": "quota-exhausted",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [
+    {
+      "kind": "Deployment",
+      "name": "renderer"
+    }
+  ],
+  "forbidden": [],
+  "hints": {
+    "event_objects": [
+      "renderer"
+    ]
+  },
+  "namespace": "batch",
+  "tier": "multi_hop",
+  "settle": [
+    "event:FailedCreate"
+  ],
+  "title": "ResourceQuota exhausted: the ReplicaSet cannot create more pods",
+  "report": "We scaled renderer to 5 replicas an hour ago but only 2 are running.",
+  "category": "resource_policy",
+  "allowed": [
+    "resource_policy"
+  ],
+  "objects": [
+    {
+      "kind": "ResourceQuota",
+      "name": "team-quota",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "name": "renderer"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    "event",
+    "describe",
+    "resources"
+  ],
+  "must_call": [
+    "get_events"
+  ]
+}

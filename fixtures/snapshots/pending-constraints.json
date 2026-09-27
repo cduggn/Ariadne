@@ -1,21 +1,27 @@
 {
  "logs": {
-  "cache/cache-54f4fcc74-zb4kp/cache/current": ""
+  "cache/cache-54f4fcc74-25gpc/cache/current": ""
  },
  "namespaces": {
   "cache": {
    "configmaps": [
     {
      "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
      "kind": "ConfigMap",
      "metadata": {
       "annotations": {
        "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
       },
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:07:04Z",
       "name": "kube-root-ca.crt",
       "namespace": "cache",
-      "uid": "4bd0aade-e201-45a9-b9d9-8d8fb74e7770"
+      "uid": "260e0b39-5b42-4f11-838a-804a31ab815d"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
      }
     }
    ],
@@ -25,11 +31,11 @@
      "kind": "Deployment",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
       "generation": 1,
       "name": "cache",
       "namespace": "cache",
-      "uid": "809eaa81-76d9-480e-aa5b-27bccfe022b8"
+      "uid": "267725e8-38d5-470d-b57e-3e9d38f4711b"
      },
      "spec": {
       "progressDeadlineSeconds": 600,
@@ -83,16 +89,16 @@
      "status": {
       "conditions": [
        {
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
-        "lastUpdateTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "lastUpdateTime": "2026-09-27T13:15:21Z",
         "message": "Deployment does not have minimum availability.",
         "reason": "MinimumReplicasUnavailable",
         "status": "False",
         "type": "Available"
        },
        {
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
-        "lastUpdateTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "lastUpdateTime": "2026-09-27T13:15:21Z",
         "message": "ReplicaSet \"cache-54f4fcc74\" is progressing.",
         "reason": "ReplicaSetUpdated",
         "status": "True",
@@ -113,23 +119,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:15:21Z",
      "involvedObject": {
       "apiVersion": "v1",
       "kind": "Pod",
-      "name": "cache-54f4fcc74-zb4kp",
+      "name": "cache-54f4fcc74-25gpc",
       "namespace": "cache",
-      "resourceVersion": "1273",
-      "uid": "fc7ecb03-d9e9-4794-aaf9-61ca68df74bd"
+      "resourceVersion": "9988",
+      "uid": "c3ab2c09-6536-4c13-b7f5-ece93ca05ffa"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
      "message": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "cache-54f4fcc74-zb4kp.18d9265717c16568",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "cache-54f4fcc74-25gpc.18d92fd5abc5855a",
       "namespace": "cache",
-      "uid": "b9fecfbe-4dc6-449e-a7ee-2c808ca76c5f"
+      "uid": "5df58e66-ef53-4bd7-9702-11c5537b01cf"
      },
      "reason": "FailedScheduling",
      "reportingComponent": "default-scheduler",
@@ -143,23 +149,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:15:21Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "ReplicaSet",
       "name": "cache-54f4fcc74",
       "namespace": "cache",
-      "resourceVersion": "1271",
-      "uid": "3c173496-7b0a-4b14-b7ea-356c7b722c2f"
+      "resourceVersion": "9984",
+      "uid": "5fca4882-1d4d-453e-bb8e-c9b3a7b7198a"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
-     "message": "Created pod: cache-54f4fcc74-zb4kp",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Created pod: cache-54f4fcc74-25gpc",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "cache-54f4fcc74.18d9265717c0fc44",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "cache-54f4fcc74.18d92fd5abc90d55",
       "namespace": "cache",
-      "uid": "4c962c95-4e0c-4cec-87b3-8ef41d061f69"
+      "uid": "3ac12d31-67ac-4794-a7d0-e930016c949b"
      },
      "reason": "SuccessfulCreate",
      "reportingComponent": "replicaset-controller",
@@ -173,23 +179,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:15:21Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "Deployment",
       "name": "cache",
       "namespace": "cache",
-      "resourceVersion": "1242",
-      "uid": "809eaa81-76d9-480e-aa5b-27bccfe022b8"
+      "resourceVersion": "9983",
+      "uid": "267725e8-38d5-470d-b57e-3e9d38f4711b"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
      "message": "Scaled up replica set cache-54f4fcc74 from 0 to 1",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "cache.18d926571795a078",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "cache.18d92fd5aa8ffa55",
       "namespace": "cache",
-      "uid": "d32baba3-14d4-4558-a4dd-82fa5e1fe774"
+      "uid": "efaf2412-5e4d-46b7-9ae5-fe8aeb97cf75"
      },
      "reason": "ScalingReplicaSet",
      "reportingComponent": "deployment-controller",
@@ -200,20 +206,24 @@
      "type": "Normal"
     }
    ],
+   "ingresses": [],
    "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
    "pods": [
     {
      "apiVersion": "v1",
      "kind": "Pod",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
       "generateName": "cache-54f4fcc74-",
       "generation": 1,
       "labels": {
        "app": "cache",
        "pod-template-hash": "54f4fcc74"
       },
-      "name": "cache-54f4fcc74-zb4kp",
+      "name": "cache-54f4fcc74-25gpc",
       "namespace": "cache",
       "ownerReferences": [
        {
@@ -222,10 +232,10 @@
         "controller": true,
         "kind": "ReplicaSet",
         "name": "cache-54f4fcc74",
-        "uid": "3c173496-7b0a-4b14-b7ea-356c7b722c2f"
+        "uid": "5fca4882-1d4d-453e-bb8e-c9b3a7b7198a"
        }
       ],
-      "uid": "fc7ecb03-d9e9-4794-aaf9-61ca68df74bd"
+      "uid": "c3ab2c09-6536-4c13-b7f5-ece93ca05ffa"
      },
      "spec": {
       "containers": [
@@ -244,7 +254,7 @@
         "volumeMounts": [
          {
           "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-          "name": "kube-api-access-qq4qz",
+          "name": "kube-api-access-lktv8",
           "readOnly": true
          }
         ]
@@ -279,7 +289,7 @@
       ],
       "volumes": [
        {
-        "name": "kube-api-access-qq4qz",
+        "name": "kube-api-access-lktv8",
         "projected": {
          "defaultMode": 420,
          "sources": [
@@ -322,7 +332,7 @@
       "conditions": [
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
         "message": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
         "observedGeneration": 1,
         "reason": "Unschedulable",
@@ -341,7 +351,7 @@
      "kind": "ReplicaSet",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
       "generation": 1,
       "labels": {
        "app": "cache",
@@ -356,10 +366,10 @@
         "controller": true,
         "kind": "Deployment",
         "name": "cache",
-        "uid": "809eaa81-76d9-480e-aa5b-27bccfe022b8"
+        "uid": "267725e8-38d5-470d-b57e-3e9d38f4711b"
        }
       ],
-      "uid": "3c173496-7b0a-4b14-b7ea-356c7b722c2f"
+      "uid": "5fca4882-1d4d-453e-bb8e-c9b3a7b7198a"
      },
      "spec": {
       "replicas": 1,
@@ -411,6 +421,7 @@
      }
     }
    ],
+   "resourcequotas": [],
    "services": []
   }
  },
@@ -418,7 +429,7 @@
   "context": "kind-doctor-lab",
   "kubernetes": "v1.36.4",
   "scenario": "pending-constraints",
-  "time": "2026-09-27T10:22:48Z"
+  "time": "2026-09-27T13:16:03Z"
  },
  "usage": {
   "cache": []

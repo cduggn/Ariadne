@@ -1,21 +1,27 @@
 {
  "logs": {
-  "web/web-7969d6cc4c-szn82/web/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 10:21:32 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 10:21:32 [notice] 1#1: nginx/1.29.8\n2026/09/27 10:21:32 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 10:21:32 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 10:21:32 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 10:21:32 [notice] 1#1: start worker processes\n2026/09/27 10:21:32 [notice] 1#1: start worker process 36\n2026/09/27 10:21:32 [notice] 1#1: start worker process 37\n"
+  "web/web-7969d6cc4c-46fdj/web/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 13:17:08 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 13:17:08 [notice] 1#1: nginx/1.29.8\n2026/09/27 13:17:08 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 13:17:08 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 13:17:08 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 13:17:08 [notice] 1#1: start worker processes\n2026/09/27 13:17:08 [notice] 1#1: start worker process 37\n2026/09/27 13:17:08 [notice] 1#1: start worker process 38\n"
  },
  "namespaces": {
   "web": {
    "configmaps": [
     {
      "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
      "kind": "ConfigMap",
      "metadata": {
       "annotations": {
        "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
       },
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:07:04Z",
       "name": "kube-root-ca.crt",
       "namespace": "web",
-      "uid": "5b1887ca-9f31-42ae-849f-4daef0369bb3"
+      "uid": "926d9da5-0635-4256-82ca-b3f1fd1f90cd"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
      }
     }
    ],
@@ -25,11 +31,11 @@
      "kind": "Deployment",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
       "generation": 1,
       "name": "web",
       "namespace": "web",
-      "uid": "150ba4e0-364e-4bb4-82cc-b5eed99b4548"
+      "uid": "003e124e-07e8-46ea-bd7f-4a29f403e276"
      },
      "spec": {
       "progressDeadlineSeconds": 600,
@@ -86,16 +92,16 @@
      "status": {
       "conditions": [
        {
-        "lastTransitionTime": "2026-09-27T10:21:23Z",
-        "lastUpdateTime": "2026-09-27T10:21:23Z",
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "lastUpdateTime": "2026-09-27T13:17:08Z",
         "message": "Deployment does not have minimum availability.",
         "reason": "MinimumReplicasUnavailable",
         "status": "False",
         "type": "Available"
        },
        {
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
-        "lastUpdateTime": "2026-09-27T10:21:23Z",
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
+        "lastUpdateTime": "2026-09-27T13:17:08Z",
         "message": "ReplicaSet \"web-7969d6cc4c\" is progressing.",
         "reason": "ReplicaSetUpdated",
         "status": "True",
@@ -116,23 +122,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:17:08Z",
      "involvedObject": {
       "apiVersion": "v1",
       "kind": "Pod",
-      "name": "web-7969d6cc4c-szn82",
+      "name": "web-7969d6cc4c-46fdj",
       "namespace": "web",
-      "resourceVersion": "1294",
-      "uid": "472a8b45-8409-4b15-8fca-e39851e41dc5"
+      "resourceVersion": "10376",
+      "uid": "85d96584-1e08-4331-af95-2afd10e60917"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
-     "message": "Successfully assigned web/web-7969d6cc4c-szn82 to doctor-lab-control-plane",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Successfully assigned web/web-7969d6cc4c-46fdj to doctor-lab-control-plane",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "web-7969d6cc4c-szn82.18d926572402aa83",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "web-7969d6cc4c-46fdj.18d92fee784e2927",
       "namespace": "web",
-      "uid": "1a9f4ec6-ec73-4039-80a6-314229b580c0"
+      "uid": "7de11f70-4262-43db-8c45-137648a81436"
      },
      "reason": "Scheduled",
      "reportingComponent": "default-scheduler",
@@ -146,56 +152,24 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:17:08Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{web}",
       "kind": "Pod",
-      "name": "web-7969d6cc4c-szn82",
+      "name": "web-7969d6cc4c-46fdj",
       "namespace": "web",
-      "resourceVersion": "1295",
-      "uid": "472a8b45-8409-4b15-8fca-e39851e41dc5"
+      "resourceVersion": "10379",
+      "uid": "85d96584-1e08-4331-af95-2afd10e60917"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
-     "message": "Pulling image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\"",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Container image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" already present on machine and can be accessed by the pod",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "web-7969d6cc4c-szn82.18d9265739c67d09",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "web-7969d6cc4c-46fdj.18d92fee8d914bf4",
       "namespace": "web",
-      "uid": "b431d1c2-82cb-40d4-a8fd-1e661f9fcb34"
-     },
-     "reason": "Pulling",
-     "reportingComponent": "kubelet",
-     "reportingInstance": "doctor-lab-control-plane",
-     "source": {
-      "component": "kubelet",
-      "host": "doctor-lab-control-plane"
-     },
-     "type": "Normal"
-    },
-    {
-     "apiVersion": "v1",
-     "count": 1,
-     "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:32Z",
-     "involvedObject": {
-      "apiVersion": "v1",
-      "fieldPath": "spec.containers{web}",
-      "kind": "Pod",
-      "name": "web-7969d6cc4c-szn82",
-      "namespace": "web",
-      "resourceVersion": "1295",
-      "uid": "472a8b45-8409-4b15-8fca-e39851e41dc5"
-     },
-     "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:32Z",
-     "message": "Successfully pulled image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" in 635ms (9.085s including waiting). Image size: 25839530 bytes.",
-     "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:32Z",
-      "name": "web-7969d6cc4c-szn82.18d9265957510367",
-      "namespace": "web",
-      "uid": "f9391eae-80e9-4968-8673-7245f3a60c35"
+      "uid": "e74734b7-9e9f-452b-90bb-27968dce69eb"
      },
      "reason": "Pulled",
      "reportingComponent": "kubelet",
@@ -210,24 +184,24 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:32Z",
+     "firstTimestamp": "2026-09-27T13:17:08Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{web}",
       "kind": "Pod",
-      "name": "web-7969d6cc4c-szn82",
+      "name": "web-7969d6cc4c-46fdj",
       "namespace": "web",
-      "resourceVersion": "1295",
-      "uid": "472a8b45-8409-4b15-8fca-e39851e41dc5"
+      "resourceVersion": "10379",
+      "uid": "85d96584-1e08-4331-af95-2afd10e60917"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:32Z",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
      "message": "Container created",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:32Z",
-      "name": "web-7969d6cc4c-szn82.18d9265958d60b1c",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "web-7969d6cc4c-46fdj.18d92fee8e3016fa",
       "namespace": "web",
-      "uid": "26220483-dd70-4430-9a17-1f913b10f28b"
+      "uid": "60cc5d6b-de50-4896-900a-6f520091c9a8"
      },
      "reason": "Created",
      "reportingComponent": "kubelet",
@@ -242,24 +216,24 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:32Z",
+     "firstTimestamp": "2026-09-27T13:17:08Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{web}",
       "kind": "Pod",
-      "name": "web-7969d6cc4c-szn82",
+      "name": "web-7969d6cc4c-46fdj",
       "namespace": "web",
-      "resourceVersion": "1295",
-      "uid": "472a8b45-8409-4b15-8fca-e39851e41dc5"
+      "resourceVersion": "10379",
+      "uid": "85d96584-1e08-4331-af95-2afd10e60917"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:32Z",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
      "message": "Container started",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:32Z",
-      "name": "web-7969d6cc4c-szn82.18d926595b5a7ac5",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "web-7969d6cc4c-46fdj.18d92fee8fe7e33e",
       "namespace": "web",
-      "uid": "3f31d32e-9f16-4aa8-9e75-9feb84392bc5"
+      "uid": "891b59c6-82b1-4c8c-aef6-ae80e04ec005"
      },
      "reason": "Started",
      "reportingComponent": "kubelet",
@@ -272,26 +246,26 @@
     },
     {
      "apiVersion": "v1",
-     "count": 18,
+     "count": 25,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:32Z",
+     "firstTimestamp": "2026-09-27T13:17:08Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{web}",
       "kind": "Pod",
-      "name": "web-7969d6cc4c-szn82",
+      "name": "web-7969d6cc4c-46fdj",
       "namespace": "web",
-      "resourceVersion": "1295",
-      "uid": "472a8b45-8409-4b15-8fca-e39851e41dc5"
+      "resourceVersion": "10379",
+      "uid": "85d96584-1e08-4331-af95-2afd10e60917"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:22:48Z",
-     "message": "Readiness probe failed: Get \"http://10.244.0.16:8081/\": dial tcp 10.244.0.16:8081: connect: connection refused",
+     "lastTimestamp": "2026-09-27T13:19:00Z",
+     "message": "Readiness probe failed: Get \"http://10.244.0.44:8081/\": dial tcp 10.244.0.44:8081: connect: connection refused",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:32Z",
-      "name": "web-7969d6cc4c-szn82.18d926595b7879b6",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "web-7969d6cc4c-46fdj.18d92fee8fff9c9f",
       "namespace": "web",
-      "uid": "881e8108-5709-48f7-8e32-1e388e49a37f"
+      "uid": "b9a32c8e-abf4-477a-a1f0-eea8c67e834d"
      },
      "reason": "Unhealthy",
      "reportingComponent": "kubelet",
@@ -306,23 +280,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:17:08Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "ReplicaSet",
       "name": "web-7969d6cc4c",
       "namespace": "web",
-      "resourceVersion": "1293",
-      "uid": "192dc4c2-bca4-4cb2-a9f7-e2664de72193"
+      "resourceVersion": "10374",
+      "uid": "aa62db02-2d69-41ca-8da4-71547496e27f"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
-     "message": "Created pod: web-7969d6cc4c-szn82",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
+     "message": "Created pod: web-7969d6cc4c-46fdj",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "web-7969d6cc4c.18d9265723c6a83d",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "web-7969d6cc4c.18d92fee77f72b13",
       "namespace": "web",
-      "uid": "d44768d2-901a-49fb-9943-a25a335a62e2"
+      "uid": "4b353682-556c-4d10-a6cb-39285f9dec4f"
      },
      "reason": "SuccessfulCreate",
      "reportingComponent": "replicaset-controller",
@@ -336,23 +310,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:17:08Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "Deployment",
       "name": "web",
       "namespace": "web",
-      "resourceVersion": "1266",
-      "uid": "150ba4e0-364e-4bb4-82cc-b5eed99b4548"
+      "resourceVersion": "10373",
+      "uid": "003e124e-07e8-46ea-bd7f-4a29f403e276"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "lastTimestamp": "2026-09-27T13:17:08Z",
      "message": "Scaled up replica set web-7969d6cc4c from 0 to 1",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:23Z",
-      "name": "web.18d92657237cd60a",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
+      "name": "web.18d92fee77a2e628",
       "namespace": "web",
-      "uid": "64bb060e-ebe0-403e-9918-29545ee8c572"
+      "uid": "6388ca04-561c-409d-a6e4-049a8a36f42a"
      },
      "reason": "ScalingReplicaSet",
      "reportingComponent": "deployment-controller",
@@ -363,20 +337,24 @@
      "type": "Normal"
     }
    ],
+   "ingresses": [],
    "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
    "pods": [
     {
      "apiVersion": "v1",
      "kind": "Pod",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
       "generateName": "web-7969d6cc4c-",
       "generation": 1,
       "labels": {
        "app": "web",
        "pod-template-hash": "7969d6cc4c"
       },
-      "name": "web-7969d6cc4c-szn82",
+      "name": "web-7969d6cc4c-46fdj",
       "namespace": "web",
       "ownerReferences": [
        {
@@ -385,10 +363,10 @@
         "controller": true,
         "kind": "ReplicaSet",
         "name": "web-7969d6cc4c",
-        "uid": "192dc4c2-bca4-4cb2-a9f7-e2664de72193"
+        "uid": "aa62db02-2d69-41ca-8da4-71547496e27f"
        }
       ],
-      "uid": "472a8b45-8409-4b15-8fca-e39851e41dc5"
+      "uid": "85d96584-1e08-4331-af95-2afd10e60917"
      },
      "spec": {
       "containers": [
@@ -413,7 +391,7 @@
         "volumeMounts": [
          {
           "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-          "name": "kube-api-access-vl5tv",
+          "name": "kube-api-access-lj5lx",
           "readOnly": true
          }
         ]
@@ -446,7 +424,7 @@
       ],
       "volumes": [
        {
-        "name": "kube-api-access-vl5tv",
+        "name": "kube-api-access-lj5lx",
         "projected": {
          "defaultMode": 420,
          "sources": [
@@ -489,21 +467,21 @@
       "conditions": [
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
         "observedGeneration": 1,
         "status": "True",
         "type": "PodReadyToStartContainers"
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
         "observedGeneration": 1,
         "status": "True",
         "type": "Initialized"
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
         "message": "containers with unready status: [web]",
         "observedGeneration": 1,
         "reason": "ContainersNotReady",
@@ -512,7 +490,7 @@
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
         "message": "containers with unready status: [web]",
         "observedGeneration": 1,
         "reason": "ContainersNotReady",
@@ -521,7 +499,7 @@
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:17:08Z",
         "observedGeneration": 1,
         "status": "True",
         "type": "PodScheduled"
@@ -529,7 +507,7 @@
       ],
       "containerStatuses": [
        {
-        "containerID": "containerd://54db610ffa5ddb114c93d58a1cc594150e06365f3111adbadb72ae55f1cd2a46",
+        "containerID": "containerd://693393846c4584250acbe4c49be13cb729fad8d0d7d5913212b3c44018e9571c",
         "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
         "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
         "lastState": {},
@@ -540,7 +518,7 @@
         "started": true,
         "state": {
          "running": {
-          "startedAt": "2026-09-27T10:21:32Z"
+          "startedAt": "2026-09-27T13:17:08Z"
          }
         },
         "user": {
@@ -565,7 +543,7 @@
         "volumeMounts": [
          {
           "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-          "name": "kube-api-access-vl5tv",
+          "name": "kube-api-access-lj5lx",
           "readOnly": true,
           "recursiveReadOnly": "Disabled"
          }
@@ -580,15 +558,15 @@
       ],
       "observedGeneration": 1,
       "phase": "Running",
-      "podIP": "10.244.0.16",
+      "podIP": "10.244.0.44",
       "podIPs": [
        {
-        "ip": "10.244.0.16"
+        "ip": "10.244.0.44"
        }
       ],
       "qosClass": "BestEffort",
       "resources": {},
-      "startTime": "2026-09-27T10:21:22Z"
+      "startTime": "2026-09-27T13:17:08Z"
      }
     }
    ],
@@ -598,7 +576,7 @@
      "kind": "ReplicaSet",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:17:08Z",
       "generation": 1,
       "labels": {
        "app": "web",
@@ -613,10 +591,10 @@
         "controller": true,
         "kind": "Deployment",
         "name": "web",
-        "uid": "150ba4e0-364e-4bb4-82cc-b5eed99b4548"
+        "uid": "003e124e-07e8-46ea-bd7f-4a29f403e276"
        }
       ],
-      "uid": "192dc4c2-bca4-4cb2-a9f7-e2664de72193"
+      "uid": "aa62db02-2d69-41ca-8da4-71547496e27f"
      },
      "spec": {
       "replicas": 1,
@@ -671,6 +649,7 @@
      }
     }
    ],
+   "resourcequotas": [],
    "services": []
   }
  },
@@ -678,14 +657,15 @@
   "context": "kind-doctor-lab",
   "kubernetes": "v1.36.4",
   "scenario": "probe",
-  "time": "2026-09-27T10:22:49Z"
+  "time": "2026-09-27T13:20:51Z"
  },
  "usage": {
   "web": [
    {
+    "container": "web",
     "cpu": "0m",
     "memory": "3Mi",
-    "pod": "web-7969d6cc4c-szn82"
+    "pod": "web-7969d6cc4c-46fdj"
    }
   ]
  }

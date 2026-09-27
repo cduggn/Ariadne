@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: analytics
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reporting-api
+  namespace: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reporting-api
+  template:
+    metadata:
+      labels:
+        app: reporting-api
+    spec:
+      containers:
+        - name: reporting-api
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+          resources:
+            requests:
+              cpu: 300m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingest-worker
+  namespace: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ingest-worker
+  template:
+    metadata:
+      labels:
+        app: ingest-worker
+    spec:
+      containers:
+        - name: ingest-worker
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"ingesting events\"; while true; do :; done"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache
+  namespace: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cache
+  template:
+    metadata:
+      labels:
+        app: cache
+    spec:
+      containers:
+        - name: cache
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi

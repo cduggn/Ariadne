@@ -1,0 +1,55 @@
+{
+  "id": "limitrange-oom",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [
+    {
+      "kind": "Deployment",
+      "name": "statement-builder"
+    }
+  ],
+  "forbidden": [],
+  "hints": {
+    "describe": [
+      {
+        "kind": "limitrange",
+        "name": "defaults"
+      }
+    ]
+  },
+  "namespace": "finance",
+  "tier": "multi_hop",
+  "settle": [
+    "oom"
+  ],
+  "title": "A namespace LimitRange injects a 32Mi default limit the team never set",
+  "report": "statement-builder keeps getting OOM-killed, but we never set a memory limit on it.",
+  "category": "resource_policy",
+  "allowed": [
+    "resource_policy"
+  ],
+  "objects": [
+    {
+      "kind": "LimitRange",
+      "name": "defaults",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "name": "statement-builder"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    "describe",
+    "resources"
+  ],
+  "must_call": [
+    "describe"
+  ]
+}

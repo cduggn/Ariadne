@@ -1,0 +1,43 @@
+{
+  "id": "port-mismatch",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [
+    {
+      "kind": "Deployment",
+      "name": "pricing-api"
+    }
+  ],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {},
+  "namespace": "pricing",
+  "tier": "red_herring",
+  "settle": [
+    "log:Connection refused"
+  ],
+  "title": "Service targetPort does not match the container port",
+  "report": "Calls to pricing-api fail with connection refused, yet its pods are healthy and ready.",
+  "category": "service_misconfig",
+  "allowed": [
+    "service_misconfig"
+  ],
+  "objects": [
+    {
+      "kind": "Service",
+      "name": "pricing-api",
+      "affects": []
+    }
+  ],
+  "evidence": [
+    "describe",
+    "resources"
+  ],
+  "must_call": [
+    "describe"
+  ]
+}

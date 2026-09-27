@@ -1,0 +1,1341 @@
+{
+ "logs": {
+  "pricing/pricing-api-6dfdd4f787-8chc6/pricing-api/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 13:15:22 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 13:15:22 [notice] 1#1: nginx/1.29.8\n2026/09/27 13:15:22 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 13:15:22 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 13:15:22 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 13:15:22 [notice] 1#1: start worker processes\n2026/09/27 13:15:22 [notice] 1#1: start worker process 37\n2026/09/27 13:15:22 [notice] 1#1: start worker process 38\n10.244.0.1 - - [27/Sep/2026:13:15:22 +0000] \"GET / HTTP/1.1\" 200 896 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:15:32 +0000] \"GET / HTTP/1.1\" 200 896 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:15:42 +0000] \"GET / HTTP/1.1\" 200 896 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:15:52 +0000] \"GET / HTTP/1.1\" 200 896 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:16:02 +0000] \"GET / HTTP/1.1\" 200 896 \"-\" \"kube-probe/1.36\" \"-\"\n",
+  "pricing/traffic-755d8b98fc-vb2cn/traffic/current": "quote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\nquote probe: wget: can't connect to remote host (10.96.163.4): Connection refused\n"
+ },
+ "namespaces": {
+  "pricing": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T13:07:04Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "pricing",
+      "uid": "07960967-3449-42d4-afb6-af0b198222cb"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "generation": 1,
+      "name": "pricing-api",
+      "namespace": "pricing",
+      "uid": "02dd4c41-e0ab-4b3f-a181-e72f9440d07f"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "pricing-api"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "pricing-api"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "pricing-api",
+          "ports": [
+           {
+            "containerPort": 80,
+            "protocol": "TCP"
+           }
+          ],
+          "readinessProbe": {
+           "failureThreshold": 3,
+           "httpGet": {
+            "path": "/",
+            "port": 80,
+            "scheme": "HTTP"
+           },
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "timeoutSeconds": 1
+          },
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "lastUpdateTime": "2026-09-27T13:15:22Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "lastUpdateTime": "2026-09-27T13:15:22Z",
+        "message": "ReplicaSet \"pricing-api-6dfdd4f787\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "generation": 1,
+      "name": "traffic",
+      "namespace": "pricing",
+      "uid": "846dbcce-de98-4114-9e8a-6facdcfd4c3a"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "traffic"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "traffic"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "while true; do wget -q -O /dev/null http://pricing-api/quote 2>&1 | sed \"s/^/quote probe: /\"; sleep 3; done"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "traffic",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "lastUpdateTime": "2026-09-27T13:15:22Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "lastUpdateTime": "2026-09-27T13:15:22Z",
+        "message": "ReplicaSet \"traffic-755d8b98fc\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [
+    {
+     "addressType": "IPv4",
+     "apiVersion": "discovery.k8s.io/v1",
+     "endpoints": [
+      {
+       "addresses": [
+        "10.244.0.42"
+       ],
+       "conditions": {
+        "ready": true,
+        "serving": true,
+        "terminating": false
+       },
+       "nodeName": "doctor-lab-control-plane",
+       "targetRef": {
+        "kind": "Pod",
+        "name": "pricing-api-6dfdd4f787-8chc6",
+        "namespace": "pricing",
+        "uid": "4283f26b-2099-4194-833d-c502e658281d"
+       }
+      }
+     ],
+     "kind": "EndpointSlice",
+     "metadata": {
+      "annotations": {
+       "endpoints.kubernetes.io/last-change-trigger-time": "2026-09-27T13:15:22Z"
+      },
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "generateName": "pricing-api-",
+      "generation": 3,
+      "labels": {
+       "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+       "kubernetes.io/service-name": "pricing-api"
+      },
+      "name": "pricing-api-4n44h",
+      "namespace": "pricing",
+      "ownerReferences": [
+       {
+        "apiVersion": "v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Service",
+        "name": "pricing-api",
+        "uid": "feea6d5e-3d2d-4e09-9a09-26c14005c10e"
+       }
+      ],
+      "uid": "5520f829-46e3-48f6-8f0c-67a6099ee889"
+     },
+     "ports": [
+      {
+       "name": "",
+       "port": 8080,
+       "protocol": "TCP"
+      }
+     ]
+    }
+   ],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:21Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "pricing-api-6dfdd4f787-8chc6",
+      "namespace": "pricing",
+      "resourceVersion": "10024",
+      "uid": "4283f26b-2099-4194-833d-c502e658281d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Successfully assigned pricing/pricing-api-6dfdd4f787-8chc6 to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "pricing-api-6dfdd4f787-8chc6.18d92fd5b932a3fb",
+      "namespace": "pricing",
+      "uid": "fed7bc8e-2543-4641-a4ff-cf453ce313ce"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{pricing-api}",
+      "kind": "Pod",
+      "name": "pricing-api-6dfdd4f787-8chc6",
+      "namespace": "pricing",
+      "resourceVersion": "10029",
+      "uid": "4283f26b-2099-4194-833d-c502e658281d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:22Z",
+     "message": "Container image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:22Z",
+      "name": "pricing-api-6dfdd4f787-8chc6.18d92fd5cfd7b55e",
+      "namespace": "pricing",
+      "uid": "8e58e7f6-f2ff-413a-8cb3-5b0dd6be93cb"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{pricing-api}",
+      "kind": "Pod",
+      "name": "pricing-api-6dfdd4f787-8chc6",
+      "namespace": "pricing",
+      "resourceVersion": "10029",
+      "uid": "4283f26b-2099-4194-833d-c502e658281d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:22Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:22Z",
+      "name": "pricing-api-6dfdd4f787-8chc6.18d92fd5d066351c",
+      "namespace": "pricing",
+      "uid": "e22825b3-8b40-4f94-86cf-55118e5ef5c5"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{pricing-api}",
+      "kind": "Pod",
+      "name": "pricing-api-6dfdd4f787-8chc6",
+      "namespace": "pricing",
+      "resourceVersion": "10029",
+      "uid": "4283f26b-2099-4194-833d-c502e658281d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:22Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:22Z",
+      "name": "pricing-api-6dfdd4f787-8chc6.18d92fd5d21ca09a",
+      "namespace": "pricing",
+      "uid": "4de0fab7-2a5b-4dd9-8602-23cf4fae7539"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{pricing-api}",
+      "kind": "Pod",
+      "name": "pricing-api-6dfdd4f787-8chc6",
+      "namespace": "pricing",
+      "resourceVersion": "10029",
+      "uid": "4283f26b-2099-4194-833d-c502e658281d"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:22Z",
+     "message": "Readiness probe failed: Get \"http://10.244.0.42:80/\": dial tcp 10.244.0.42:80: connect: connection refused",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:22Z",
+      "name": "pricing-api-6dfdd4f787-8chc6.18d92fd5d242da5c",
+      "namespace": "pricing",
+      "uid": "53c1690d-9aa9-41db-b586-af3efb708084"
+     },
+     "reason": "Unhealthy",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "pricing-api-6dfdd4f787",
+      "namespace": "pricing",
+      "resourceVersion": "10011",
+      "uid": "259da3fc-8dca-451e-acff-394ec9e512f8"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Created pod: pricing-api-6dfdd4f787-8chc6",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "pricing-api-6dfdd4f787.18d92fd5b7f2b2d3",
+      "namespace": "pricing",
+      "uid": "ac2068be-8d85-4e38-b564-5f18403a7a34"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "pricing-api",
+      "namespace": "pricing",
+      "resourceVersion": "10010",
+      "uid": "02dd4c41-e0ab-4b3f-a181-e72f9440d07f"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Scaled up replica set pricing-api-6dfdd4f787 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "pricing-api.18d92fd5b56f45ed",
+      "namespace": "pricing",
+      "uid": "7a9eee68-3797-4891-8e03-4f84602d8f25"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:21Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "traffic-755d8b98fc-vb2cn",
+      "namespace": "pricing",
+      "resourceVersion": "10025",
+      "uid": "85204de9-1ff5-4f61-8d8d-f5017bf66dbf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Successfully assigned pricing/traffic-755d8b98fc-vb2cn to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "traffic-755d8b98fc-vb2cn.18d92fd5b9306280",
+      "namespace": "pricing",
+      "uid": "a28c7ece-ac4f-41f8-9e22-37dc6ff441ff"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{traffic}",
+      "kind": "Pod",
+      "name": "traffic-755d8b98fc-vb2cn",
+      "namespace": "pricing",
+      "resourceVersion": "10030",
+      "uid": "85204de9-1ff5-4f61-8d8d-f5017bf66dbf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:22Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:22Z",
+      "name": "traffic-755d8b98fc-vb2cn.18d92fd5d0f53de7",
+      "namespace": "pricing",
+      "uid": "e245a89a-a5fd-454a-aca6-e94c35aa35dd"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{traffic}",
+      "kind": "Pod",
+      "name": "traffic-755d8b98fc-vb2cn",
+      "namespace": "pricing",
+      "resourceVersion": "10030",
+      "uid": "85204de9-1ff5-4f61-8d8d-f5017bf66dbf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:22Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:22Z",
+      "name": "traffic-755d8b98fc-vb2cn.18d92fd5d1803915",
+      "namespace": "pricing",
+      "uid": "73ecfb3a-2bfd-480c-a4c6-5db2aa556112"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{traffic}",
+      "kind": "Pod",
+      "name": "traffic-755d8b98fc-vb2cn",
+      "namespace": "pricing",
+      "resourceVersion": "10030",
+      "uid": "85204de9-1ff5-4f61-8d8d-f5017bf66dbf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:22Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:22Z",
+      "name": "traffic-755d8b98fc-vb2cn.18d92fd5d397576a",
+      "namespace": "pricing",
+      "uid": "bd9d54f6-6c35-45d5-9770-5d0dafd966c1"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "traffic-755d8b98fc",
+      "namespace": "pricing",
+      "resourceVersion": "10020",
+      "uid": "e912dfce-5980-4520-8154-4c92f6bfc8a0"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Created pod: traffic-755d8b98fc-vb2cn",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "traffic-755d8b98fc.18d92fd5b8098626",
+      "namespace": "pricing",
+      "uid": "651e8753-eea6-47b9-a725-f1a74557bae0"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:15:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "traffic",
+      "namespace": "pricing",
+      "resourceVersion": "10019",
+      "uid": "846dbcce-de98-4114-9e8a-6facdcfd4c3a"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Scaled up replica set traffic-755d8b98fc from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "traffic.18d92fd5b63dffde",
+      "namespace": "pricing",
+      "uid": "eadcc5b1-879c-4bd9-8dca-4a8788a82420"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "ingresses": [],
+   "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "generateName": "pricing-api-6dfdd4f787-",
+      "generation": 1,
+      "labels": {
+       "app": "pricing-api",
+       "pod-template-hash": "6dfdd4f787"
+      },
+      "name": "pricing-api-6dfdd4f787-8chc6",
+      "namespace": "pricing",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "pricing-api-6dfdd4f787",
+        "uid": "259da3fc-8dca-451e-acff-394ec9e512f8"
+       }
+      ],
+      "uid": "4283f26b-2099-4194-833d-c502e658281d"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "pricing-api",
+        "ports": [
+         {
+          "containerPort": 80,
+          "protocol": "TCP"
+         }
+        ],
+        "readinessProbe": {
+         "failureThreshold": 3,
+         "httpGet": {
+          "path": "/",
+          "port": 80,
+          "scheme": "HTTP"
+         },
+         "periodSeconds": 10,
+         "successThreshold": 1,
+         "timeoutSeconds": 1
+        },
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-qnlhp",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-qnlhp",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://3ffda8c1f15d83e609647021a0a50e778873fe2f9f374624fa45742e1ad3b9d5",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {},
+        "name": "pricing-api",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:15:22Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-qnlhp",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.42",
+      "podIPs": [
+       {
+        "ip": "10.244.0.42"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:15:21Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "generateName": "traffic-755d8b98fc-",
+      "generation": 1,
+      "labels": {
+       "app": "traffic",
+       "pod-template-hash": "755d8b98fc"
+      },
+      "name": "traffic-755d8b98fc-vb2cn",
+      "namespace": "pricing",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "traffic-755d8b98fc",
+        "uid": "e912dfce-5980-4520-8154-4c92f6bfc8a0"
+       }
+      ],
+      "uid": "85204de9-1ff5-4f61-8d8d-f5017bf66dbf"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "while true; do wget -q -O /dev/null http://pricing-api/quote 2>&1 | sed \"s/^/quote probe: /\"; sleep 3; done"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "traffic",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-tqld5",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-tqld5",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://9eb82c60a559ef406933b150f49bd5667bb30837c5c6e8e8a73b6fb6d422970d",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {},
+        "name": "traffic",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:15:22Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-tqld5",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.43",
+      "podIPs": [
+       {
+        "ip": "10.244.0.43"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:15:21Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "generation": 1,
+      "labels": {
+       "app": "pricing-api",
+       "pod-template-hash": "6dfdd4f787"
+      },
+      "name": "pricing-api-6dfdd4f787",
+      "namespace": "pricing",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "pricing-api",
+        "uid": "02dd4c41-e0ab-4b3f-a181-e72f9440d07f"
+       }
+      ],
+      "uid": "259da3fc-8dca-451e-acff-394ec9e512f8"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "pricing-api",
+        "pod-template-hash": "6dfdd4f787"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "pricing-api",
+         "pod-template-hash": "6dfdd4f787"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "pricing-api",
+          "ports": [
+           {
+            "containerPort": 80,
+            "protocol": "TCP"
+           }
+          ],
+          "readinessProbe": {
+           "failureThreshold": 3,
+           "httpGet": {
+            "path": "/",
+            "port": 80,
+            "scheme": "HTTP"
+           },
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "timeoutSeconds": 1
+          },
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "generation": 1,
+      "labels": {
+       "app": "traffic",
+       "pod-template-hash": "755d8b98fc"
+      },
+      "name": "traffic-755d8b98fc",
+      "namespace": "pricing",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "traffic",
+        "uid": "846dbcce-de98-4114-9e8a-6facdcfd4c3a"
+       }
+      ],
+      "uid": "e912dfce-5980-4520-8154-4c92f6bfc8a0"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "traffic",
+        "pod-template-hash": "755d8b98fc"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "traffic",
+         "pod-template-hash": "755d8b98fc"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "while true; do wget -q -O /dev/null http://pricing-api/quote 2>&1 | sed \"s/^/quote probe: /\"; sleep 3; done"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "traffic",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "resourcequotas": [],
+   "services": [
+    {
+     "apiVersion": "v1",
+     "kind": "Service",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "pricing-api",
+      "namespace": "pricing",
+      "uid": "feea6d5e-3d2d-4e09-9a09-26c14005c10e"
+     },
+     "spec": {
+      "clusterIP": "10.96.163.4",
+      "clusterIPs": [
+       "10.96.163.4"
+      ],
+      "internalTrafficPolicy": "Cluster",
+      "ipFamilies": [
+       "IPv4"
+      ],
+      "ipFamilyPolicy": "SingleStack",
+      "ports": [
+       {
+        "port": 80,
+        "protocol": "TCP",
+        "targetPort": 8080
+       }
+      ],
+      "selector": {
+       "app": "pricing-api"
+      },
+      "sessionAffinity": "None",
+      "type": "ClusterIP"
+     },
+     "status": {
+      "loadBalancer": {}
+     }
+    }
+   ]
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "port-mismatch",
+  "time": "2026-09-27T13:16:04Z"
+ },
+ "usage": {
+  "pricing": [
+   {
+    "container": "pricing-api",
+    "cpu": "1m",
+    "memory": "3Mi",
+    "pod": "pricing-api-6dfdd4f787-8chc6"
+   },
+   {
+    "container": "traffic",
+    "cpu": "2m",
+    "memory": "0Mi",
+    "pod": "traffic-755d8b98fc-vb2cn"
+   }
+  ]
+ }
+}

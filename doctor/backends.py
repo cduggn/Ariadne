@@ -10,21 +10,24 @@ return the same raw shapes, one set of tool code serves both — a fixture exerc
 path a live cluster does.
 
 Read-only by construction: the only kubectl verbs are `get`, `logs`, `top` and `version`; Secrets are
-never requested and ConfigMap data is dropped (names only).
+never requested; ConfigMap data is dropped except values that are public X.509 certificates (D-31).
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import re
 import shutil
 import subprocess
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Protocol
 
-KINDS = ("pods", "deployments", "replicasets", "services", "endpointslices", "jobs", "configmaps", "events", "nodes")
+KINDS = ("pods", "deployments", "replicasets", "services", "endpointslices", "jobs", "configmaps", "events", "nodes",
+         "limitranges", "resourcequotas", "networkpolicies", "persistentvolumeclaims", "ingresses")
 NAME_RE = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")          # RFC 1123 subdomain
 LOG_LINES_RECORDED = 200
 
@@ -39,8 +42,10 @@ class Backend(Protocol):
     def objects(self, kind: str, namespace: str) -> list[dict]: ...
     def logs(self, namespace: str, pod: str, container: str, previous: bool) -> str: ...
     def usage(self, namespace: str) -> list[dict]: ...
+    def usage_series(self, namespace: str) -> list[dict]: ...
     def namespaces(self) -> list[str]: ...
     def cluster_info(self) -> dict: ...
+    def now(self) -> dt.datetime: ...
     def metric(self, preset: str, namespace: str) -> dict: ...
     def s3_bucket_stats(self, bucket: str) -> dict: ...
     def cost(self, query: str) -> dict: ...
@@ -52,8 +57,12 @@ def check_name(value: str, what: str = "name") -> str:
     return value
 
 
+def is_public_cert(value: str) -> bool:
+    return "-----BEGIN CERTIFICATE-----" in value and "PRIVATE KEY" not in value
+
+
 def strip(obj: dict) -> dict:
-    """Drop noisy or sensitive metadata before a raw object is stored or used."""
+    """Drop noisy or sensitive fields before a raw object is stored or used."""
     md = obj.get("metadata", {})
     for k in ("managedFields", "resourceVersion", "selfLink"):
         md.pop(k, None)
@@ -62,8 +71,12 @@ def strip(obj: dict) -> dict:
         if k.startswith("kubectl.kubernetes.io/last-applied") or k.startswith("deployment.kubernetes.io/"):
             ann.pop(k)
     if obj.get("kind") == "ConfigMap":
-        obj.pop("data", None)
+        data = obj.pop("data", None) or {}
         obj.pop("binaryData", None)
+        obj["dataKeys"] = sorted(data)
+        certs = {k: v for k, v in data.items() if isinstance(v, str) and is_public_cert(v)}
+        if certs:
+            obj["publicCertificates"] = certs
     return obj
 
 
@@ -71,7 +84,8 @@ def strip(obj: dict) -> dict:
 
 class SnapshotBackend:
     """Serve a recorded dump: {"cluster": {...}, "namespaces": {ns: {kind: [objects]}},
-    "logs": {"ns/pod/container/current|previous": text}, "usage": {ns: [...]}, "metrics": {...}, "aws": {...}}."""
+    "logs": {"ns/pod/container/current|previous": text}, "usage": {ns: [...]}, "usage_series": {ns: [...]},
+    "metrics": {...}, "aws": {...}, "recorded": {"time": ...}}."""
 
     name = "snapshot"
 
@@ -80,12 +94,14 @@ class SnapshotBackend:
 
     @classmethod
     def load(cls, *paths: Path) -> SnapshotBackend:
-        merged: dict = {"cluster": {}, "namespaces": {}, "logs": {}, "usage": {}, "metrics": {}, "aws": {}}
+        merged: dict = {"cluster": {}, "namespaces": {}, "logs": {}, "usage": {}, "usage_series": {}, "metrics": {}, "aws": {}, "recorded": {}}
         for p in paths:
             d = json.loads(Path(p).read_text())
             merged["cluster"] = d.get("cluster") or merged["cluster"]
-            for key in ("namespaces", "logs", "usage", "metrics", "aws"):
+            for key in ("namespaces", "logs", "usage", "usage_series", "metrics", "aws"):
                 merged[key].update(d.get(key, {}))
+            if d.get("recorded", {}).get("time", "") > merged["recorded"].get("time", ""):
+                merged["recorded"] = d["recorded"]
         return cls(merged)
 
     def objects(self, kind: str, namespace: str) -> list[dict]:
@@ -102,11 +118,19 @@ class SnapshotBackend:
     def usage(self, namespace: str) -> list[dict]:
         return self.dump["usage"].get(namespace, [])
 
+    def usage_series(self, namespace: str) -> list[dict]:
+        return self.dump["usage_series"].get(namespace) or [{"t": self.dump["recorded"].get("time"), "rows": self.usage(namespace)}]
+
     def namespaces(self) -> list[str]:
         return sorted(self.dump["cluster"].get("namespaces", []))
 
     def cluster_info(self) -> dict:
         return self.dump["cluster"]
+
+    def now(self) -> dt.datetime:
+        """Recorded time, so certificate expiry and ages are judged as they were when the snapshot was taken."""
+        t = self.dump["recorded"].get("time")
+        return dt.datetime.strptime(t, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.UTC) if t else dt.datetime.now(dt.UTC)
 
     def metric(self, preset: str, namespace: str) -> dict:
         v = self.dump["metrics"].get(f"{preset}/{namespace}")
@@ -141,9 +165,9 @@ class KubectlBackend:
         self.kubectl = kubectl or os.environ.get("DOCTOR_KUBECTL") or shutil.which("kubectl") or "kubectl"
 
     def _run(self, *args: str) -> str:
-        cmd = [self.kubectl, *(["--context", self.context] if self.context else []), *args]
         if args[0] not in ("get", "logs", "top", "version"):
             raise PermissionError(f"verb {args[0]!r} is not allowed")      # read-only by construction
+        cmd = [self.kubectl, *(["--context", self.context] if self.context else []), *args]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=self.TIMEOUT_S, check=False)
         if r.returncode != 0:
             raise LookupError(r.stderr.strip().splitlines()[-1] if r.stderr.strip() else f"kubectl exited {r.returncode}")
@@ -167,13 +191,37 @@ class KubectlBackend:
         return out
 
     def usage(self, namespace: str) -> list[dict]:
-        out = self._run("top", "pods", "-n", check_name(namespace, "namespace"), "--no-headers")
+        out = self._run("top", "pods", "-n", check_name(namespace, "namespace"), "--containers", "--no-headers")
         rows = []
         for line in out.splitlines():
             parts = line.split()
-            if len(parts) >= 3:
-                rows.append({"pod": parts[0], "cpu": parts[1], "memory": parts[2]})
+            if len(parts) >= 4:
+                rows.append({"pod": parts[0], "container": parts[1], "cpu": parts[2], "memory": parts[3]})
         return rows
+
+    SERIES = {
+        "cpu": 'sum by (pod, container) (rate(container_cpu_usage_seconds_total{namespace="%s",container!="",container!="POD"}[5m]))',
+        "memory": 'max by (pod, container) (container_memory_working_set_bytes{namespace="%s",container!="",container!="POD"})',
+    }
+
+    def usage_series(self, namespace: str) -> list[dict]:
+        """24 h of per-container usage from Prometheus when configured; otherwise one metrics-server sample."""
+        url = os.environ.get("DOCTOR_PROMETHEUS_URL")
+        ns = check_name(namespace, "namespace")
+        if not url:
+            return [{"t": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "rows": self.usage(ns)}]
+        end = time.time()
+        points: dict[float, dict[tuple[str, str], dict]] = {}
+        for res, q in self.SERIES.items():
+            qs = urllib.parse.urlencode({"query": q % ns, "start": end - 86400, "end": end, "step": "600"})
+            with urllib.request.urlopen(f"{url.rstrip('/')}/api/v1/query_range?{qs}", timeout=20) as r:
+                for s in json.load(r)["data"]["result"]:
+                    key = (s["metric"].get("pod", ""), s["metric"].get("container", ""))
+                    for t, v in s["values"]:
+                        row = points.setdefault(t, {}).setdefault(key, {"pod": key[0], "container": key[1]})
+                        row[res] = f"{round(float(v) * 1000)}m" if res == "cpu" else f"{round(float(v) / 2**20)}Mi"
+        return [{"t": dt.datetime.fromtimestamp(t, dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "rows": list(rows.values())}
+                for t, rows in sorted(points.items())]
 
     def namespaces(self) -> list[str]:
         return sorted(o["metadata"]["name"] for o in json.loads(self._run("get", "namespaces", "-o", "json"))["items"])
@@ -181,6 +229,9 @@ class KubectlBackend:
     def cluster_info(self) -> dict:
         v = json.loads(self._run("version", "-o", "json")).get("serverVersion", {}).get("gitVersion", "")
         return {"version": v, "nodes": self.objects("nodes", ""), "namespaces": self.namespaces()}
+
+    def now(self) -> dt.datetime:
+        return dt.datetime.now(dt.UTC)
 
     # Prometheus presets: fixed queries, never model-written PromQL.
     PRESETS = {
@@ -210,8 +261,8 @@ class KubectlBackend:
             raise LookupError(r.stderr.strip()[:200])
         return {"bucket": bucket, **json.loads(r.stdout)}
 
-    COST_QUERIES = {
-        "aws_by_service_7d": ["get", "aws", "-g", "DIMENSION=SERVICE", "-s", "{start7}", "-e", "{today}"],   # flags checked against cduggn/ccExplorer cmd/cli/get_command.go
+    COST_QUERIES = {   # flags checked against cduggn/ccExplorer cmd/cli/get_command.go
+        "aws_by_service_7d": ["get", "aws", "-g", "DIMENSION=SERVICE", "-s", "{start7}", "-e", "{today}"],
         "aws_anomalies_30d": ["get", "aws", "anomalies", "-s", "{start30}", "-e", "{today}"],
     }
 
@@ -225,7 +276,6 @@ class KubectlBackend:
         exe = os.environ.get("DOCTOR_CCEXPLORER") or shutil.which("ccexplorer")
         if not exe or query not in self.COST_QUERIES:
             raise Unavailable("ccexplorer not installed or query unknown")
-        import datetime as dt
         today = dt.date.today()
         fill = {"today": today.isoformat(), "start7": (today - dt.timedelta(days=7)).isoformat(),
                 "start30": (today - dt.timedelta(days=30)).isoformat()}

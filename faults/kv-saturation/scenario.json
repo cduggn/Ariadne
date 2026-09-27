@@ -11,7 +11,8 @@
   "objects": [
     {
       "kind": "Pod",
-      "name": "vllm-0"
+      "name": "vllm-0",
+      "affects": []
     }
   ],
   "evidence": [
@@ -21,5 +22,11 @@
     "resource_usage"
   ],
   "cluster": "lambda-k3s",
-  "apply": []
+  "apply": [],
+  "tier": "live",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

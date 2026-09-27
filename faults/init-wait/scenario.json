@@ -1,0 +1,55 @@
+{
+  "id": "init-wait",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [
+    {
+      "kind": "Deployment",
+      "name": "accounts-database"
+    }
+  ],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {
+    "log_objects": [
+      "accounts-api"
+    ],
+    "log_container": "wait-for-db",
+    "resources": [
+      {
+        "kind": "services",
+        "name": "accounts-database"
+      }
+    ]
+  },
+  "namespace": "accounts",
+  "tier": "multi_hop",
+  "settle": [
+    "init_stuck"
+  ],
+  "title": "Init container waits for a renamed service forever",
+  "report": "accounts-api has been stuck starting for 20 minutes.",
+  "category": "dependency_missing",
+  "allowed": [
+    "dependency_missing"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "accounts-api",
+      "affects": []
+    }
+  ],
+  "evidence": [
+    "log",
+    "resources",
+    "status"
+  ],
+  "must_call": [
+    "pod_logs"
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "id": "rightsizing",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "rightsize",
+  "red_herrings": [],
+  "also_ok": [
+    {
+      "kind": "Deployment",
+      "name": "ingest-worker",
+      "categories": [
+        "cpu_throttling"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "kind": "Deployment",
+      "name": "ingest-worker",
+      "categories": [
+        "overprovisioned"
+      ]
+    }
+  ],
+  "hints": {},
+  "namespace": "analytics",
+  "tier": "rightsizing",
+  "settle": [
+    "ready_all"
+  ],
+  "usage_window_s": 150,
+  "title": "One over-provisioned workload, one that only looks idle-cheap but is throttled, one right-sized",
+  "report": "Finance asked us to cut waste in analytics. Which workloads are over-provisioned, and what should their requests be? Don't break anything.",
+  "category": "overprovisioned",
+  "allowed": [
+    "overprovisioned"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "reporting-api",
+      "affects": [],
+      "resize_band": {
+        "cpu_m": [
+          5,
+          150
+        ],
+        "memory_mi": [
+          8,
+          128
+        ]
+      }
+    }
+  ],
+  "evidence": [
+    "rightsizing"
+  ],
+  "must_call": [
+    "rightsizing"
+  ]
+}

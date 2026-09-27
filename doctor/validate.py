@@ -13,6 +13,7 @@ from pathlib import Path
 
 from . import tools as T
 from .backends import Backend
+from .quantity import cpu_m, mem_mi
 
 SCHEMA = json.loads((Path(__file__).parent / "schemas" / "diagnosis.schema.json").read_text())
 FINDING = SCHEMA["properties"]["findings"]["items"]
@@ -42,10 +43,14 @@ def schema_errors(d: dict) -> list[str]:
             errs.append(f"schema: finding {i} bad category {f['category']!r}")
         if f["kind"] not in FINDING["properties"]["kind"]["enum"]:
             errs.append(f"schema: finding {i} bad kind {f['kind']!r}")
-        if not isinstance(f["evidence"], list) or not 1 <= len(f["evidence"]) <= 6:
-            errs.append(f"schema: finding {i} needs 1-6 evidence refs")
+        if not isinstance(f["evidence"], list) or not 1 <= len(f["evidence"]) <= FINDING["properties"]["evidence"]["maxItems"]:
+            errs.append(f"schema: finding {i} needs 1-{FINDING['properties']['evidence']['maxItems']} evidence refs")
         elif any(not isinstance(r, str) or not REF_RE.match(r) for r in f["evidence"]):
             errs.append(f"schema: finding {i} has a malformed ref")
+        if not isinstance(f["affects"], list) or any(not isinstance(a, dict) or {"kind", "namespace", "name"} - set(a) for a in f["affects"]):
+            errs.append(f"schema: finding {i} affects must be a list of {{kind, namespace, name}}")
+        if not isinstance(f["resize"], dict) or {"cpu_request", "memory_request"} - set(f["resize"]):
+            errs.append(f"schema: finding {i} resize needs cpu_request and memory_request (empty strings if not applicable)")
     return errs
 
 
@@ -69,6 +74,15 @@ def validate(d: dict, b: Backend, namespaces: list[str]) -> dict:
         bad = [r for r in f["evidence"] if r not in refs[ns]]
         if bad:
             failed.append(f"evidence-exists: refs not returned by any tool for {ns}: {bad}")
+        for a in f["affects"]:
+            if a["namespace"] not in namespaces or (a["kind"], a["name"]) not in objs[a["namespace"]]:
+                failed.append(f"object-exists: affected {a['kind']} {a['namespace']}/{a['name']} does not exist in this task's namespaces")
         if not f["fix"].strip():
             failed.append(f"fix: {f['name']} needs a suggested fix")
+        if f["category"] == "overprovisioned":
+            try:
+                if cpu_m(f["resize"]["cpu_request"]) is None and mem_mi(f["resize"]["memory_request"]) is None:
+                    raise ValueError("empty")
+            except ValueError:
+                failed.append(f"resize: {f['name']} is overprovisioned but resize has no valid new request (e.g. 50m, 64Mi)")
     return {"pass": not failed, "failed": failed}

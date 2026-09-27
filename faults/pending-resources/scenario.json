@@ -11,7 +11,8 @@
   "objects": [
     {
       "kind": "Deployment",
-      "name": "ml-trainer"
+      "name": "ml-trainer",
+      "affects": []
     }
   ],
   "evidence": [
@@ -25,5 +26,11 @@
     "manifest.yaml"
   ],
   "cluster": "kind",
-  "settle": "event:FailedScheduling"
+  "settle": "event:FailedScheduling",
+  "tier": "easy",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

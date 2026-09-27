@@ -4,18 +4,24 @@
   "title": "Fault scenario (answer key)",
   "type": "object",
   "required": [
-    "id",
-    "namespace",
-    "title",
-    "report",
-    "category",
     "allowed",
-    "objects",
-    "evidence",
-    "must_call",
-    "live_only",
+    "also_ok",
     "apply",
-    "cluster"
+    "category",
+    "cluster",
+    "evidence",
+    "forbidden",
+    "hints",
+    "id",
+    "live_only",
+    "must_call",
+    "namespace",
+    "objects",
+    "red_herrings",
+    "report",
+    "task_type",
+    "tier",
+    "title"
   ],
   "properties": {
     "id": {
@@ -42,9 +48,18 @@
         "unschedulable_constraints",
         "probe_failure",
         "service_no_endpoints",
+        "service_misconfig",
         "config_missing",
+        "dependency_missing",
+        "dns_failure",
+        "tls_trust",
+        "tls_expired",
+        "cpu_throttling",
+        "ephemeral_storage",
+        "resource_policy",
         "job_failed",
         "rollout_stuck",
+        "overprovisioned",
         "gpu_slice_oom",
         "gpu_unavailable",
         "kv_saturation",
@@ -64,9 +79,18 @@
           "unschedulable_constraints",
           "probe_failure",
           "service_no_endpoints",
+          "service_misconfig",
           "config_missing",
+          "dependency_missing",
+          "dns_failure",
+          "tls_trust",
+          "tls_expired",
+          "cpu_throttling",
+          "ephemeral_storage",
+          "resource_policy",
           "job_failed",
           "rollout_stuck",
+          "overprovisioned",
           "gpu_slice_oom",
           "gpu_unavailable",
           "kv_saturation",
@@ -82,8 +106,37 @@
         "type": "object",
         "required": [
           "kind",
-          "name"
-        ]
+          "name",
+          "affects"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "affects": {
+            "type": "array"
+          },
+          "alternatives": {
+            "type": "array"
+          },
+          "resize_band": {
+            "type": "object",
+            "properties": {
+              "cpu_m": {
+                "type": "array"
+              },
+              "memory_mi": {
+                "type": "array"
+              }
+            }
+          }
+        }
       }
     },
     "evidence": {
@@ -96,6 +149,8 @@
           "log",
           "resources",
           "metrics",
+          "certificate",
+          "rightsizing",
           "cost"
         ]
       }
@@ -119,7 +174,48 @@
       "type": "string"
     },
     "settle": {
-      "type": "string"
+      "type": [
+        "string",
+        "array"
+      ]
+    },
+    "tier": {
+      "enum": [
+        "easy",
+        "multi_hop",
+        "red_herring",
+        "rightsizing",
+        "live"
+      ]
+    },
+    "task_type": {
+      "enum": [
+        "investigate",
+        "audit",
+        "rightsize"
+      ]
+    },
+    "red_herrings": {
+      "type": "array",
+      "description": "objects that look broken but are not the cause; a finding on them is a false positive"
+    },
+    "also_ok": {
+      "type": "array",
+      "description": "objects a finding may name without being a false positive (optionally limited to categories)"
+    },
+    "forbidden": {
+      "type": "array",
+      "description": "traps: a finding on this object with one of these categories fails"
+    },
+    "hints": {
+      "type": "object",
+      "description": "reference-solver hints only; never shown to the model"
+    },
+    "tls_setup": {
+      "type": "array"
+    },
+    "usage_window_s": {
+      "type": "integer"
     }
   }
 }

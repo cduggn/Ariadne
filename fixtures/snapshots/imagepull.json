@@ -5,15 +5,21 @@
    "configmaps": [
     {
      "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
      "kind": "ConfigMap",
      "metadata": {
       "annotations": {
        "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
       },
-      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "creationTimestamp": "2026-09-27T13:07:03Z",
       "name": "kube-root-ca.crt",
       "namespace": "storefront",
-      "uid": "0649bc32-8d14-4ccc-ac1b-bd1c2fd98860"
+      "uid": "7851c71d-7484-4c77-a33f-c8cd2479d871"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
      }
     }
    ],
@@ -23,11 +29,11 @@
      "kind": "Deployment",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "creationTimestamp": "2026-09-27T13:10:42Z",
       "generation": 1,
       "name": "frontend",
       "namespace": "storefront",
-      "uid": "4b21f385-bf22-4424-aa3f-7514fdacbf13"
+      "uid": "819f0b4f-5a24-4b01-87f5-d8280b6a3d6c"
      },
      "spec": {
       "progressDeadlineSeconds": 600,
@@ -73,16 +79,16 @@
      "status": {
       "conditions": [
        {
-        "lastTransitionTime": "2026-09-27T10:21:21Z",
-        "lastUpdateTime": "2026-09-27T10:21:21Z",
+        "lastTransitionTime": "2026-09-27T13:10:42Z",
+        "lastUpdateTime": "2026-09-27T13:10:42Z",
         "message": "Deployment does not have minimum availability.",
         "reason": "MinimumReplicasUnavailable",
         "status": "False",
         "type": "Available"
        },
        {
-        "lastTransitionTime": "2026-09-27T10:21:21Z",
-        "lastUpdateTime": "2026-09-27T10:21:21Z",
+        "lastTransitionTime": "2026-09-27T13:10:42Z",
+        "lastUpdateTime": "2026-09-27T13:10:42Z",
         "message": "ReplicaSet \"frontend-b86cc5bdc\" is progressing.",
         "reason": "ReplicaSetUpdated",
         "status": "True",
@@ -103,23 +109,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "firstTimestamp": "2026-09-27T13:10:42Z",
      "involvedObject": {
       "apiVersion": "v1",
       "kind": "Pod",
-      "name": "frontend-b86cc5bdc-mqf7p",
+      "name": "frontend-b86cc5bdc-ct555",
       "namespace": "storefront",
-      "resourceVersion": "1152",
-      "uid": "5530d90a-6ee0-4644-9043-bdbf05ecfd65"
+      "resourceVersion": "8922",
+      "uid": "7906d472-f422-4d58-9642-08f9c0cb8e65"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:21Z",
-     "message": "Successfully assigned storefront/frontend-b86cc5bdc-mqf7p to doctor-lab-control-plane",
+     "lastTimestamp": "2026-09-27T13:10:42Z",
+     "message": "Successfully assigned storefront/frontend-b86cc5bdc-ct555 to doctor-lab-control-plane",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:21Z",
-      "name": "frontend-b86cc5bdc-mqf7p.18d92656f78105a3",
+      "creationTimestamp": "2026-09-27T13:10:42Z",
+      "name": "frontend-b86cc5bdc-ct555.18d92f94c31b51f2",
       "namespace": "storefront",
-      "uid": "1e9c13a6-0e9f-4a61-9fe3-4a7152da5c18"
+      "uid": "0d00cfcd-3323-458c-8417-0e006c08a824"
      },
      "reason": "Scheduled",
      "reportingComponent": "default-scheduler",
@@ -131,26 +137,26 @@
     },
     {
      "apiVersion": "v1",
-     "count": 3,
+     "count": 4,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:10:43Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{frontend}",
       "kind": "Pod",
-      "name": "frontend-b86cc5bdc-mqf7p",
+      "name": "frontend-b86cc5bdc-ct555",
       "namespace": "storefront",
-      "resourceVersion": "1154",
-      "uid": "5530d90a-6ee0-4644-9043-bdbf05ecfd65"
+      "resourceVersion": "8925",
+      "uid": "7906d472-f422-4d58-9642-08f9c0cb8e65"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:22:05Z",
+     "lastTimestamp": "2026-09-27T13:12:06Z",
      "message": "Pulling image \"nginx:1.299-alpine\"",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "frontend-b86cc5bdc-mqf7p.18d926570ec82697",
+      "creationTimestamp": "2026-09-27T13:10:43Z",
+      "name": "frontend-b86cc5bdc-ct555.18d92f94d8504379",
       "namespace": "storefront",
-      "uid": "f300e189-bd87-4776-8edb-6afbb720090c"
+      "uid": "4e38629a-ae1d-40f0-970d-625ce7a4a958"
      },
      "reason": "Pulling",
      "reportingComponent": "kubelet",
@@ -163,58 +169,26 @@
     },
     {
      "apiVersion": "v1",
-     "count": 3,
+     "count": 4,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:25Z",
+     "firstTimestamp": "2026-09-27T13:10:43Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{frontend}",
       "kind": "Pod",
-      "name": "frontend-b86cc5bdc-mqf7p",
+      "name": "frontend-b86cc5bdc-ct555",
       "namespace": "storefront",
-      "resourceVersion": "1154",
-      "uid": "5530d90a-6ee0-4644-9043-bdbf05ecfd65"
+      "resourceVersion": "8925",
+      "uid": "7906d472-f422-4d58-9642-08f9c0cb8e65"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:22:06Z",
+     "lastTimestamp": "2026-09-27T13:12:06Z",
      "message": "Failed to pull image \"nginx:1.299-alpine\": rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/nginx:1.299-alpine\": failed to resolve reference \"docker.io/library/nginx:1.299-alpine\": docker.io/library/nginx:1.299-alpine: not found",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:25Z",
-      "name": "frontend-b86cc5bdc-mqf7p.18d92657c482f27e",
+      "creationTimestamp": "2026-09-27T13:10:43Z",
+      "name": "frontend-b86cc5bdc-ct555.18d92f94fb1082b3",
       "namespace": "storefront",
-      "uid": "e39c2ee4-b61f-429f-ae21-127170866010"
-     },
-     "reason": "Failed",
-     "reportingComponent": "kubelet",
-     "reportingInstance": "doctor-lab-control-plane",
-     "source": {
-      "component": "kubelet",
-      "host": "doctor-lab-control-plane"
-     },
-     "type": "Warning"
-    },
-    {
-     "apiVersion": "v1",
-     "count": 3,
-     "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:25Z",
-     "involvedObject": {
-      "apiVersion": "v1",
-      "fieldPath": "spec.containers{frontend}",
-      "kind": "Pod",
-      "name": "frontend-b86cc5bdc-mqf7p",
-      "namespace": "storefront",
-      "resourceVersion": "1154",
-      "uid": "5530d90a-6ee0-4644-9043-bdbf05ecfd65"
-     },
-     "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:22:06Z",
-     "message": "Error: ErrImagePull",
-     "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:25Z",
-      "name": "frontend-b86cc5bdc-mqf7p.18d92657c489a9df",
-      "namespace": "storefront",
-      "uid": "c9e9e45d-318a-4c38-8b6a-31a7727b0036"
+      "uid": "01c6c308-0e3a-4f1c-8725-6b583d241059"
      },
      "reason": "Failed",
      "reportingComponent": "kubelet",
@@ -229,24 +203,56 @@
      "apiVersion": "v1",
      "count": 4,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:25Z",
+     "firstTimestamp": "2026-09-27T13:10:43Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{frontend}",
       "kind": "Pod",
-      "name": "frontend-b86cc5bdc-mqf7p",
+      "name": "frontend-b86cc5bdc-ct555",
       "namespace": "storefront",
-      "resourceVersion": "1154",
-      "uid": "5530d90a-6ee0-4644-9043-bdbf05ecfd65"
+      "resourceVersion": "8925",
+      "uid": "7906d472-f422-4d58-9642-08f9c0cb8e65"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:22:34Z",
+     "lastTimestamp": "2026-09-27T13:12:06Z",
+     "message": "Error: ErrImagePull",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:10:43Z",
+      "name": "frontend-b86cc5bdc-ct555.18d92f94fb149d44",
+      "namespace": "storefront",
+      "uid": "df41185a-873a-49b7-bb89-acd77de24e2c"
+     },
+     "reason": "Failed",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:10:43Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{frontend}",
+      "kind": "Pod",
+      "name": "frontend-b86cc5bdc-ct555",
+      "namespace": "storefront",
+      "resourceVersion": "8925",
+      "uid": "7906d472-f422-4d58-9642-08f9c0cb8e65"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:11:51Z",
      "message": "Back-off pulling image \"nginx:1.299-alpine\"",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:25Z",
-      "name": "frontend-b86cc5bdc-mqf7p.18d92657dcb135e1",
+      "creationTimestamp": "2026-09-27T13:10:43Z",
+      "name": "frontend-b86cc5bdc-ct555.18d92f950527c40c",
       "namespace": "storefront",
-      "uid": "5bf62dd8-23eb-4ad3-8783-9f6be6b1dc96"
+      "uid": "e9c6aec0-3e7a-409d-b870-8d2204939d63"
      },
      "reason": "BackOff",
      "reportingComponent": "kubelet",
@@ -261,24 +267,24 @@
      "apiVersion": "v1",
      "count": 4,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:25Z",
+     "firstTimestamp": "2026-09-27T13:10:43Z",
      "involvedObject": {
       "apiVersion": "v1",
       "fieldPath": "spec.containers{frontend}",
       "kind": "Pod",
-      "name": "frontend-b86cc5bdc-mqf7p",
+      "name": "frontend-b86cc5bdc-ct555",
       "namespace": "storefront",
-      "resourceVersion": "1154",
-      "uid": "5530d90a-6ee0-4644-9043-bdbf05ecfd65"
+      "resourceVersion": "8925",
+      "uid": "7906d472-f422-4d58-9642-08f9c0cb8e65"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:22:34Z",
+     "lastTimestamp": "2026-09-27T13:11:51Z",
      "message": "Error: ImagePullBackOff",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:25Z",
-      "name": "frontend-b86cc5bdc-mqf7p.18d92657dcb26dba",
+      "creationTimestamp": "2026-09-27T13:10:43Z",
+      "name": "frontend-b86cc5bdc-ct555.18d92f9505294198",
       "namespace": "storefront",
-      "uid": "067cd648-68a4-446f-81df-a3cf13e4f2bc"
+      "uid": "080beaf8-34ac-4b48-91c2-4be195afde5b"
      },
      "reason": "Failed",
      "reportingComponent": "kubelet",
@@ -293,23 +299,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "firstTimestamp": "2026-09-27T13:10:42Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "ReplicaSet",
       "name": "frontend-b86cc5bdc",
       "namespace": "storefront",
-      "resourceVersion": "1148",
-      "uid": "2ac241bf-46d3-43ca-8515-a1008c065cd4"
+      "resourceVersion": "8918",
+      "uid": "18a40b15-a284-4e55-9f30-1b7d5e9308bc"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:21Z",
-     "message": "Created pod: frontend-b86cc5bdc-mqf7p",
+     "lastTimestamp": "2026-09-27T13:10:42Z",
+     "message": "Created pod: frontend-b86cc5bdc-ct555",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:21Z",
-      "name": "frontend-b86cc5bdc.18d92656f747cb45",
+      "creationTimestamp": "2026-09-27T13:10:42Z",
+      "name": "frontend-b86cc5bdc.18d92f94c2e81c0b",
       "namespace": "storefront",
-      "uid": "f8c9b034-d6ec-4c42-8bb3-2a4cffdaa773"
+      "uid": "91cde9fc-380f-4841-93fc-654bb290c9f3"
      },
      "reason": "SuccessfulCreate",
      "reportingComponent": "replicaset-controller",
@@ -323,23 +329,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "firstTimestamp": "2026-09-27T13:10:42Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "Deployment",
       "name": "frontend",
       "namespace": "storefront",
-      "resourceVersion": "1147",
-      "uid": "4b21f385-bf22-4424-aa3f-7514fdacbf13"
+      "resourceVersion": "8917",
+      "uid": "819f0b4f-5a24-4b01-87f5-d8280b6a3d6c"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "lastTimestamp": "2026-09-27T13:10:42Z",
      "message": "Scaled up replica set frontend-b86cc5bdc from 0 to 1",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:21Z",
-      "name": "frontend.18d92656f6ae0f7b",
+      "creationTimestamp": "2026-09-27T13:10:42Z",
+      "name": "frontend.18d92f94c20554f6",
       "namespace": "storefront",
-      "uid": "98a96eff-388f-4b32-9300-1e7511548149"
+      "uid": "f00ad5d6-091c-49fe-9d5d-181740189fc0"
      },
      "reason": "ScalingReplicaSet",
      "reportingComponent": "deployment-controller",
@@ -350,20 +356,24 @@
      "type": "Normal"
     }
    ],
+   "ingresses": [],
    "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
    "pods": [
     {
      "apiVersion": "v1",
      "kind": "Pod",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "creationTimestamp": "2026-09-27T13:10:42Z",
       "generateName": "frontend-b86cc5bdc-",
       "generation": 1,
       "labels": {
        "app": "frontend",
        "pod-template-hash": "b86cc5bdc"
       },
-      "name": "frontend-b86cc5bdc-mqf7p",
+      "name": "frontend-b86cc5bdc-ct555",
       "namespace": "storefront",
       "ownerReferences": [
        {
@@ -372,10 +382,10 @@
         "controller": true,
         "kind": "ReplicaSet",
         "name": "frontend-b86cc5bdc",
-        "uid": "2ac241bf-46d3-43ca-8515-a1008c065cd4"
+        "uid": "18a40b15-a284-4e55-9f30-1b7d5e9308bc"
        }
       ],
-      "uid": "5530d90a-6ee0-4644-9043-bdbf05ecfd65"
+      "uid": "7906d472-f422-4d58-9642-08f9c0cb8e65"
      },
      "spec": {
       "containers": [
@@ -389,7 +399,7 @@
         "volumeMounts": [
          {
           "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-          "name": "kube-api-access-j5kbn",
+          "name": "kube-api-access-x8dc4",
           "readOnly": true
          }
         ]
@@ -422,7 +432,7 @@
       ],
       "volumes": [
        {
-        "name": "kube-api-access-j5kbn",
+        "name": "kube-api-access-x8dc4",
         "projected": {
          "defaultMode": 420,
          "sources": [
@@ -465,21 +475,21 @@
       "conditions": [
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:10:43Z",
         "observedGeneration": 1,
         "status": "True",
         "type": "PodReadyToStartContainers"
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastTransitionTime": "2026-09-27T13:10:42Z",
         "observedGeneration": 1,
         "status": "True",
         "type": "Initialized"
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastTransitionTime": "2026-09-27T13:10:42Z",
         "message": "containers with unready status: [frontend]",
         "observedGeneration": 1,
         "reason": "ContainersNotReady",
@@ -488,7 +498,7 @@
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastTransitionTime": "2026-09-27T13:10:42Z",
         "message": "containers with unready status: [frontend]",
         "observedGeneration": 1,
         "reason": "ContainersNotReady",
@@ -497,7 +507,7 @@
        },
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastTransitionTime": "2026-09-27T13:10:42Z",
         "observedGeneration": 1,
         "status": "True",
         "type": "PodScheduled"
@@ -521,7 +531,7 @@
         "volumeMounts": [
          {
           "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-          "name": "kube-api-access-j5kbn",
+          "name": "kube-api-access-x8dc4",
           "readOnly": true,
           "recursiveReadOnly": "Disabled"
          }
@@ -536,15 +546,15 @@
       ],
       "observedGeneration": 1,
       "phase": "Pending",
-      "podIP": "10.244.0.9",
+      "podIP": "10.244.0.30",
       "podIPs": [
        {
-        "ip": "10.244.0.9"
+        "ip": "10.244.0.30"
        }
       ],
       "qosClass": "BestEffort",
       "resources": {},
-      "startTime": "2026-09-27T10:21:21Z"
+      "startTime": "2026-09-27T13:10:42Z"
      }
     }
    ],
@@ -554,7 +564,7 @@
      "kind": "ReplicaSet",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "creationTimestamp": "2026-09-27T13:10:42Z",
       "generation": 1,
       "labels": {
        "app": "frontend",
@@ -569,10 +579,10 @@
         "controller": true,
         "kind": "Deployment",
         "name": "frontend",
-        "uid": "4b21f385-bf22-4424-aa3f-7514fdacbf13"
+        "uid": "819f0b4f-5a24-4b01-87f5-d8280b6a3d6c"
        }
       ],
-      "uid": "2ac241bf-46d3-43ca-8515-a1008c065cd4"
+      "uid": "18a40b15-a284-4e55-9f30-1b7d5e9308bc"
      },
      "spec": {
       "replicas": 1,
@@ -616,6 +626,7 @@
      }
     }
    ],
+   "resourcequotas": [],
    "services": []
   }
  },
@@ -623,7 +634,7 @@
   "context": "kind-doctor-lab",
   "kubernetes": "v1.36.4",
   "scenario": "imagepull",
-  "time": "2026-09-27T10:22:46Z"
+  "time": "2026-09-27T13:12:10Z"
  },
  "usage": {
   "storefront": []

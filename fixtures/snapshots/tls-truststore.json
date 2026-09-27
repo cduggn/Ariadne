@@ -1,0 +1,2298 @@
+{
+ "logs": {
+  "payments/checkout-web-6447595cb4-4bn7r/checkout-web/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: can not modify /etc/nginx/conf.d/default.conf (read-only file system?)\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 13:22:36 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 13:22:36 [notice] 1#1: nginx/1.29.8\n2026/09/27 13:22:36 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 13:22:36 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 13:22:36 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 13:22:36 [notice] 1#1: start worker processes\n2026/09/27 13:22:36 [notice] 1#1: start worker process 28\n2026/09/27 13:22:36 [notice] 1#1: start worker process 29\n10.244.0.1 - - [27/Sep/2026:13:22:36 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:22:46 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:22:56 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:23:06 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:23:16 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:23:26 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:23:36 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:23:46 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n10.244.0.59 - - [27/Sep/2026:13:23:54 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n2026/09/27 13:23:54 [error] 28#28: *9 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.1 - - [27/Sep/2026:13:23:56 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n2026/09/27 13:23:57 [error] 28#28: *12 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:23:57 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n2026/09/27 13:24:00 [error] 28#28: *14 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:24:00 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n2026/09/27 13:24:03 [error] 28#28: *16 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:24:03 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:24:06 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n2026/09/27 13:24:06 [error] 28#28: *19 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:24:06 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n2026/09/27 13:24:09 [error] 28#28: *21 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:24:09 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n10.244.0.59 - - [27/Sep/2026:13:24:12 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n2026/09/27 13:24:12 [error] 28#28: *23 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n2026/09/27 13:24:15 [error] 28#28: *25 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:24:15 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n10.244.0.1 - - [27/Sep/2026:13:24:16 +0000] \"GET /healthz HTTP/1.1\" 200 3 \"-\" \"kube-probe/1.36\" \"-\"\n2026/09/27 13:24:18 [error] 29#29: *28 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:24:18 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n2026/09/27 13:24:21 [error] 29#29: *30 upstream SSL certificate verify error: (21:unable to verify the first certificate) while SSL handshaking to upstream, client: 10.244.0.59, server: , request: \"GET /pay HTTP/1.1\", upstream: \"https://10.96.40.60:443/pay\", host: \"checkout-web\"\n10.244.0.59 - - [27/Sep/2026:13:24:21 +0000] \"GET /pay HTTP/1.1\" 502 157 \"-\" \"Wget\" \"-\"\n",
+  "payments/payments-api-ff885cc65-6qvh7/payments-api/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: can not modify /etc/nginx/conf.d/default.conf (read-only file system?)\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 13:22:35 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 13:22:35 [notice] 1#1: nginx/1.29.8\n2026/09/27 13:22:35 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 13:22:35 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 13:22:35 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 13:22:35 [notice] 1#1: start worker processes\n2026/09/27 13:22:35 [notice] 1#1: start worker process 28\n2026/09/27 13:22:35 [notice] 1#1: start worker process 29\n",
+  "payments/traffic-cc87d5c47-z4wdh/traffic/current": "checkout probe: wget: can't connect to remote host (10.96.181.166): Connection refused\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\ncheckout probe: wget: server returned error: HTTP/1.1 502 Bad Gateway\n"
+ },
+ "namespaces": {
+  "payments": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "default.conf"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "checkout-web-nginx",
+      "namespace": "payments",
+      "uid": "f5931d31-8d44-4ad2-9df4-fcafcb253d40"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "internal-ca",
+      "namespace": "payments",
+      "uid": "25fcc4de-e848-4ab7-8a7a-da8ab465f62e"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIBhjCCASygAwIBAgIUevw+v5F3RjQQodyrAP1HzQAGfNkwCgYIKoZIzj0EAwIw\nNzERMA8GA1UECgwIUGxhdGZvcm0xIjAgBgNVBAMMGUludGVybmFsIFNlcnZpY2Vz\nIENBIDIwMjYwHhcNMjYwOTI2MTMwNzA1WhcNMzYwOTI0MTMwNzA1WjA3MREwDwYD\nVQQKDAhQbGF0Zm9ybTEiMCAGA1UEAwwZSW50ZXJuYWwgU2VydmljZXMgQ0EgMjAy\nNjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCY2ACg4372gvb92LTbGyXB63q34\niMaCOlMSpiRyjamn45PBkSnp5Fd0uUWq0l9KOXZthUvg+MWDIvV92Ltba4yjFjAU\nMBIGA1UdEwEB/wQIMAYBAf8CAQAwCgYIKoZIzj0EAwIDSAAwRQIhAIMh4Ulu2RBB\n/iseM8wnSI28qZpmYyts3JH4X1/J3HD/AiB7VMMOYCE/qHREiz5E0HZaIB/ul/eH\n711JU83gBEmSNQ==\n-----END CERTIFICATE-----\n"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "payments",
+      "uid": "191e0998-4d9c-4c15-83ea-a7936edea6d3"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "legacy-ca",
+      "namespace": "payments",
+      "uid": "384eb058-2b1b-42f0-83f9-b88af0b24340"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIBgzCCASigAwIBAgIUMwRYn4IPnanaZyQjbmcF7K1h9UwwCgYIKoZIzj0EAwIw\nNTERMA8GA1UECgwIUGxhdGZvcm0xIDAeBgNVBAMMF0xlZ2FjeSBTZXJ2aWNlcyBD\nQSAyMDIxMB4XDTIyMDgxODEzMDcwNVoXDTMyMDgxNjEzMDcwNVowNTERMA8GA1UE\nCgwIUGxhdGZvcm0xIDAeBgNVBAMMF0xlZ2FjeSBTZXJ2aWNlcyBDQSAyMDIxMFkw\nEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEX5eScT4Oy5g/knuNlmrStOWJsHohFwzt\nfxAyILKaw8HW7egJg6bmTFxzWpvTg08KozDxTcgYlmkCLWvSEFQCLaMWMBQwEgYD\nVR0TAQH/BAgwBgEB/wIBADAKBggqhkjOPQQDAgNJADBGAiEA5eOu1QPbdMuaOi3t\ntXHqLt2/DY1fV0PQ3ZEnfhyQy9oCIQDWPfT8BDw/OzpNA/vaPv4eS3z6Dj6y4Yzl\nDHT3lxb3Qg==\n-----END CERTIFICATE-----\n"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "default.conf"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api-nginx",
+      "namespace": "payments",
+      "uid": "d49a1cf5-6da4-48dd-9945-a627b8584cae"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generation": 1,
+      "name": "checkout-web",
+      "namespace": "payments",
+      "uid": "fa1f9745-4ea8-4ae8-8867-b10ac0efa350"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "checkout-web"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "checkout-web"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "checkout-web",
+          "ports": [
+           {
+            "containerPort": 80,
+            "protocol": "TCP"
+           }
+          ],
+          "readinessProbe": {
+           "failureThreshold": 3,
+           "httpGet": {
+            "path": "/healthz",
+            "port": 80,
+            "scheme": "HTTP"
+           },
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "timeoutSeconds": 1
+          },
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File",
+          "volumeMounts": [
+           {
+            "mountPath": "/etc/ssl/trust",
+            "name": "trust",
+            "readOnly": true
+           },
+           {
+            "mountPath": "/etc/nginx/conf.d",
+            "name": "conf"
+           }
+          ]
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+         {
+          "configMap": {
+           "defaultMode": 420,
+           "name": "legacy-ca"
+          },
+          "name": "trust"
+         },
+         {
+          "configMap": {
+           "defaultMode": 420,
+           "name": "checkout-web-nginx"
+          },
+          "name": "conf"
+         }
+        ]
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "lastUpdateTime": "2026-09-27T13:22:36Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "lastUpdateTime": "2026-09-27T13:22:36Z",
+        "message": "ReplicaSet \"checkout-web-6447595cb4\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generation": 1,
+      "name": "payments-api",
+      "namespace": "payments",
+      "uid": "7f867204-a23c-4b06-9bd9-4df592862089"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "payments-api"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "payments-api"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "payments-api",
+          "ports": [
+           {
+            "containerPort": 443,
+            "protocol": "TCP"
+           }
+          ],
+          "readinessProbe": {
+           "failureThreshold": 3,
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "tcpSocket": {
+            "port": 443
+           },
+           "timeoutSeconds": 1
+          },
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File",
+          "volumeMounts": [
+           {
+            "mountPath": "/etc/tls",
+            "name": "tls",
+            "readOnly": true
+           },
+           {
+            "mountPath": "/etc/nginx/conf.d",
+            "name": "conf"
+           }
+          ]
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+         {
+          "name": "tls",
+          "secret": {
+           "defaultMode": 420,
+           "secretName": "payments-api-tls"
+          }
+         },
+         {
+          "configMap": {
+           "defaultMode": 420,
+           "name": "payments-api-nginx"
+          },
+          "name": "conf"
+         }
+        ]
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "lastUpdateTime": "2026-09-27T13:22:36Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "lastUpdateTime": "2026-09-27T13:22:36Z",
+        "message": "ReplicaSet \"payments-api-ff885cc65\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generation": 1,
+      "name": "traffic",
+      "namespace": "payments",
+      "uid": "324a332d-097d-47a5-92ff-d4378a41c542"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "traffic"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "traffic"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "while true; do wget -q -O /dev/null http://checkout-web/pay 2>&1 | sed \"s/^/checkout probe: /\"; sleep 3; done"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "traffic",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "lastUpdateTime": "2026-09-27T13:22:36Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "lastUpdateTime": "2026-09-27T13:22:36Z",
+        "message": "ReplicaSet \"traffic-cc87d5c47\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [
+    {
+     "addressType": "IPv4",
+     "apiVersion": "discovery.k8s.io/v1",
+     "endpoints": [
+      {
+       "addresses": [
+        "10.244.0.58"
+       ],
+       "conditions": {
+        "ready": true,
+        "serving": true,
+        "terminating": false
+       },
+       "nodeName": "doctor-lab-control-plane",
+       "targetRef": {
+        "kind": "Pod",
+        "name": "checkout-web-6447595cb4-4bn7r",
+        "namespace": "payments",
+        "uid": "cc84840d-7bea-4843-847f-3e3f1f17e792"
+       }
+      }
+     ],
+     "kind": "EndpointSlice",
+     "metadata": {
+      "annotations": {
+       "endpoints.kubernetes.io/last-change-trigger-time": "2026-09-27T13:22:36Z"
+      },
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generateName": "checkout-web-",
+      "generation": 3,
+      "labels": {
+       "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+       "kubernetes.io/service-name": "checkout-web"
+      },
+      "name": "checkout-web-wdmsb",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Service",
+        "name": "checkout-web",
+        "uid": "b79e37b5-8d13-4917-b577-d6a32467f234"
+       }
+      ],
+      "uid": "b72d6a47-7d3e-4695-be74-d0c8771a13d9"
+     },
+     "ports": [
+      {
+       "name": "",
+       "port": 80,
+       "protocol": "TCP"
+      }
+     ]
+    },
+    {
+     "addressType": "IPv4",
+     "apiVersion": "discovery.k8s.io/v1",
+     "endpoints": [
+      {
+       "addresses": [
+        "10.244.0.57"
+       ],
+       "conditions": {
+        "ready": true,
+        "serving": true,
+        "terminating": false
+       },
+       "nodeName": "doctor-lab-control-plane",
+       "targetRef": {
+        "kind": "Pod",
+        "name": "payments-api-ff885cc65-6qvh7",
+        "namespace": "payments",
+        "uid": "04588676-8008-4859-8ba8-73a314d23a1b"
+       }
+      }
+     ],
+     "kind": "EndpointSlice",
+     "metadata": {
+      "annotations": {
+       "endpoints.kubernetes.io/last-change-trigger-time": "2026-09-27T13:22:36Z"
+      },
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generateName": "payments-api-",
+      "generation": 3,
+      "labels": {
+       "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+       "kubernetes.io/service-name": "payments-api"
+      },
+      "name": "payments-api-pghts",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Service",
+        "name": "payments-api",
+        "uid": "08fe3c4c-1b2e-4bdd-a88a-19bea131e92d"
+       }
+      ],
+      "uid": "061a02b0-3972-4fc5-9bee-f030a598d9d3"
+     },
+     "ports": [
+      {
+       "name": "",
+       "port": 443,
+       "protocol": "TCP"
+      }
+     ]
+    }
+   ],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "checkout-web-6447595cb4-4bn7r",
+      "namespace": "payments",
+      "resourceVersion": "11397",
+      "uid": "cc84840d-7bea-4843-847f-3e3f1f17e792"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Successfully assigned payments/checkout-web-6447595cb4-4bn7r to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "checkout-web-6447595cb4-4bn7r.18d9303ab48b1351",
+      "namespace": "payments",
+      "uid": "f3844380-280e-4e35-86ed-384208f6d59a"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{checkout-web}",
+      "kind": "Pod",
+      "name": "checkout-web-6447595cb4-4bn7r",
+      "namespace": "payments",
+      "resourceVersion": "11400",
+      "uid": "cc84840d-7bea-4843-847f-3e3f1f17e792"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Container image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "checkout-web-6447595cb4-4bn7r.18d9303accaa1a0b",
+      "namespace": "payments",
+      "uid": "ab93bc2a-d9ee-4bfd-a59a-640eddb6cf66"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{checkout-web}",
+      "kind": "Pod",
+      "name": "checkout-web-6447595cb4-4bn7r",
+      "namespace": "payments",
+      "resourceVersion": "11400",
+      "uid": "cc84840d-7bea-4843-847f-3e3f1f17e792"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "checkout-web-6447595cb4-4bn7r.18d9303acd920a1a",
+      "namespace": "payments",
+      "uid": "1fea5696-83b1-4a49-bccd-f5fe3e9c05c7"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:36Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{checkout-web}",
+      "kind": "Pod",
+      "name": "checkout-web-6447595cb4-4bn7r",
+      "namespace": "payments",
+      "resourceVersion": "11400",
+      "uid": "cc84840d-7bea-4843-847f-3e3f1f17e792"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:36Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:36Z",
+      "name": "checkout-web-6447595cb4-4bn7r.18d9303ad108d8ef",
+      "namespace": "payments",
+      "uid": "d0e38f73-e218-4e83-b954-d67f557dbee6"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:36Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{checkout-web}",
+      "kind": "Pod",
+      "name": "checkout-web-6447595cb4-4bn7r",
+      "namespace": "payments",
+      "resourceVersion": "11400",
+      "uid": "cc84840d-7bea-4843-847f-3e3f1f17e792"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:36Z",
+     "message": "Readiness probe failed: Get \"http://10.244.0.58:80/healthz\": dial tcp 10.244.0.58:80: connect: connection refused",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:36Z",
+      "name": "checkout-web-6447595cb4-4bn7r.18d9303ad12a1b96",
+      "namespace": "payments",
+      "uid": "ae9e4fb0-0f16-4b47-a195-6d60eeea3278"
+     },
+     "reason": "Unhealthy",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "checkout-web-6447595cb4",
+      "namespace": "payments",
+      "resourceVersion": "11392",
+      "uid": "05fb86ea-ae66-4388-8c8d-977ce31c292a"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Created pod: checkout-web-6447595cb4-4bn7r",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "checkout-web-6447595cb4.18d9303ab4449c34",
+      "namespace": "payments",
+      "uid": "cfa11432-40bc-4415-a67e-9d4c3bfbfb21"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "checkout-web",
+      "namespace": "payments",
+      "resourceVersion": "11391",
+      "uid": "fa1f9745-4ea8-4ae8-8867-b10ac0efa350"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Scaled up replica set checkout-web-6447595cb4 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "checkout-web.18d9303ab3573ca9",
+      "namespace": "payments",
+      "uid": "aa304910-7340-47ac-8cf1-3600f6ad98f9"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "payments-api-ff885cc65-6qvh7",
+      "namespace": "payments",
+      "resourceVersion": "11375",
+      "uid": "04588676-8008-4859-8ba8-73a314d23a1b"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Successfully assigned payments/payments-api-ff885cc65-6qvh7 to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api-ff885cc65-6qvh7.18d9303ab07fe04a",
+      "namespace": "payments",
+      "uid": "f99b646a-7ca9-460d-9235-ffeb31352aa7"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{payments-api}",
+      "kind": "Pod",
+      "name": "payments-api-ff885cc65-6qvh7",
+      "namespace": "payments",
+      "resourceVersion": "11382",
+      "uid": "04588676-8008-4859-8ba8-73a314d23a1b"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Container image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api-ff885cc65-6qvh7.18d9303ac698186a",
+      "namespace": "payments",
+      "uid": "80a74200-1822-4a62-8de5-b9fffc253d34"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{payments-api}",
+      "kind": "Pod",
+      "name": "payments-api-ff885cc65-6qvh7",
+      "namespace": "payments",
+      "resourceVersion": "11382",
+      "uid": "04588676-8008-4859-8ba8-73a314d23a1b"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api-ff885cc65-6qvh7.18d9303ac750c9ce",
+      "namespace": "payments",
+      "uid": "43f5b71d-d0b3-4f16-885a-3ceff54860b1"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{payments-api}",
+      "kind": "Pod",
+      "name": "payments-api-ff885cc65-6qvh7",
+      "namespace": "payments",
+      "resourceVersion": "11382",
+      "uid": "04588676-8008-4859-8ba8-73a314d23a1b"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api-ff885cc65-6qvh7.18d9303aca7c8480",
+      "namespace": "payments",
+      "uid": "509ead46-ef3d-42b5-b1f2-d622fa43e1cf"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{payments-api}",
+      "kind": "Pod",
+      "name": "payments-api-ff885cc65-6qvh7",
+      "namespace": "payments",
+      "resourceVersion": "11382",
+      "uid": "04588676-8008-4859-8ba8-73a314d23a1b"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Readiness probe failed: dial tcp 10.244.0.57:443: connect: connection refused",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api-ff885cc65-6qvh7.18d9303aca972eda",
+      "namespace": "payments",
+      "uid": "46955fa0-8e04-4279-81f8-e403df4db399"
+     },
+     "reason": "Unhealthy",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "payments-api-ff885cc65",
+      "namespace": "payments",
+      "resourceVersion": "11371",
+      "uid": "3a4fe6d2-144a-48ae-8728-7d7dbcc1d631"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Created pod: payments-api-ff885cc65-6qvh7",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api-ff885cc65.18d9303aaf724ff6",
+      "namespace": "payments",
+      "uid": "0fa967ea-1eab-4ed6-8d7b-83d06950d5aa"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "payments-api",
+      "namespace": "payments",
+      "resourceVersion": "11370",
+      "uid": "7f867204-a23c-4b06-9bd9-4df592862089"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Scaled up replica set payments-api-ff885cc65 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api.18d9303aaec250e9",
+      "namespace": "payments",
+      "uid": "7a0e5a2b-4202-43c3-a3db-90124d1522b8"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "traffic-cc87d5c47-z4wdh",
+      "namespace": "payments",
+      "resourceVersion": "11414",
+      "uid": "0169d6f6-278c-497b-a057-df581f813e13"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Successfully assigned payments/traffic-cc87d5c47-z4wdh to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "traffic-cc87d5c47-z4wdh.18d9303ab653ceab",
+      "namespace": "payments",
+      "uid": "fc6b65a3-1b66-4801-95e7-ee6618d99eb0"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{traffic}",
+      "kind": "Pod",
+      "name": "traffic-cc87d5c47-z4wdh",
+      "namespace": "payments",
+      "resourceVersion": "11419",
+      "uid": "0169d6f6-278c-497b-a057-df581f813e13"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "traffic-cc87d5c47-z4wdh.18d9303acda5bc4a",
+      "namespace": "payments",
+      "uid": "e9824bd4-6ee7-4a73-bd4f-a16e3f8f8476"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{traffic}",
+      "kind": "Pod",
+      "name": "traffic-cc87d5c47-z4wdh",
+      "namespace": "payments",
+      "resourceVersion": "11419",
+      "uid": "0169d6f6-278c-497b-a057-df581f813e13"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "traffic-cc87d5c47-z4wdh.18d9303ace3b2e9e",
+      "namespace": "payments",
+      "uid": "9cc9e19c-183e-4a05-a110-95fa7621af0c"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:36Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{traffic}",
+      "kind": "Pod",
+      "name": "traffic-cc87d5c47-z4wdh",
+      "namespace": "payments",
+      "resourceVersion": "11419",
+      "uid": "0169d6f6-278c-497b-a057-df581f813e13"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:36Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:36Z",
+      "name": "traffic-cc87d5c47-z4wdh.18d9303ad107467b",
+      "namespace": "payments",
+      "uid": "f452dddd-9311-405f-a538-4b7a2dc36ad2"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "traffic-cc87d5c47",
+      "namespace": "payments",
+      "resourceVersion": "11410",
+      "uid": "97fef06a-4b8c-402f-bd08-b5baacd7c80a"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Created pod: traffic-cc87d5c47-z4wdh",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "traffic-cc87d5c47.18d9303ab60f62a4",
+      "namespace": "payments",
+      "uid": "92af1034-1dfd-4bc4-9809-bebc694ea5fc"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "traffic",
+      "namespace": "payments",
+      "resourceVersion": "11407",
+      "uid": "324a332d-097d-47a5-92ff-d4378a41c542"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:35Z",
+     "message": "Scaled up replica set traffic-cc87d5c47 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "traffic.18d9303ab5e7e5d8",
+      "namespace": "payments",
+      "uid": "b882b9d1-9598-4247-a4fe-49991bdcbfa8"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "ingresses": [],
+   "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generateName": "checkout-web-6447595cb4-",
+      "generation": 1,
+      "labels": {
+       "app": "checkout-web",
+       "pod-template-hash": "6447595cb4"
+      },
+      "name": "checkout-web-6447595cb4-4bn7r",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "checkout-web-6447595cb4",
+        "uid": "05fb86ea-ae66-4388-8c8d-977ce31c292a"
+       }
+      ],
+      "uid": "cc84840d-7bea-4843-847f-3e3f1f17e792"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "checkout-web",
+        "ports": [
+         {
+          "containerPort": 80,
+          "protocol": "TCP"
+         }
+        ],
+        "readinessProbe": {
+         "failureThreshold": 3,
+         "httpGet": {
+          "path": "/healthz",
+          "port": 80,
+          "scheme": "HTTP"
+         },
+         "periodSeconds": 10,
+         "successThreshold": 1,
+         "timeoutSeconds": 1
+        },
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/etc/ssl/trust",
+          "name": "trust",
+          "readOnly": true
+         },
+         {
+          "mountPath": "/etc/nginx/conf.d",
+          "name": "conf"
+         },
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-lvnb6",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "configMap": {
+         "defaultMode": 420,
+         "name": "legacy-ca"
+        },
+        "name": "trust"
+       },
+       {
+        "configMap": {
+         "defaultMode": 420,
+         "name": "checkout-web-nginx"
+        },
+        "name": "conf"
+       },
+       {
+        "name": "kube-api-access-lvnb6",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://b161d1919d83855a804ea8b5f7624d41c256121e75b2ef6d79b1963ae199c9b3",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {},
+        "name": "checkout-web",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:22:36Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/etc/ssl/trust",
+          "name": "trust",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         },
+         {
+          "mountPath": "/etc/nginx/conf.d",
+          "name": "conf"
+         },
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-lvnb6",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.58",
+      "podIPs": [
+       {
+        "ip": "10.244.0.58"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:22:35Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generateName": "payments-api-ff885cc65-",
+      "generation": 1,
+      "labels": {
+       "app": "payments-api",
+       "pod-template-hash": "ff885cc65"
+      },
+      "name": "payments-api-ff885cc65-6qvh7",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "payments-api-ff885cc65",
+        "uid": "3a4fe6d2-144a-48ae-8728-7d7dbcc1d631"
+       }
+      ],
+      "uid": "04588676-8008-4859-8ba8-73a314d23a1b"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "payments-api",
+        "ports": [
+         {
+          "containerPort": 443,
+          "protocol": "TCP"
+         }
+        ],
+        "readinessProbe": {
+         "failureThreshold": 3,
+         "periodSeconds": 10,
+         "successThreshold": 1,
+         "tcpSocket": {
+          "port": 443
+         },
+         "timeoutSeconds": 1
+        },
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/etc/tls",
+          "name": "tls",
+          "readOnly": true
+         },
+         {
+          "mountPath": "/etc/nginx/conf.d",
+          "name": "conf"
+         },
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-5xcgp",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "tls",
+        "secret": {
+         "defaultMode": 420,
+         "secretName": "payments-api-tls"
+        }
+       },
+       {
+        "configMap": {
+         "defaultMode": 420,
+         "name": "payments-api-nginx"
+        },
+        "name": "conf"
+       },
+       {
+        "name": "kube-api-access-5xcgp",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://7bc14c6155a667683b893a9e855cd206cb544117deb672fbe2503ace8be23118",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {},
+        "name": "payments-api",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:22:35Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/etc/tls",
+          "name": "tls",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         },
+         {
+          "mountPath": "/etc/nginx/conf.d",
+          "name": "conf"
+         },
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-5xcgp",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.57",
+      "podIPs": [
+       {
+        "ip": "10.244.0.57"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:22:35Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generateName": "traffic-cc87d5c47-",
+      "generation": 1,
+      "labels": {
+       "app": "traffic",
+       "pod-template-hash": "cc87d5c47"
+      },
+      "name": "traffic-cc87d5c47-z4wdh",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "traffic-cc87d5c47",
+        "uid": "97fef06a-4b8c-402f-bd08-b5baacd7c80a"
+       }
+      ],
+      "uid": "0169d6f6-278c-497b-a057-df581f813e13"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "while true; do wget -q -O /dev/null http://checkout-web/pay 2>&1 | sed \"s/^/checkout probe: /\"; sleep 3; done"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "traffic",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-klktg",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-klktg",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:36Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://108dfb709cbd0267720acdb440a4d04a1bdf2e79a9d416f7b5c73fa7828360b8",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {},
+        "name": "traffic",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T13:22:36Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-klktg",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.59",
+      "podIPs": [
+       {
+        "ip": "10.244.0.59"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T13:22:35Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generation": 1,
+      "labels": {
+       "app": "checkout-web",
+       "pod-template-hash": "6447595cb4"
+      },
+      "name": "checkout-web-6447595cb4",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "checkout-web",
+        "uid": "fa1f9745-4ea8-4ae8-8867-b10ac0efa350"
+       }
+      ],
+      "uid": "05fb86ea-ae66-4388-8c8d-977ce31c292a"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "checkout-web",
+        "pod-template-hash": "6447595cb4"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "checkout-web",
+         "pod-template-hash": "6447595cb4"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "checkout-web",
+          "ports": [
+           {
+            "containerPort": 80,
+            "protocol": "TCP"
+           }
+          ],
+          "readinessProbe": {
+           "failureThreshold": 3,
+           "httpGet": {
+            "path": "/healthz",
+            "port": 80,
+            "scheme": "HTTP"
+           },
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "timeoutSeconds": 1
+          },
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File",
+          "volumeMounts": [
+           {
+            "mountPath": "/etc/ssl/trust",
+            "name": "trust",
+            "readOnly": true
+           },
+           {
+            "mountPath": "/etc/nginx/conf.d",
+            "name": "conf"
+           }
+          ]
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+         {
+          "configMap": {
+           "defaultMode": 420,
+           "name": "legacy-ca"
+          },
+          "name": "trust"
+         },
+         {
+          "configMap": {
+           "defaultMode": 420,
+           "name": "checkout-web-nginx"
+          },
+          "name": "conf"
+         }
+        ]
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generation": 1,
+      "labels": {
+       "app": "payments-api",
+       "pod-template-hash": "ff885cc65"
+      },
+      "name": "payments-api-ff885cc65",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "payments-api",
+        "uid": "7f867204-a23c-4b06-9bd9-4df592862089"
+       }
+      ],
+      "uid": "3a4fe6d2-144a-48ae-8728-7d7dbcc1d631"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "payments-api",
+        "pod-template-hash": "ff885cc65"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "payments-api",
+         "pod-template-hash": "ff885cc65"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "payments-api",
+          "ports": [
+           {
+            "containerPort": 443,
+            "protocol": "TCP"
+           }
+          ],
+          "readinessProbe": {
+           "failureThreshold": 3,
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "tcpSocket": {
+            "port": 443
+           },
+           "timeoutSeconds": 1
+          },
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File",
+          "volumeMounts": [
+           {
+            "mountPath": "/etc/tls",
+            "name": "tls",
+            "readOnly": true
+           },
+           {
+            "mountPath": "/etc/nginx/conf.d",
+            "name": "conf"
+           }
+          ]
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+         {
+          "name": "tls",
+          "secret": {
+           "defaultMode": 420,
+           "secretName": "payments-api-tls"
+          }
+         },
+         {
+          "configMap": {
+           "defaultMode": 420,
+           "name": "payments-api-nginx"
+          },
+          "name": "conf"
+         }
+        ]
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "generation": 1,
+      "labels": {
+       "app": "traffic",
+       "pod-template-hash": "cc87d5c47"
+      },
+      "name": "traffic-cc87d5c47",
+      "namespace": "payments",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "traffic",
+        "uid": "324a332d-097d-47a5-92ff-d4378a41c542"
+       }
+      ],
+      "uid": "97fef06a-4b8c-402f-bd08-b5baacd7c80a"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "traffic",
+        "pod-template-hash": "cc87d5c47"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "traffic",
+         "pod-template-hash": "cc87d5c47"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "while true; do wget -q -O /dev/null http://checkout-web/pay 2>&1 | sed \"s/^/checkout probe: /\"; sleep 3; done"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "traffic",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "resourcequotas": [],
+   "services": [
+    {
+     "apiVersion": "v1",
+     "kind": "Service",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "checkout-web",
+      "namespace": "payments",
+      "uid": "b79e37b5-8d13-4917-b577-d6a32467f234"
+     },
+     "spec": {
+      "clusterIP": "10.96.181.166",
+      "clusterIPs": [
+       "10.96.181.166"
+      ],
+      "internalTrafficPolicy": "Cluster",
+      "ipFamilies": [
+       "IPv4"
+      ],
+      "ipFamilyPolicy": "SingleStack",
+      "ports": [
+       {
+        "port": 80,
+        "protocol": "TCP",
+        "targetPort": 80
+       }
+      ],
+      "selector": {
+       "app": "checkout-web"
+      },
+      "sessionAffinity": "None",
+      "type": "ClusterIP"
+     },
+     "status": {
+      "loadBalancer": {}
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Service",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "payments-api",
+      "namespace": "payments",
+      "uid": "08fe3c4c-1b2e-4bdd-a88a-19bea131e92d"
+     },
+     "spec": {
+      "clusterIP": "10.96.40.60",
+      "clusterIPs": [
+       "10.96.40.60"
+      ],
+      "internalTrafficPolicy": "Cluster",
+      "ipFamilies": [
+       "IPv4"
+      ],
+      "ipFamilyPolicy": "SingleStack",
+      "ports": [
+       {
+        "port": 443,
+        "protocol": "TCP",
+        "targetPort": 443
+       }
+      ],
+      "selector": {
+       "app": "payments-api"
+      },
+      "sessionAffinity": "None",
+      "type": "ClusterIP"
+     },
+     "status": {
+      "loadBalancer": {}
+     }
+    }
+   ]
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "tls-truststore",
+  "time": "2026-09-27T13:24:22Z"
+ },
+ "usage": {
+  "payments": [
+   {
+    "container": "checkout-web",
+    "cpu": "1m",
+    "memory": "3Mi",
+    "pod": "checkout-web-6447595cb4-4bn7r"
+   },
+   {
+    "container": "payments-api",
+    "cpu": "1m",
+    "memory": "3Mi",
+    "pod": "payments-api-ff885cc65-6qvh7"
+   },
+   {
+    "container": "traffic",
+    "cpu": "2m",
+    "memory": "0Mi",
+    "pod": "traffic-cc87d5c47-z4wdh"
+   }
+  ]
+ }
+}

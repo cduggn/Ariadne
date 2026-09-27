@@ -1,21 +1,27 @@
 {
  "logs": {
-  "ml/ml-trainer-5459b8468d-ndczh/ml-trainer/current": ""
+  "ml/ml-trainer-5459b8468d-9gzld/ml-trainer/current": ""
  },
  "namespaces": {
   "ml": {
    "configmaps": [
     {
      "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
      "kind": "ConfigMap",
      "metadata": {
       "annotations": {
        "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
       },
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:07:04Z",
       "name": "kube-root-ca.crt",
       "namespace": "ml",
-      "uid": "5adf4c9f-999e-4145-a939-a3f883d2c02a"
+      "uid": "183af2f4-c344-4f0e-a38f-264082e72926"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
      }
     }
    ],
@@ -25,11 +31,11 @@
      "kind": "Deployment",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
       "generation": 1,
       "name": "ml-trainer",
       "namespace": "ml",
-      "uid": "404d8b78-dfba-4bae-8023-15af2c4d3908"
+      "uid": "5156cba2-0284-49b5-ad1f-2ac203a5b04b"
      },
      "spec": {
       "progressDeadlineSeconds": 600,
@@ -85,16 +91,16 @@
      "status": {
       "conditions": [
        {
-        "lastTransitionTime": "2026-09-27T10:21:23Z",
-        "lastUpdateTime": "2026-09-27T10:21:23Z",
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "lastUpdateTime": "2026-09-27T13:15:21Z",
         "message": "Deployment does not have minimum availability.",
         "reason": "MinimumReplicasUnavailable",
         "status": "False",
         "type": "Available"
        },
        {
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
-        "lastUpdateTime": "2026-09-27T10:21:23Z",
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
+        "lastUpdateTime": "2026-09-27T13:15:21Z",
         "message": "ReplicaSet \"ml-trainer-5459b8468d\" is progressing.",
         "reason": "ReplicaSetUpdated",
         "status": "True",
@@ -113,25 +119,25 @@
    "events": [
     {
      "apiVersion": "v1",
-     "count": 3,
+     "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:15:21Z",
      "involvedObject": {
       "apiVersion": "v1",
       "kind": "Pod",
-      "name": "ml-trainer-5459b8468d-ndczh",
+      "name": "ml-trainer-5459b8468d-9gzld",
       "namespace": "ml",
-      "resourceVersion": "1285",
-      "uid": "bf6b4c57-2a92-4ce6-927d-4ce72f431986"
+      "resourceVersion": "10001",
+      "uid": "aa908a31-7617-4e64-8ec5-f1f8061e6330"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:39Z",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
      "message": "0/1 nodes are available: 1 Insufficient cpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "ml-trainer-5459b8468d-ndczh.18d926571de05d4a",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "ml-trainer-5459b8468d-9gzld.18d92fd5b1da87de",
       "namespace": "ml",
-      "uid": "fee6a4e1-ccc5-41df-85db-9f8c630a008c"
+      "uid": "8827ad5d-a5f9-41c1-8e07-7d211ae472e2"
      },
      "reason": "FailedScheduling",
      "reportingComponent": "default-scheduler",
@@ -145,23 +151,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:15:21Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "ReplicaSet",
       "name": "ml-trainer-5459b8468d",
       "namespace": "ml",
-      "resourceVersion": "1284",
-      "uid": "3ebf57c9-07f6-4d24-aff7-ed1dba12a1e8"
+      "resourceVersion": "9997",
+      "uid": "38e35d29-548e-4f57-88e1-76324662db0c"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
-     "message": "Created pod: ml-trainer-5459b8468d-ndczh",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
+     "message": "Created pod: ml-trainer-5459b8468d-9gzld",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "ml-trainer-5459b8468d.18d926571dbe3c18",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "ml-trainer-5459b8468d.18d92fd5b1c988e9",
       "namespace": "ml",
-      "uid": "5c01699e-b42b-40b4-b544-0f61e63e4ee1"
+      "uid": "83842193-7588-4836-a815-6db92a297bb7"
      },
      "reason": "SuccessfulCreate",
      "reportingComponent": "replicaset-controller",
@@ -175,23 +181,23 @@
      "apiVersion": "v1",
      "count": 1,
      "eventTime": null,
-     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "firstTimestamp": "2026-09-27T13:15:21Z",
      "involvedObject": {
       "apiVersion": "apps/v1",
       "kind": "Deployment",
       "name": "ml-trainer",
       "namespace": "ml",
-      "resourceVersion": "1257",
-      "uid": "404d8b78-dfba-4bae-8023-15af2c4d3908"
+      "resourceVersion": "9996",
+      "uid": "5156cba2-0284-49b5-ad1f-2ac203a5b04b"
      },
      "kind": "Event",
-     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "lastTimestamp": "2026-09-27T13:15:21Z",
      "message": "Scaled up replica set ml-trainer-5459b8468d from 0 to 1",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
-      "name": "ml-trainer.18d926571d8110c9",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
+      "name": "ml-trainer.18d92fd5af861e94",
       "namespace": "ml",
-      "uid": "7d5ba622-316e-4ef2-9e28-b5c2274f7a99"
+      "uid": "2e86a583-4aa0-46cb-88e6-b273adeb692d"
      },
      "reason": "ScalingReplicaSet",
      "reportingComponent": "deployment-controller",
@@ -202,20 +208,24 @@
      "type": "Normal"
     }
    ],
+   "ingresses": [],
    "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
    "pods": [
     {
      "apiVersion": "v1",
      "kind": "Pod",
      "metadata": {
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
       "generateName": "ml-trainer-5459b8468d-",
       "generation": 1,
       "labels": {
        "app": "ml-trainer",
        "pod-template-hash": "5459b8468d"
       },
-      "name": "ml-trainer-5459b8468d-ndczh",
+      "name": "ml-trainer-5459b8468d-9gzld",
       "namespace": "ml",
       "ownerReferences": [
        {
@@ -224,10 +234,10 @@
         "controller": true,
         "kind": "ReplicaSet",
         "name": "ml-trainer-5459b8468d",
-        "uid": "3ebf57c9-07f6-4d24-aff7-ed1dba12a1e8"
+        "uid": "38e35d29-548e-4f57-88e1-76324662db0c"
        }
       ],
-      "uid": "bf6b4c57-2a92-4ce6-927d-4ce72f431986"
+      "uid": "aa908a31-7617-4e64-8ec5-f1f8061e6330"
      },
      "spec": {
       "containers": [
@@ -251,7 +261,7 @@
         "volumeMounts": [
          {
           "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-          "name": "kube-api-access-88ff6",
+          "name": "kube-api-access-xpv6q",
           "readOnly": true
          }
         ]
@@ -283,7 +293,7 @@
       ],
       "volumes": [
        {
-        "name": "kube-api-access-88ff6",
+        "name": "kube-api-access-xpv6q",
         "projected": {
          "defaultMode": 420,
          "sources": [
@@ -326,7 +336,7 @@
       "conditions": [
        {
         "lastProbeTime": null,
-        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastTransitionTime": "2026-09-27T13:15:21Z",
         "message": "0/1 nodes are available: 1 Insufficient cpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
         "observedGeneration": 1,
         "reason": "Unschedulable",
@@ -345,7 +355,7 @@
      "kind": "ReplicaSet",
      "metadata": {
       "annotations": {},
-      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "creationTimestamp": "2026-09-27T13:15:21Z",
       "generation": 1,
       "labels": {
        "app": "ml-trainer",
@@ -360,10 +370,10 @@
         "controller": true,
         "kind": "Deployment",
         "name": "ml-trainer",
-        "uid": "404d8b78-dfba-4bae-8023-15af2c4d3908"
+        "uid": "5156cba2-0284-49b5-ad1f-2ac203a5b04b"
        }
       ],
-      "uid": "3ebf57c9-07f6-4d24-aff7-ed1dba12a1e8"
+      "uid": "38e35d29-548e-4f57-88e1-76324662db0c"
      },
      "spec": {
       "replicas": 1,
@@ -417,6 +427,7 @@
      }
     }
    ],
+   "resourcequotas": [],
    "services": []
   }
  },
@@ -424,7 +435,7 @@
   "context": "kind-doctor-lab",
   "kubernetes": "v1.36.4",
   "scenario": "pending-resources",
-  "time": "2026-09-27T10:22:49Z"
+  "time": "2026-09-27T13:16:03Z"
  },
  "usage": {
   "ml": []

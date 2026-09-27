@@ -1,0 +1,814 @@
+{
+ "logs": {
+  "search/search-web-68ddbfdb6c-tgdcb/search-web/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 13:23:49 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 13:23:49 [notice] 1#1: nginx/1.29.8\n2026/09/27 13:23:49 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 13:23:49 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 13:23:49 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 13:23:49 [notice] 1#1: start worker processes\n2026/09/27 13:23:49 [notice] 1#1: start worker process 43\n2026/09/27 13:23:49 [notice] 1#1: start worker process 44\n2026/09/27 13:23:57 [notice] 1#1: signal 3 (SIGQUIT) received, shutting down\n2026/09/27 13:23:57 [notice] 44#44: gracefully shutting down\n2026/09/27 13:23:57 [notice] 43#43: gracefully shutting down\n2026/09/27 13:23:57 [notice] 43#43: exiting\n2026/09/27 13:23:57 [notice] 44#44: exiting\n2026/09/27 13:23:57 [notice] 43#43: exit\n2026/09/27 13:23:57 [notice] 44#44: exit\n2026/09/27 13:23:57 [notice] 1#1: signal 17 (SIGCHLD) received from 44\n2026/09/27 13:23:57 [notice] 1#1: worker process 44 exited with code 0\n2026/09/27 13:23:57 [notice] 1#1: signal 29 (SIGIO) received\n2026/09/27 13:23:57 [notice] 1#1: signal 17 (SIGCHLD) received from 43\n2026/09/27 13:23:57 [notice] 1#1: worker process 43 exited with code 0\n2026/09/27 13:23:57 [notice] 1#1: exit\n",
+  "search/search-web-68ddbfdb6c-tgdcb/search-web/previous": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 13:23:49 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 13:23:49 [notice] 1#1: nginx/1.29.8\n2026/09/27 13:23:49 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 13:23:49 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 13:23:49 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 13:23:49 [notice] 1#1: start worker processes\n2026/09/27 13:23:49 [notice] 1#1: start worker process 43\n2026/09/27 13:23:49 [notice] 1#1: start worker process 44\n2026/09/27 13:23:57 [notice] 1#1: signal 3 (SIGQUIT) received, shutting down\n2026/09/27 13:23:57 [notice] 44#44: gracefully shutting down\n2026/09/27 13:23:57 [notice] 43#43: gracefully shutting down\n2026/09/27 13:23:57 [notice] 43#43: exiting\n2026/09/27 13:23:57 [notice] 44#44: exiting\n2026/09/27 13:23:57 [notice] 43#43: exit\n2026/09/27 13:23:57 [notice] 44#44: exit\n2026/09/27 13:23:57 [notice] 1#1: signal 17 (SIGCHLD) received from 44\n2026/09/27 13:23:57 [notice] 1#1: worker process 44 exited with code 0\n2026/09/27 13:23:57 [notice] 1#1: signal 29 (SIGIO) received\n2026/09/27 13:23:57 [notice] 1#1: signal 17 (SIGCHLD) received from 43\n2026/09/27 13:23:57 [notice] 1#1: worker process 43 exited with code 0\n2026/09/27 13:23:57 [notice] 1#1: exit\n"
+ },
+ "namespaces": {
+  "search": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "dataKeys": [
+      "ca.crt"
+     ],
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T13:07:05Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "search",
+      "uid": "0a3e214b-c497-4f15-8dfa-a7ee722e5631"
+     },
+     "publicCertificates": {
+      "ca.crt": "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIeyds52vgLqEwDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE\nAxMKa3ViZXJuZXRlczAeFw0yNjA5MjcxMDA5MzVaFw0zNjA5MjQxMDE0MzVaMBUx\nEzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\nAoIBAQC9wtFbSG3GkiRsTar/JAZl2oGaU6ePTcSwsU2M55fKz++kIFofI9V4gyV0\nMEgxgJcIslC/XEordOwBMu2CrRAydigXc+jsDoevfE2AGeCUqGKNOnm9X8AUPObK\ng9N+hu6GF6j5rCfU5wDj9DDIFxBdSK1yolt8UvjcAxHFTHgBOGjc0eOoopXz70EG\nsttW9cEwg1j8E4eS/BfsvKSGtX8dRv6Sd9iWhUowMh2bLhYH5fGCS1+ak+kIfq4i\nJVZzY9ckYm5Z5H5Hi0L9kWurHqIU4Sex2Q4QqWqe0NocFYqD3L/K3UGXIdvHE0CV\n1CrgSmAhv2QkF6mcpcjTJ5RSsLBpAgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP\nBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQHN8GiiiXODKxpN/nLhMsmXTXDxDAV\nBgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQC5UBJjl/oO\nXRUQXutSxQMW+PNrycpq7DHLbUizR4aeB8YeNkRgbQ4kaE4bwNvjPwbEfIwLl7/K\n9pYK67Q2oB7cxOoAXnki4YiGb8p5g2rvucVr8BX+O+T6MjgdW5o7OX4/rXfNzJ8e\nGEY+PrC4u8qi1628ycWT7Vjpvmqn+88J6gqP2IpSOTHRDRBELCcN2w2Z1OwCGGYi\n2Tvei5Us0gJiwBmYyPXnpXmAejDHRa+FgyLvtp0ODcrK9j+pE83Sq8wZGBA9eBiN\nADUKnYrZ82eMRmgBMXVTPTaVo6TpQkq5R+3YSyMLUpw5ErYqQjgwf5No/jxhLg7L\nuFuOQpHrSCpR\n-----END CERTIFICATE-----\n"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:34Z",
+      "generation": 1,
+      "name": "search-web",
+      "namespace": "search",
+      "uid": "7fa8e140-19cb-41fa-b0de-9802528dd970"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "search-web"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "search-web"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "livenessProbe": {
+           "exec": {
+            "command": [
+             "sh",
+             "-c",
+             "i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done; wget -q -O /dev/null http://127.0.0.1/"
+            ]
+           },
+           "failureThreshold": 2,
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "timeoutSeconds": 1
+          },
+          "name": "search-web",
+          "ports": [
+           {
+            "containerPort": 80,
+            "protocol": "TCP"
+           }
+          ],
+          "resources": {
+           "limits": {
+            "cpu": "10m",
+            "memory": "64Mi"
+           },
+           "requests": {
+            "cpu": "10m",
+            "memory": "16Mi"
+           }
+          },
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T13:22:34Z",
+        "lastUpdateTime": "2026-09-27T13:22:38Z",
+        "message": "ReplicaSet \"search-web-68ddbfdb6c\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T13:23:58Z",
+        "lastUpdateTime": "2026-09-27T13:23:58Z",
+        "message": "Deployment does not have minimum availability.",
+        "reason": "MinimumReplicasUnavailable",
+        "status": "False",
+        "type": "Available"
+       }
+      ],
+      "observedGeneration": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "unavailableReplicas": 1,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:34Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "resourceVersion": "11301",
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:34Z",
+     "message": "Successfully assigned search/search-web-68ddbfdb6c-tgdcb to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:34Z",
+      "name": "search-web-68ddbfdb6c-tgdcb.18d9303a816358b9",
+      "namespace": "search",
+      "uid": "6e23943e-9e57-4246-881e-1b8f01b78310"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{search-web}",
+      "kind": "Pod",
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "resourceVersion": "11303",
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:23:38Z",
+     "message": "Container image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "search-web-68ddbfdb6c-tgdcb.18d9303ac50b5282",
+      "namespace": "search",
+      "uid": "a5730f00-dbbd-47e6-b774-34747f787e8a"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:35Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{search-web}",
+      "kind": "Pod",
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "resourceVersion": "11303",
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:23:38Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:35Z",
+      "name": "search-web-68ddbfdb6c-tgdcb.18d9303ac6377932",
+      "namespace": "search",
+      "uid": "19cebef0-4015-4d22-b95b-557808b21416"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:38Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{search-web}",
+      "kind": "Pod",
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "resourceVersion": "11303",
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:23:42Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:38Z",
+      "name": "search-web-68ddbfdb6c-tgdcb.18d9303b545f799e",
+      "namespace": "search",
+      "uid": "661327ed-c473-4b5c-b072-f5f2191f52d5"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 8,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:47Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{search-web}",
+      "kind": "Pod",
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "resourceVersion": "11303",
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:23:57Z",
+     "message": "Liveness probe failed: command timed out: \"sh -c i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done; wget -q -O /dev/null http://127.0.0.1/\" timed out after 1s",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:47Z",
+      "name": "search-web-68ddbfdb6c-tgdcb.18d9303d6c364a56",
+      "namespace": "search",
+      "uid": "2505128c-6e93-41c7-830a-73390afe075b"
+     },
+     "reason": "Unhealthy",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:57Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{search-web}",
+      "kind": "Pod",
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "resourceVersion": "11303",
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:23:57Z",
+     "message": "Container search-web failed liveness probe, will be restarted",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:57Z",
+      "name": "search-web-68ddbfdb6c-tgdcb.18d9303fbe50b421",
+      "namespace": "search",
+      "uid": "764f11dc-366e-484a-a48b-f01e951c0ca8"
+     },
+     "reason": "Killing",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 2,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:23:57Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{search-web}",
+      "kind": "Pod",
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "resourceVersion": "11303",
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:23:58Z",
+     "message": "Back-off restarting failed container search-web in pod search-web-68ddbfdb6c-tgdcb_search(64e5712a-8f07-4e0c-9d3d-69ed190e4753)",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:23:57Z",
+      "name": "search-web-68ddbfdb6c-tgdcb.18d9304de41b2869",
+      "namespace": "search",
+      "uid": "4667c652-58e9-4990-87e2-2160e351834f"
+     },
+     "reason": "BackOff",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:34Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "search-web-68ddbfdb6c",
+      "namespace": "search",
+      "resourceVersion": "11298",
+      "uid": "09158052-bc9c-4edb-83a1-d72fe4593021"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:34Z",
+     "message": "Created pod: search-web-68ddbfdb6c-tgdcb",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:34Z",
+      "name": "search-web-68ddbfdb6c.18d9303a8132aaa6",
+      "namespace": "search",
+      "uid": "cc9959ce-b813-4d43-beca-6833997c9fb2"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T13:22:34Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "search-web",
+      "namespace": "search",
+      "resourceVersion": "11297",
+      "uid": "7fa8e140-19cb-41fa-b0de-9802528dd970"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T13:22:34Z",
+     "message": "Scaled up replica set search-web-68ddbfdb6c from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:34Z",
+      "name": "search-web.18d9303a80f84e8c",
+      "namespace": "search",
+      "uid": "76478d51-6f0e-4b77-9cc0-df96b9888c63"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "ingresses": [],
+   "jobs": [],
+   "limitranges": [],
+   "networkpolicies": [],
+   "persistentvolumeclaims": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T13:22:34Z",
+      "generateName": "search-web-68ddbfdb6c-",
+      "generation": 1,
+      "labels": {
+       "app": "search-web",
+       "pod-template-hash": "68ddbfdb6c"
+      },
+      "name": "search-web-68ddbfdb6c-tgdcb",
+      "namespace": "search",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "search-web-68ddbfdb6c",
+        "uid": "09158052-bc9c-4edb-83a1-d72fe4593021"
+       }
+      ],
+      "uid": "64e5712a-8f07-4e0c-9d3d-69ed190e4753"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "livenessProbe": {
+         "exec": {
+          "command": [
+           "sh",
+           "-c",
+           "i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done; wget -q -O /dev/null http://127.0.0.1/"
+          ]
+         },
+         "failureThreshold": 2,
+         "periodSeconds": 10,
+         "successThreshold": 1,
+         "timeoutSeconds": 1
+        },
+        "name": "search-web",
+        "ports": [
+         {
+          "containerPort": 80,
+          "protocol": "TCP"
+         }
+        ],
+        "resources": {
+         "limits": {
+          "cpu": "10m",
+          "memory": "64Mi"
+         },
+         "requests": {
+          "cpu": "10m",
+          "memory": "16Mi"
+         }
+        },
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-f5qgg",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-f5qgg",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "allocatedResources": {
+       "cpu": "10m",
+       "memory": "16Mi"
+      },
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:35Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:34Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:23:58Z",
+        "message": "containers with unready status: [search-web]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:23:58Z",
+        "message": "containers with unready status: [search-web]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T13:22:34Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "allocatedResources": {
+         "cpu": "10m",
+         "memory": "16Mi"
+        },
+        "containerID": "containerd://e0d56ae2405328bdc9cf99fb68ad35f9db7de0757ae3c0ebe834b624bdb392d3",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {
+         "terminated": {
+          "containerID": "containerd://e0d56ae2405328bdc9cf99fb68ad35f9db7de0757ae3c0ebe834b624bdb392d3",
+          "exitCode": 0,
+          "finishedAt": "2026-09-27T13:23:57Z",
+          "reason": "Completed",
+          "startedAt": "2026-09-27T13:23:42Z"
+         }
+        },
+        "name": "search-web",
+        "ready": false,
+        "resources": {
+         "limits": {
+          "cpu": "10m",
+          "memory": "64Mi"
+         },
+         "requests": {
+          "cpu": "10m",
+          "memory": "16Mi"
+         }
+        },
+        "restartCount": 3,
+        "started": false,
+        "state": {
+         "waiting": {
+          "message": "back-off 20s restarting failed container=search-web pod=search-web-68ddbfdb6c-tgdcb_search(64e5712a-8f07-4e0c-9d3d-69ed190e4753)",
+          "reason": "CrashLoopBackOff"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-f5qgg",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.53",
+      "podIPs": [
+       {
+        "ip": "10.244.0.53"
+       }
+      ],
+      "qosClass": "Burstable",
+      "resources": {
+       "limits": {
+        "memory": "64Mi"
+       },
+       "requests": {
+        "memory": "16Mi"
+       }
+      },
+      "startTime": "2026-09-27T13:22:34Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T13:22:34Z",
+      "generation": 1,
+      "labels": {
+       "app": "search-web",
+       "pod-template-hash": "68ddbfdb6c"
+      },
+      "name": "search-web-68ddbfdb6c",
+      "namespace": "search",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "search-web",
+        "uid": "7fa8e140-19cb-41fa-b0de-9802528dd970"
+       }
+      ],
+      "uid": "09158052-bc9c-4edb-83a1-d72fe4593021"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "search-web",
+        "pod-template-hash": "68ddbfdb6c"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "search-web",
+         "pod-template-hash": "68ddbfdb6c"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "livenessProbe": {
+           "exec": {
+            "command": [
+             "sh",
+             "-c",
+             "i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done; wget -q -O /dev/null http://127.0.0.1/"
+            ]
+           },
+           "failureThreshold": 2,
+           "periodSeconds": 10,
+           "successThreshold": 1,
+           "timeoutSeconds": 1
+          },
+          "name": "search-web",
+          "ports": [
+           {
+            "containerPort": 80,
+            "protocol": "TCP"
+           }
+          ],
+          "resources": {
+           "limits": {
+            "cpu": "10m",
+            "memory": "64Mi"
+           },
+           "requests": {
+            "cpu": "10m",
+            "memory": "16Mi"
+           }
+          },
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "resourcequotas": [],
+   "services": []
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "throttled-liveness",
+  "time": "2026-09-27T13:24:21Z"
+ },
+ "usage": {
+  "search": []
+ }
+}

@@ -11,7 +11,8 @@
   "objects": [
     {
       "kind": "Deployment",
-      "name": "frontend"
+      "name": "frontend",
+      "affects": []
     }
   ],
   "evidence": [
@@ -26,5 +27,11 @@
     "manifest.yaml"
   ],
   "cluster": "kind",
-  "settle": "waiting:ImagePullBackOff"
+  "settle": "waiting:ImagePullBackOff",
+  "tier": "easy",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

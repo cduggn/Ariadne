@@ -1,0 +1,84 @@
+{
+  "id": "tls-expired",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [
+    {
+      "kind": "Deployment",
+      "name": "session-svc"
+    }
+  ],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {
+    "certificate": [
+      {
+        "configmap": "auth-api-cert",
+        "key": "tls.crt"
+      }
+    ],
+    "log_objects": [
+      "session-svc"
+    ]
+  },
+  "namespace": "identity",
+  "tier": "multi_hop",
+  "settle": [
+    "log:upstream SSL certificate verify error"
+  ],
+  "title": "Upstream serving certificate expired; errors surface on the caller",
+  "report": "Logins fail with 502 through session-svc. Nothing was deployed today.",
+  "category": "tls_expired",
+  "allowed": [
+    "tls_expired"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "auth-api",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "name": "session-svc"
+        }
+      ],
+      "alternatives": [
+        {
+          "kind": "ConfigMap",
+          "name": "auth-api-cert"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    "certificate",
+    "log"
+  ],
+  "must_call": [
+    "pod_logs",
+    "inspect_certificate"
+  ],
+  "tls_setup": [
+    {
+      "type": "secret",
+      "name": "auth-api-tls",
+      "cert": "auth-api"
+    },
+    {
+      "type": "configmap",
+      "name": "internal-ca",
+      "key": "ca.crt",
+      "cert": "internal-ca"
+    },
+    {
+      "type": "configmap",
+      "name": "auth-api-cert",
+      "key": "tls.crt",
+      "cert": "auth-api"
+    }
+  ]
+}

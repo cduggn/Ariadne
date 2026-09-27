@@ -1,0 +1,48 @@
+{
+  "id": "dns-misconfig",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [
+    {
+      "kind": "Deployment",
+      "name": "smtp-relay"
+    }
+  ],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {
+    "log_objects": [
+      "mailer"
+    ]
+  },
+  "namespace": "notifications",
+  "tier": "red_herring",
+  "settle": [
+    "restarts>=2"
+  ],
+  "title": "Pod DNS config points at a nameserver that does not exist",
+  "report": "mailer cannot reach smtp-relay. Is the relay down?",
+  "category": "dns_failure",
+  "allowed": [
+    "dns_failure"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "mailer",
+      "affects": []
+    }
+  ],
+  "evidence": [
+    "log",
+    "describe"
+  ],
+  "must_call": [
+    "pod_logs",
+    "describe"
+  ]
+}

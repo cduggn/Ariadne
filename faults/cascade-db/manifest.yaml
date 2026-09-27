@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: inventory
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock-db
+  namespace: inventory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stock-db
+  template:
+    metadata:
+      labels:
+        app: stock-db
+    spec:
+      containers:
+        - name: stock-db
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"stock-db listening on 5432\"; nc -lk -p 5432 -e cat & sleep 25; echo \"loading stock index into memory\"; tail /dev/zero"]
+          ports:
+            - containerPort: 5432
+          resources:
+            limits:
+              memory: 24Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock-db
+  namespace: inventory
+spec:
+  selector:
+    app: stock-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock-api
+  namespace: inventory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stock-api
+  template:
+    metadata:
+      labels:
+        app: stock-api
+    spec:
+      containers:
+        - name: stock-api
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"stock-api v4.2 starting\"; n=0; while true; do out=$(nc -w 2 stock-db 5432 </dev/null 2>&1); if [ $? -eq 0 ]; then echo \"db ok\"; n=0; else n=$((n+1)); echo \"ERROR: stock-db:5432 unreachable (attempt $n): $out\"; fi; if [ $n -ge 3 ]; then echo \"FATAL: database unavailable after 3 attempts, exiting\"; exit 1; fi; sleep 5; done"]

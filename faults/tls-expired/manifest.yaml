@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: identity
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-api-nginx
+  namespace: identity
+data:
+  default.conf: |
+    server {
+      listen 443 ssl;
+      ssl_certificate /etc/tls/tls.crt;
+      ssl_certificate_key /etc/tls/tls.key;
+      location / { return 200 "ok\n"; }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-api
+  namespace: identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-api
+  template:
+    metadata:
+      labels:
+        app: auth-api
+    spec:
+      containers:
+        - name: auth-api
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+          ports:
+            - containerPort: 443
+          readinessProbe:
+            tcpSocket:
+              port: 443
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/tls
+              readOnly: true
+            - name: conf
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: tls
+          secret:
+            secretName: auth-api-tls
+        - name: conf
+          configMap:
+            name: auth-api-nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-api
+  namespace: identity
+spec:
+  selector:
+    app: auth-api
+  ports:
+    - port: 443
+      targetPort: 443
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: session-svc-nginx
+  namespace: identity
+data:
+  default.conf: |
+    server {
+      listen 80;
+      location /healthz { return 200 "ok\n"; }
+      location / {
+        proxy_pass https://auth-api.identity.svc:443;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate /etc/ssl/trust/ca.crt;
+        proxy_ssl_name auth-api.identity.svc;
+        proxy_ssl_server_name on;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: session-svc
+  namespace: identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: session-svc
+  template:
+    metadata:
+      labels:
+        app: session-svc
+    spec:
+      containers:
+        - name: session-svc
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+          volumeMounts:
+            - name: trust
+              mountPath: /etc/ssl/trust
+              readOnly: true
+            - name: conf
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: trust
+          configMap:
+            name: internal-ca
+        - name: conf
+          configMap:
+            name: session-svc-nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: session-svc
+  namespace: identity
+spec:
+  selector:
+    app: session-svc
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic
+  namespace: identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic
+  template:
+    metadata:
+      labels:
+        app: traffic
+    spec:
+      containers:
+        - name: traffic
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "while true; do wget -q -O /dev/null http://session-svc/login 2>&1 | sed \"s/^/login probe: /\"; sleep 3; done"]

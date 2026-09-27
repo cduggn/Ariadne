@@ -1,0 +1,38 @@
+{
+  "id": "eviction",
+  "live_only": false,
+  "cluster": "kind",
+  "apply": [
+    "manifest.yaml"
+  ],
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {},
+  "namespace": "media",
+  "tier": "multi_hop",
+  "settle": [
+    "evicted"
+  ],
+  "title": "Sidecar buffers to disk until kubelet evicts the pod",
+  "report": "thumbnailer pods keep disappearing and getting replaced every few minutes.",
+  "category": "ephemeral_storage",
+  "allowed": [
+    "ephemeral_storage"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "thumbnailer",
+      "affects": []
+    }
+  ],
+  "evidence": [
+    "status",
+    "event"
+  ],
+  "must_call": [
+    "list_problem_pods"
+  ]
+}

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "diagnosis.schema.json",
   "title": "Diagnosis",
-  "description": "What submit_diagnosis must produce: grounded findings only. Evidence refs must exist in the tool results for that namespace (checked).",
+  "description": "What submit_diagnosis must produce: one finding per root cause, grounded in evidence refs that exist in the tool results for that namespace (checked).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -30,8 +30,10 @@
           "kind",
           "name",
           "root_cause",
+          "affects",
           "evidence",
           "fix",
+          "resize",
           "confidence"
         ],
         "properties": {
@@ -45,9 +47,18 @@
               "unschedulable_constraints",
               "probe_failure",
               "service_no_endpoints",
+              "service_misconfig",
               "config_missing",
+              "dependency_missing",
+              "dns_failure",
+              "tls_trust",
+              "tls_expired",
+              "cpu_throttling",
+              "ephemeral_storage",
+              "resource_policy",
               "job_failed",
               "rollout_stuck",
+              "overprovisioned",
               "gpu_slice_oom",
               "gpu_unavailable",
               "kv_saturation",
@@ -69,32 +80,99 @@
               "Service",
               "Job",
               "ConfigMap",
+              "LimitRange",
+              "ResourceQuota",
+              "NetworkPolicy",
+              "PersistentVolumeClaim",
+              "Ingress",
               "Node"
             ]
           },
           "name": {
             "type": "string",
             "pattern": "^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$",
-            "description": "the object whose spec or config must change (usually the Deployment, Job or Service, not the pod)"
+            "description": "the ROOT CAUSE object \u2014 the one whose spec or config must change"
           },
           "root_cause": {
             "type": "string",
-            "maxLength": 240
+            "maxLength": 300,
+            "description": "the causal chain in one or two sentences: symptom \u2192 \u2026 \u2192 cause"
+          },
+          "affects": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "namespace",
+                "name"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Pod",
+                    "Deployment",
+                    "ReplicaSet",
+                    "Service",
+                    "Job",
+                    "ConfigMap",
+                    "LimitRange",
+                    "ResourceQuota",
+                    "NetworkPolicy",
+                    "PersistentVolumeClaim",
+                    "Ingress",
+                    "Node"
+                  ]
+                },
+                "namespace": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$",
+                  "description": "Kubernetes namespace"
+                },
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$"
+                }
+              }
+            },
+            "description": "other objects that show symptoms caused by this root (victims); empty if none"
           },
           "evidence": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 6,
+            "maxItems": 8,
             "items": {
               "type": "string",
-              "pattern": "^(st|ev|ds|lg|rs|mt|cs)-[a-z0-9][-a-z0-9._]*$"
+              "pattern": "^(st|ev|ds|lg|rs|mt|ct|rz|cs)-[a-z0-9][-a-z0-9._]*$"
             },
-            "description": "refs copied exactly from tool results"
+            "description": "refs copied exactly from tool results, covering the chain"
           },
           "fix": {
             "type": "string",
             "maxLength": 240,
             "description": "suggested change; never applied by you"
+          },
+          "resize": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cpu_request",
+              "memory_request"
+            ],
+            "description": "for overprovisioned findings: the new requests (e.g. 50m, 64Mi); otherwise empty strings",
+            "properties": {
+              "cpu_request": {
+                "type": "string",
+                "pattern": "^$|^[0-9]+(\\.[0-9]+)?(m|Ki|Mi|Gi)?$"
+              },
+              "memory_request": {
+                "type": "string",
+                "pattern": "^$|^[0-9]+(\\.[0-9]+)?(m|Ki|Mi|Gi)?$"
+              }
+            }
           },
           "confidence": {
             "type": "string",
@@ -109,7 +187,7 @@
     },
     "summary": {
       "type": "string",
-      "maxLength": 400
+      "maxLength": 500
     }
   }
 }

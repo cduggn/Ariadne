@@ -11,7 +11,8 @@
   "objects": [
     {
       "kind": "Deployment",
-      "name": "export-sync"
+      "name": "export-sync",
+      "affects": []
     }
   ],
   "evidence": [
@@ -23,5 +24,13 @@
     "s3_bucket_stats"
   ],
   "cluster": "lambda-k3s+aws",
-  "apply": ["manifest.yaml"]
+  "apply": [
+    "manifest.yaml"
+  ],
+  "tier": "live",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

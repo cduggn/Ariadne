@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: batch
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  namespace: batch
+spec:
+  hard:
+    pods: "2"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: renderer
+  namespace: batch
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: renderer
+  template:
+    metadata:
+      labels:
+        app: renderer
+    spec:
+      containers:
+        - name: renderer
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"renderer worker ready\"; sleep 3600"]

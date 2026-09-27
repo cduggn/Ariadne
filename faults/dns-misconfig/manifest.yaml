@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: notifications
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smtp-relay
+  namespace: notifications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smtp-relay
+  template:
+    metadata:
+      labels:
+        app: smtp-relay
+    spec:
+      containers:
+        - name: smtp-relay
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"relay ready on 25\"; nc -lk -p 25 -e echo \"220 relay ready\""]
+          ports:
+            - containerPort: 25
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smtp-relay
+  namespace: notifications
+spec:
+  selector:
+    app: smtp-relay
+  ports:
+    - port: 25
+      targetPort: 25
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailer
+  namespace: notifications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailer
+  template:
+    metadata:
+      labels:
+        app: mailer
+    spec:
+      dnsPolicy: None
+      dnsConfig:
+        nameservers: ["10.96.0.99"]
+        searches: ["notifications.svc.cluster.local", "svc.cluster.local", "cluster.local"]
+        options:
+          - name: ndots
+            value: "5"
+      containers:
+        - name: mailer
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"mailer starting, relay=smtp-relay:25\"; n=0; while true; do out=$(nc -z -w 3 smtp-relay 25 2>&1); if [ $? -eq 0 ]; then echo \"relay ok\"; n=0; else n=$((n+1)); echo \"ERROR: relay check failed (attempt $n): $out\"; fi; if [ $n -ge 3 ]; then echo \"FATAL: giving up on smtp-relay\"; exit 1; fi; sleep 3; done"]

@@ -10,8 +10,8 @@ Status: ✅ built and tested offline · 🟡 built, needs the GPU or the gateway
 
 | Part | What the brief asks | How this project answers | Evidence (where) | Status |
 |---|---|---|---|---|
-| 0 App | Track A or B; app-shaped traffic | Track B: read-only cluster doctor; investigations (interactive) and audits (batch) | `doctor/`, `faults/`, golden set | ✅ |
-| 1 Capacity on paper | max seqs at max_len and at app length; bytes/token; first limiter | 144 KiB/token; ≈ 26–40 investigations or ≈ 9 audits per slice; KV binds first once audits mix in | `design/capacity-qwen3-8b.md`, D-29 | ✅ paper · 🟡 `make kv` |
+| 0 App | Track A or B; app-shaped traffic | Track B: read-only cluster doctor; investigations (interactive), audits and right-sizing (batch); faults tiered so the model's value over rules is measurable (D-31) | `doctor/`, `faults/`, golden set (26 tasks) | ✅ |
+| 1 Capacity on paper | max seqs at max_len and at app length; bytes/token; first limiter | 144 KiB/token; ≈ 31 easy / 21 multi-hop / 7–10 audits fit per slice; KV binds before the 32 decode slots | `design/capacity-qwen3-8b.md`, D-29 | ✅ paper · 🟡 `make kv` |
 | 2 Cluster design | GPU, model, topology, concurrency, hop backend, overflow target, scaling pool | A100 40 GB, 2 HAMi slices, Qwen3-8B-AWQ, `--max-num-seqs 32`; overflow never for restricted data; hop optional (office hours) | `design/architecture.md`, D-2/D-16 (inherited), D-25 | 🟡 overflow target + scaling pool in gateway design |
 | 3 Guard, admit, stay vs leave | `inspect`, `should_shed`; 429/500/slice_oom stay, 503/529 may leave | Gateway (Go). Doctor side: headers carry tenant, priority, restricted data class | D-25; gateway repo | ⬜ gateway |
 | 4 Place | `pick` + policy | pack:cluster affinity + per-run stickiness, bounded; P2C | gateway repo | ⬜ gateway |
@@ -33,7 +33,7 @@ Status: ✅ built and tested offline · 🟡 built, needs the GPU or the gateway
 | Where do I hop / what is not copied? | warm-up proof (hop optional) |
 | Where do I evict / ghosts? | stickiness bound + vLLM prefix-cache counters |
 | Engine scheduler vs my admit/place/queue? | vLLM orders execution; gateway orders admission |
-| What limited concurrency? | measured: KV first with audits in the mix (D-29) |
+| What limited concurrency? | measured: KV first — even easy investigations overfill a slice at 32 (D-29) |
 | Four production alerts | KV > 0.8 sustained; queue wait p95 > SLO; inconclusive rate > x %; restricted request routed off-box (must be 0) |
 | Which pool scales? | decode slots vs uncached prefill tokens, from the sweep |
 | 10× traffic — what changes, which knobs are wrong? | notebook recommendations section |
@@ -50,3 +50,15 @@ Status: ✅ built and tested offline · 🟡 built, needs the GPU or the gateway
 | Shared vs unique tokens, prefix hits | measured split (D-29) + `vllm:prefix_cache_*` + runner `cached_share_of_prompt` | 🟡 |
 | DCGM power, memory across prefill- vs decode-heavy phases | DCGM exporter (bootstrap) + audits (prefill-heavy) vs investigations | 🟡 |
 | Recommendations | notebook closing section | ⬜ |
+
+## Why a model and not rules — the tier story (D-31)
+
+| Tier | What it tests | Dashboards / rule engines |
+|---|---|---|
+| easy | the pod's own status names the cause | find these without a model |
+| multi_hop | symptom on a victim, cause on another object (expired upstream cert, OOM-killed database, LimitRange, ResourceQuota, renamed dependency, sidecar eviction) | point at the victim |
+| red_herring | the obvious suspect is healthy (wrong CA bundle, probe starved of CPU, Service port, pod DNS) | point at the suspect |
+| rightsizing | idle vs throttled vs not worth changing | give numbers, not judgement |
+
+The golden results are reported per tier, so the presentation can show where rules stop and the model
+starts to matter — with evidence, not assertion.

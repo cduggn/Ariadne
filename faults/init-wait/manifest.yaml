@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: accounts
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts-database
+  namespace: accounts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounts-database
+  template:
+    metadata:
+      labels:
+        app: accounts-database
+    spec:
+      containers:
+        - name: accounts-database
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"db listening on 5432\"; nc -lk -p 5432 -e cat"]
+          ports:
+            - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts-database
+  namespace: accounts
+spec:
+  selector:
+    app: accounts-database
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts-api
+  namespace: accounts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounts-api
+  template:
+    metadata:
+      labels:
+        app: accounts-api
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "until nc -z -w 2 accounts-db 5432 2>/dev/null; do echo \"waiting for accounts-db:5432 ($(nc -z -w 2 accounts-db 5432 2>&1))\"; sleep 3; done"]
+      containers:
+        - name: accounts-api
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de

@@ -38,7 +38,7 @@ def score(task: dict, run: dict) -> dict:
     b = backend_for(task["snapshots"])
     v = check(task, run["diagnosis"], run["trace"], b)
     steps = run["steps"]
-    return {"id": task["id"], "task_type": task["task_type"], "pass": v["pass"], "failed": v["failed"], "stop": run["stop"],
+    return {"id": task["id"], "task_type": task["task_type"], "tier": task.get("tier", "easy"), "pass": v["pass"], "failed": v["failed"], "stop": run["stop"],
             "n_steps": len(steps), "trace": run["trace"], "repairs": run["repairs"], "harness": run["harness"],
             "http_status": [s.get("http_status") for s in steps if s.get("http_status")],
             "tool_errors": sum(1 for s in steps for c in s.get("calls", []) if c.get("error")),
@@ -55,11 +55,14 @@ def _pct(xs, p):
 def summarise(rows: list[dict], meta: dict) -> dict:
     flat = lambda k: [x for r in rows for x in r[k] if x is not None]  # noqa: E731
     by: dict[str, list[bool]] = {}
+    tiers: dict[str, list[bool]] = {}
     for r in rows:
         by.setdefault(r["task_type"], []).append(r["pass"])
+        tiers.setdefault(r["tier"], []).append(r["pass"])
     return {**meta, "tasks": len(rows), "passed": sum(r["pass"] for r in rows),
             "pass_rate": round(sum(r["pass"] for r in rows) / max(1, len(rows)), 3),
             "pass_rate_by_type": {k: round(sum(v) / len(v), 3) for k, v in sorted(by.items())},
+            "pass_rate_by_tier": {k: round(sum(v) / len(v), 3) for k, v in sorted(tiers.items())},
             "stop_reasons": dict(Counter(r["stop"] for r in rows)),
             "inconclusive": sum(r["stop"] == "inconclusive" for r in rows),
             "http_refusals": dict(Counter(c for r in rows for c in r["http_status"])),
@@ -92,7 +95,7 @@ def main() -> int:
 
     def one(task: dict) -> dict:
         row = score(task, run_task(task, backend_for(task["snapshots"]), chat, harness=not a.no_harness))
-        print(f"{row['id']:16} {row['task_type']:11} {'PASS' if row['pass'] else 'FAIL'} steps={row['n_steps']:2} "
+        print(f"{row['id']:22} {row['tier']:11} {'PASS' if row['pass'] else 'FAIL'} steps={row['n_steps']:2} "
               f"stop={row['stop']:13} {'; '.join(row['failed'])[:110]}", flush=True)
         return row
 
@@ -106,7 +109,7 @@ def main() -> int:
     summary = summarise(rows, {"tag": a.tag, "model": a.model, "base_url": a.base_url, "concurrency": a.concurrency,
                                "repeat": a.repeat, "harness": not a.no_harness, "wall_s": round(time.time() - t0, 1), "timestamp": stamp})
     Path(f"{base}.summary.json").write_text(json.dumps(summary, indent=2))
-    print(json.dumps({k: summary[k] for k in ("pass_rate", "pass_rate_by_type", "stop_reasons", "inconclusive",
+    print(json.dumps({k: summary[k] for k in ("pass_rate", "pass_rate_by_type", "pass_rate_by_tier", "stop_reasons", "inconclusive",
                                               "http_refusals", "top_failed_rules")}, indent=2))
     print(f"wrote {base}.jsonl and .summary.json")
     return 0

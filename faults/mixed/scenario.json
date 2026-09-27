@@ -12,12 +12,14 @@
     {
       "kind": "Deployment",
       "name": "ledger",
-      "category": "crashloop_app_error"
+      "category": "crashloop_app_error",
+      "affects": []
     },
     {
       "kind": "Service",
       "name": "ledger-api",
-      "category": "service_no_endpoints"
+      "category": "service_no_endpoints",
+      "affects": []
     }
   ],
   "evidence": [
@@ -33,5 +35,11 @@
     "manifest.yaml"
   ],
   "cluster": "kind",
-  "settle": "restarts>=2"
+  "settle": "restarts>=2",
+  "tier": "easy",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }

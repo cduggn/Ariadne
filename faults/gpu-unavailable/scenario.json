@@ -12,7 +12,8 @@
   "objects": [
     {
       "kind": "Deployment",
-      "name": "embedder"
+      "name": "embedder",
+      "affects": []
     }
   ],
   "evidence": [
@@ -24,5 +25,11 @@
   "cluster": "lambda-k3s",
   "apply": [
     "manifest.yaml"
-  ]
+  ],
+  "tier": "live",
+  "task_type": "investigate",
+  "red_herrings": [],
+  "also_ok": [],
+  "forbidden": [],
+  "hints": {}
 }
