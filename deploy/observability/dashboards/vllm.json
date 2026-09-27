@@ -615,6 +615,48 @@
      "legendFormat": "{{podname}} limit"
     }
    ]
+  },
+  {
+   "type": "timeseries",
+   "title": "GPU power draw and SM activity (prefill vs decode phases)",
+   "description": "Rubric: power during compute-bound prefill (audits, long logs) vs memory-bound decode. Watts from DCGM.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 24,
+    "x": 0,
+    "y": 43
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "watt"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "DCGM_FI_DEV_POWER_USAGE",
+     "legendFormat": "power W"
+    },
+    {
+     "refId": "B",
+     "expr": "DCGM_FI_PROF_SM_ACTIVE * 400",
+     "legendFormat": "SM active (scaled \u00d7400)"
+    }
+   ]
   }
  ],
  "templating": {

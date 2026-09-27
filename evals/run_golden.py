@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from doctor.agent import http_chat, run_task  # noqa: E402
+from doctor.agent import build_llm, run_task  # noqa: E402
 from evals.build_golden import backend_for  # noqa: E402
 from evals.checker import check  # noqa: E402
 
@@ -90,11 +90,11 @@ def main() -> int:
     a = ap.parse_args()
 
     tasks = load_tasks(a.only) * max(1, a.repeat)
-    chat = http_chat(a.base_url, a.model)
+    llm = build_llm(a.base_url, a.model)
     t0 = time.time()
 
     def one(task: dict) -> dict:
-        row = score(task, run_task(task, backend_for(task["snapshots"]), chat, harness=not a.no_harness))
+        row = score(task, run_task(task, backend_for(task["snapshots"]), llm, harness=not a.no_harness))
         print(f"{row['id']:22} {row['tier']:11} {'PASS' if row['pass'] else 'FAIL'} steps={row['n_steps']:2} "
               f"stop={row['stop']:13} {'; '.join(row['failed'])[:110]}", flush=True)
         return row

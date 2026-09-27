@@ -15,7 +15,8 @@ answers the brief in [`design/course-objectives.md`](design/course-objectives.md
 ## Quick start (offline, no GPU)
 ```
 make tools          # pinned kind + kubectl into .bin/ (checksums verified)
-make lint test      # 32 tests over recorded fault snapshots
+uv sync             # pinned agent stack: LangGraph + LangChain (uv.lock)
+make lint test      # 34 tests over recorded fault snapshots
 make golden-build   # 26 golden tasks (easy, multi-hop, red-herring, right-sizing); every reference must pass
 ```
 
@@ -28,16 +29,18 @@ make lab-down
 
 ## Run against a model
 ```
-make up && make deploy          # Lambda A100 via the `lam` CLI — billed from launch
+make preflight                  # before paying for a GPU
+make up && make deploy          # Lambda A100 via the `lam` CLI — billed from launch (plan: design/lambda-test-plan.md)
 make tunnel                     # terminal 2: localhost:8000 → vllm-0
-make golden TAG=baseline        # or BASE=<gateway url>, CONC=8 REPEAT=5 for load
+make golden TAG=baseline        # results per tier; or BASE=<gateway url>
+make sweep                      # concurrency 1/4/8/16/32 with a vLLM /metrics scrape per level
 make down
 ```
 
 ## Layout
 | Path | What |
 |---|---|
-| `doctor/` | backends (snapshot, kubectl), read-only tools with evidence refs, redaction, cluster card, agent loop, validation, schemas, triage ruleset |
+| `doctor/` | backends (snapshot, kubectl), read-only tools with evidence refs, redaction, certificates, cluster card, LangGraph agent over LangChain tools, validation, schemas, triage ruleset |
 | `faults/` | 27 injected faults in tiers (easy, multi-hop, red-herring, right-sizing, live-only) with answer keys |
 | `lab/` | kind config, pinned tool fetcher, snapshot recorder |
 | `fixtures/` | recorded, redacted cluster snapshots |

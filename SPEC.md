@@ -5,7 +5,7 @@ another language without reading the history.
 
 | | |
 |---|---|
-| Last updated | 2026-09-27 (tiered faults, causal chains, right-sizing: D-31, D-32) |
+| Last updated | 2026-09-27 (LangGraph agent over LangChain tools: D-33; Lambda test plan: D-34) |
 | Why things are the way they are | [`design/decisions.md`](design/decisions.md) |
 | Course mapping | [`design/course-objectives.md`](design/course-objectives.md) |
 | Capacity and measurements | [`design/capacity-qwen3-8b.md`](design/capacity-qwen3-8b.md) |
@@ -31,7 +31,7 @@ PVCs, Ingresses, container logs (including init containers and sidecars) and usa
 through fixed presets; right-sizing; cost signals (OpenCost same-day, AWS Cost Explorer next-day, one S3 lab
 bucket); deterministic evaluation against injected faults; deploy files for the Lambda GPU node.
 
-**Non-goals.** Changing anything in a cluster (no apply/patch/delete/exec/scale — ever). Reading Secrets
+**Non-goals.** Changing anything in a cluster from the diagnosis path (no apply/patch/delete/exec/scale — ever; self-healing, if built, is a separate write-scoped path, D-35). Reading Secrets
 or non-certificate ConfigMap values. Model-written PromQL or shell. Sending cluster data to third-party APIs.
 
 ## 2. Components
@@ -134,21 +134,27 @@ memory → MiB, percentiles as the sorted sample at index round(p × (n − 1)).
 `<cluster_card>`: cluster name and version; per node role, cpu, memory, GPUs, taints; namespaces minus
 `kube-node-lease, kube-public, local-path-storage`. Inventory only (INV-2).
 
-### C7 — Agent loop ✅ (`doctor/agent.py`)
-- **Prompt order (INV-1):** `system` = `doctor/packs/triage.md` (causal-chain guidance, 7 hard rules, categories,
-  procedures for investigate / audit / rightsize, one illustrative finding) → `user` = cluster card → `user` =
-  `{task_type, namespaces, report}` → tool turns.
-- **Request:** `tools`, `tool_choice: "required"`, `temperature: 0`, `max_tokens: 768`,
-  `chat_template_kwargs: {enable_thinking: false}`; headers `X-Request-Id: <task>-<run8>-s<n>`, `X-Tenant`
-  (default `platform`), `X-App: cluster-doctor`, `X-Priority: interactive` (investigate) | `batch` (audit, rightsize),
-  `X-Data-Class: restricted`, `Authorization` from `VLLM_API_KEY` if set.
-- **Guards:** exact-repeat refusal (`name + json.dumps(args, sort_keys=True)`); budgets per namespace —
-  `list_problem_pods 2, get_events 3, describe 5, pod_logs 5, list_resources 3, resource_usage 2,
-  inspect_certificate 3, rightsizing 1, s3_bucket_stats 1, cost_report 2`; submit-now nudge at `max_steps − 2`
-  (16 investigate, 12 rightsize, 30 audit); context stop at prompt + completion > 23,000 tokens.
-- **Submit:** validate (C8). Fail → up to 2 repairs; then **fail closed** to
-  `{status: "inconclusive", findings: [], summary, rejected_submission, validation_errors}` (INV-5).
+### C7 — Agent: LangGraph over LangChain tools ✅ (`doctor/agent.py`, `doctor/lc_tools.py`, D-33)
+- **Graph:** `START → agent → act → (agent | limit | END)`; `agent` errors → END. State: `messages` (add_messages),
+  `n`, `trace`, `steps`, `calls` (append), `repairs`, `seen`, `used`, `diagnosis`, `stop`, `last_tokens`. The backend,
+  task, bound model, tools and run id travel in `config["configurable"]`; `recursion_limit = 3 × max_steps + 10`.
+  `build_graph(checkpointer=…)` accepts a LangGraph checkpointer (durable runs, future approval interrupts).
+- **Tools:** `make_tools(backend)` builds one `StructuredTool` per `tools.json` entry (args_schema = its JSON schema,
+  executes `tools.call`). The model is bound to the **raw `tools.json` dicts** — byte-identical on the wire (tested).
+- **Model:** `build_llm(base_url, model)` = `ChatOpenAI` (`temperature 0`, `max_tokens 768` → sent as
+  `max_completion_tokens`, `max_retries 0`, `extra_body.chat_template_kwargs.enable_thinking=false`) `.bind_tools(TOOLS,
+  tool_choice="required", strict=True)`; API key from `VLLM_API_KEY`. Per-step headers via an httpx request hook
+  (context variable): `X-Request-Id: <task>-<run8>-s<n>`, `X-Tenant` (default `platform`), `X-App: cluster-doctor`,
+  `X-Priority: interactive` (investigate) | `batch` (audit, rightsize), `X-Data-Class: restricted`.
+- **Prompt order (INV-1):** `SystemMessage(triage.md)` → `HumanMessage(cluster card)` → `HumanMessage(task)` → tool turns.
+- **act node:** `invalid_tool_calls` → error tool messages; no tool call → nudge; `submit_diagnosis` → validate (C8):
+  pass → accept; fail → repair (≤ 2) → **fail closed** to `inconclusive`; other tools → guards (exact-repeat refusal on
+  `name + json.dumps(args, sort_keys=True)`; budgets × namespaces: `list_problem_pods 2, get_events 3, describe 5,
+  pod_logs 5, list_resources 3, resource_usage 2, inspect_certificate 3, rightsizing 1, s3_bucket_stats 1, cost_report 2`)
+  → `StructuredTool.invoke`; submit-now nudge at `max_steps − 2`.
+- **Limits:** `max_steps` 16 investigate / 12 rightsize / 30 audit; context stop at prompt + completion > 23,000 tokens.
 - **Stops:** `submitted | inconclusive | step_cap | context_budget | http_<code> | transport_error`.
+- **Hosted tracing** (LangSmith) env vars are forced to `false` at import (INV-13).
 
 ### C8 — Validation (expect-blind) ✅ (`doctor/validate.py`)
 Schema (incl. `affects` items and `resize` keys); healthy ⇔ no findings; finding namespace ∈ task; root object
@@ -191,6 +197,8 @@ fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `schema`, `co
 | C13 | Warm-up proof | vllm-1 not routable until warm; TTFT re-quoted |
 | C14 | Notebook + plots + DESIGN.md | concurrency sweep, sheds by reason, pod A/B, DCGM power, results per tier, recommendations |
 | C15 | CVE rehydration (batch tenant) | post-course |
+| C16 | Self-healing of vLLM and the gateway (stretch, D-35) | separate write-scoped identity, approval interrupt, dry-run diff, post-action verification; the read-only path never gains write access |
+| C17 | Multi-agent roles | orchestrator (code) → parallel collectors → diagnoser → reviewer → approval → solutioner, as graph nodes over the same tools |
 
 ## 3. Invariants (change only with a decisions entry)
 | Id | Invariant | Enforced by |
@@ -207,6 +215,8 @@ fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `schema`, `co
 | INV-10 | `X-Data-Class: restricted` on every request; the gateway must never overflow it | `doctor/agent.py`; gateway tests (planned) |
 | INV-11 | ConfigMap values are dropped unless they are public certificates (no private keys) | `doctor/backends.strip`, `tests/test_tools.py::test_configmap_data_is_dropped_except_public_certs` |
 | INV-12 | Fault evidence is produced by real software, never authored text | catalogue review (`faults/*/manifest.yaml`) |
+| INV-13 | No hosted tracing or telemetry that could ship cluster data off-site | `doctor/agent.py` forces LangSmith env off; `tests/test_agent.py::test_hosted_tracing_is_forced_off` |
+| INV-14 | The model is bound to `tools.json` verbatim; request shape (prompt order, headers) is stable | `tests/test_agent.py::test_wire_format_tools_prompt_order_and_headers` |
 
 ## 4. Pins and key numbers
 | Item | Value |
@@ -215,15 +225,20 @@ fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `schema`, `co
 | Lab | kind v0.33.0 · kubectl v1.37.1 · node v1.36.4 · metrics-server v0.9.0 · cryptography 50.0.1 (lab only) |
 | Tokens (measured) | prefix 3,787 · card 112 · unique per task median: easy 2,459, multi-hop 3,570, red herring 4,768, rightsize 5,200, audits 7.7k–11.2k · max context 15.1k |
 | KV (paper) | 144 KiB/token · ≈ 79,700 tokens per 20 GiB slice · 0.80 line ≈ 24 easy / 17 multi-hop / 6 audits |
-| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · 32 offline tests |
+| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · 34 offline tests |
+| Agent stack | langgraph 1.2.12 · langchain-core 1.6.5 · langchain-openai 1.6.6 (locked in `uv.lock`); dev pytest 9.1.1 |
 
 ## 5. How to verify
 ```
 make tools                 # pinned kind + kubectl into .bin/
-make lint test             # ruff + 32 offline tests over recorded snapshots
+uv sync                    # pinned agent stack (LangGraph, LangChain) from uv.lock
+make preflight             # lint + 34 tests + golden references committed + lam API key — before paying for a GPU
+make lint test             # ruff + 34 offline tests over recorded snapshots
 make golden-build          # rebuild the golden set; fails if any reference diagnosis fails its checker
 make lab-up lab-record     # re-record fixtures on kind (~25 min, batches of 4), then make golden-build
-make up deploy kv          # Lambda A100 (costs money: ask first), then: make tunnel; make golden TAG=…; make down
+make up deploy kv          # Lambda A100 (costs money: ask first) — full sequence in design/lambda-test-plan.md
+make golden TAG=… / make sweep   # golden set; concurrency sweep with a vLLM /metrics scrape per level
+make kubeconfig k8s-tunnel record-live ONLY=gpu-unavailable   # live-only faults on the Lambda k3s cluster
 ```
 
 ## 6. Security
@@ -241,7 +256,7 @@ identical arguments map to identical keys); budgets × namespace count; validati
 prefixes (tests key on them); the fail-closed shape; the DER walk order in `doctor/x509.py`.
 
 ## 8. Open issues
-1. No model run yet for this app (golden baseline pending, via the gateway on the GPU).
+1. No model run yet for this app — first run planned in `design/lambda-test-plan.md` (D-34), direct to vLLM; the gateway follows.
 2. Live-only scenarios need recording on the Lambda cluster and AWS (C12).
 3. OpenCost pricing units and HAMi half-GPU attribution unverified (D-26).
 4. Live logs are longer than lab logs: re-measure tokens (D-29).
@@ -252,3 +267,4 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 |---|---|---|
 | 2026-09-27 | Initial build: faults, lab recorder, backends, tools, agent, validation, evals, deploy, docs | D-19 … D-30 |
 | 2026-09-27 | Tiered catalogue (multi-hop, red-herring, right-sizing), causal chains, certificate inspection, new kinds, `--max-model-len 24576` | D-29 (amended), D-31, D-32 |
+| 2026-09-27 | Agent on LangGraph + LangChain tools; preflight, sweep, live-recording targets; GPU power panel; test plan; self-healing planned | D-33, D-34, D-35 |

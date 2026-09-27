@@ -166,11 +166,14 @@ def main() -> int:
     ap.add_argument("--batch", type=int, default=4)
     ap.add_argument("--keep", action="store_true", help="leave the last batch running")
     ap.add_argument("--timeout", type=int, default=420)
+    ap.add_argument("--live", action="store_true", help="record live-only scenarios (e.g. on the Lambda k3s cluster); only the chosen namespaces are created")
     a = ap.parse_args()
 
     every = [json.loads(p.read_text()) for p in sorted(FAULTS.glob("*/scenario.json"))]
-    every = [s for s in every if not s["live_only"]]
+    every = [s for s in every if s["live_only"] == a.live and s.get("settle")]
     chosen = [s for s in every if not a.only or s["id"] in a.only.split(",")]
+    if a.live:
+        every = chosen                                 # never create lab namespaces on a real cluster
     b = KubectlBackend(context=a.context, kubectl=KUBECTL)
     failed: list[str] = []
 
@@ -178,7 +181,8 @@ def main() -> int:
         ensure_namespace(a.context, sc["namespace"])
     OUT.joinpath("snapshots").mkdir(parents=True, exist_ok=True)
     cluster = redact_all(b.cluster_info())
-    (OUT / "cluster.json").write_text(json.dumps({"cluster": cluster}, indent=1, sort_keys=True))
+    card_file = OUT / ("cluster-lambda.json" if a.live else "cluster.json")    # live snapshots get their own card
+    card_file.write_text(json.dumps({"cluster": cluster}, indent=1, sort_keys=True))
 
     with tempfile.TemporaryDirectory() as tmp:
         pki = Path(tmp)

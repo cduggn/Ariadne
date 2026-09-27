@@ -31,5 +31,6 @@
   "red_herrings": [],
   "also_ok": [],
   "forbidden": [],
-  "hints": {}
+  "hints": {},
+  "settle": "event:FailedScheduling"
 }

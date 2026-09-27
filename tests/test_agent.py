@@ -1,92 +1,117 @@
-"""The loop, with a scripted fake model: happy path, repair path, fail-closed path, prompt layout, headers."""
+"""The LangGraph agent end to end over the real LangChain client, against a scripted OpenAI-compatible
+server (httpx MockTransport). Proves the wire format too: tools.json verbatim, prompt order, headers."""
 import json
+
+import httpx
 
 from doctor import agent
 from evals.build_golden import backend_for
 from evals.checker import check
 
 
-def _call(name, args, i=0):
-    return {"choices": [{"message": {"tool_calls": [{"id": f"c{i}", "function": {"name": name, "arguments": json.dumps(args)}}]}}],
-            "usage": {"prompt_tokens": 3000 + 300 * i, "completion_tokens": 60}}
+class Server:
+    """Replays scripted tool calls; records every request body and header set."""
+
+    def __init__(self, *calls, status: int | None = None):
+        self.calls, self.status, self.requests = list(calls), status, []
+
+    def __call__(self, req: httpx.Request) -> httpx.Response:
+        self.requests.append({"body": json.loads(req.content), "headers": dict(req.headers)})
+        if self.status:
+            return httpx.Response(self.status, json={"error": {"message": "shed", "type": "overloaded"}})
+        i = len(self.requests) - 1
+        name, args = self.calls[min(i, len(self.calls) - 1)]
+        raw = args if isinstance(args, str) else json.dumps(args)
+        return httpx.Response(200, json={
+            "id": f"r{i}", "object": "chat.completion", "created": 0, "model": "m",
+            "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {"role": "assistant", "content": None,
+                         "tool_calls": [{"id": f"c{i}", "type": "function", "function": {"name": name, "arguments": raw}}]}}],
+            "usage": {"prompt_tokens": 4000 + 300 * i, "completion_tokens": 60, "total_tokens": 4060 + 300 * i,
+                      "prompt_tokens_details": {"cached_tokens": 3800}}})
 
 
-def scripted(*calls):
-    it = iter(enumerate(calls))
-    seen = []
-
-    def chat(messages, rid, headers):
-        seen.append(([dict(m) for m in messages], headers))
-        i, (name, args) = next(it)
-        return _call(name, args, i)
-    chat.seen = seen
-    return chat
+def llm_for(server: Server):
+    return agent.build_llm("http://gateway.test/v1", "Qwen/Qwen3-8B-AWQ", http_client=httpx.Client(transport=httpx.MockTransport(server)))
 
 
 def test_reference_run_passes_the_checker(tasks, refs):
     t = tasks["dx-crashloop"]
     b = backend_for(t["snapshots"])
-    ns = t["namespaces"][0]
-    chat = scripted(("list_problem_pods", {"namespace": ns}),
-                    ("get_events", {"namespace": ns, "object_name": "any", "limit": 10}),
-                    ("pod_logs", {"namespace": ns, "pod": b.objects("pods", ns)[0]["metadata"]["name"], "container": "", "previous": False, "tail": 40}),
-                    ("submit_diagnosis", refs["dx-crashloop"]))
-    run = agent.run_task(t, b, chat)
-    assert run["stop"] == "submitted"
+    pod = b.objects("pods", "orders")[0]["metadata"]["name"]
+    s = Server(("list_problem_pods", {"namespace": "orders"}),
+               ("get_events", {"namespace": "orders", "object_name": "any", "limit": 10}),
+               ("pod_logs", {"namespace": "orders", "pod": pod, "container": "", "previous": False, "tail": 40}),
+               ("submit_diagnosis", refs["dx-crashloop"]))
+    run = agent.run_task(t, b, llm_for(s))
+    assert run["stop"] == "submitted" and run["trace"] == ["list_problem_pods", "get_events", "pod_logs", "submit_diagnosis"]
     assert check(t, run["diagnosis"], run["trace"], b)["pass"]
+    assert run["steps"][0]["cached_tokens"] == 3800 and run["steps"][0]["prompt_tokens"] == 4000
 
 
-def test_prompt_layout_and_headers(tasks, refs):
-    t1, t2 = tasks["dx-oom"], tasks["dx-audit-3"]
-    c1 = scripted(("submit_diagnosis", refs["dx-oom"]))
-    c2 = scripted(("submit_diagnosis", refs["dx-audit-3"]))
-    agent.run_task(t1, backend_for(t1["snapshots"]), c1)
-    agent.run_task(t2, backend_for(t2["snapshots"]), c2)
-    (m1, h1), (m2, h2) = c1.seen[0], c2.seen[0]
-    assert [m["role"] for m in m1] == ["system", "user", "user"]
-    assert m1[0] == m2[0] and m1[1] == m2[1]                      # ruleset + cluster card identical → cacheable prefix
-    assert m1[1]["content"].startswith("<cluster_card>") and m1[2] != m2[2]
-    assert h1["X-Priority"] == "interactive" and h2["X-Priority"] == "batch" and h1["X-Data-Class"] == "restricted"
+def test_wire_format_tools_prompt_order_and_headers(tasks, refs):
+    s1, s2 = Server(("submit_diagnosis", refs["dx-oom"])), Server(("submit_diagnosis", refs["dx-audit-3"]))
+    agent.run_task(tasks["dx-oom"], backend_for(tasks["dx-oom"]["snapshots"]), llm_for(s1))
+    agent.run_task(tasks["dx-audit-3"], backend_for(tasks["dx-audit-3"]["snapshots"]), llm_for(s2))
+    b1, h1 = s1.requests[0]["body"], s1.requests[0]["headers"]
+    b2, h2 = s2.requests[0]["body"], s2.requests[0]["headers"]
+    assert b1["tools"] == agent.TOOLS                                            # tools.json verbatim
+    assert b1["tool_choice"] == "required" and b1["temperature"] == 0 and b1["chat_template_kwargs"] == {"enable_thinking": False}
+    roles = [m["role"] for m in b1["messages"]]
+    assert roles == ["system", "user", "user"] and b1["messages"][0]["content"] == agent.RULESET
+    assert b1["messages"][:2] == b2["messages"][:2]                              # ruleset + card identical → cacheable prefix
+    assert b1["messages"][1]["content"].startswith("<cluster_card>") and b1["messages"][2] != b2["messages"][2]
+    assert h1["x-priority"] == "interactive" and h2["x-priority"] == "batch" and h1["x-data-class"] == "restricted"
+    assert h1["x-request-id"].startswith("dx-oom-") and h1["x-request-id"].endswith("-s1") and h1["x-app"] == "cluster-doctor"
 
 
 def test_repair_then_fail_closed(tasks, refs):
     t = tasks["dx-oom"]
     b = backend_for(t["snapshots"])
     bad = json.loads(json.dumps(refs["dx-oom"]))
-    bad["findings"][0]["evidence"] = ["lg-invented-c1"]
-    chat = scripted(("submit_diagnosis", bad), ("submit_diagnosis", bad), ("submit_diagnosis", bad))
-    run = agent.run_task(t, b, chat)
-    assert run["repairs"] == 2 and run["stop"] == "inconclusive"
+    bad["findings"][0]["evidence"] = ["lg-invented-x-c1"]
+    s = Server(("submit_diagnosis", bad))
+    run = agent.run_task(t, b, llm_for(s))
+    assert run["repairs"] == 2 and run["stop"] == "inconclusive" and len(s.requests) == 3
     assert run["diagnosis"]["status"] == "inconclusive" and run["diagnosis"]["findings"] == []
+    assert "evidence-exists" in json.dumps(s.requests[1]["body"]["messages"][-1])     # the model is told what was wrong
     assert not check(t, run["diagnosis"], run["trace"], b)["pass"]
 
 
-def test_duplicate_calls_refused_and_harness_off(tasks):
-    t = tasks["dx-oom"]
+def test_duplicates_budget_step_cap_and_bad_json(tasks):
+    t = {**tasks["dx-oom"], "max_steps": 4}
     b = backend_for(t["snapshots"])
-    args = {"namespace": "reports"}
-    tool_msgs = []
-
-    def repeat(messages, rid, headers):
-        if messages[-1]["role"] == "tool":
-            tool_msgs.append(json.loads(messages[-1]["content"]))
-        return _call("list_problem_pods", args)
-    run = agent.run_task({**t, "max_steps": 4}, b, repeat)
-    assert run["stop"] == "step_cap"
-    assert isinstance(tool_msgs[0].get("problem_pods"), list)            # first call executed
-    assert "duplicate call" in tool_msgs[1]["error"]                     # identical repeat refused
-    run = agent.run_task({**t, "max_steps": 3}, b, lambda m, r, h: _call("list_problem_pods", args), harness=False)
-    assert all(not c["error"] for s in run["steps"] for c in s["calls"])
+    s = Server(("list_problem_pods", {"namespace": "reports"}))
+    run = agent.run_task(t, b, llm_for(s))
+    tool_msgs = [m for m in s.requests[-1]["body"]["messages"] if m["role"] == "tool"]
+    assert run["stop"] == "step_cap" and len(s.requests) == 4
+    assert "problem_pods" in tool_msgs[0]["content"] and "duplicate call" in tool_msgs[1]["content"]
+    assert "model calls left" in json.dumps(s.requests[-1]["body"]["messages"])          # submit-now nudge
+    run = agent.run_task(t, b, llm_for(Server(("describe", "{not json"))))
+    assert run["stop"] == "step_cap" and any("not valid JSON" in (c["error"] or "") for st in run["steps"] for c in st["calls"])
 
 
-def test_multi_hop_reference_run_passes(tasks, refs):
+def test_gateway_refusal_ends_with_named_stop(tasks):
+    t = tasks["dx-oom"]
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(Server(status=503)))
+    assert run["stop"] == "http_503" and run["diagnosis"] is None and run["steps"][0]["http_status"] == 503
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(Server(status=429)))
+    assert run["stop"] == "http_429"
+
+
+def test_multi_hop_reference_run_and_harness_off(tasks, refs):
     t = tasks["dx-cascade-db"]
     b = backend_for(t["snapshots"])
     api = next(p["metadata"]["name"] for p in b.objects("pods", "inventory") if p["metadata"]["name"].startswith("stock-api"))
-    chat = scripted(("list_problem_pods", {"namespace": "inventory"}),
-                    ("pod_logs", {"namespace": "inventory", "pod": api, "container": "", "previous": False, "tail": 40}),
-                    ("describe", {"kind": "deployment", "namespace": "inventory", "name": "stock-db"}),
-                    ("submit_diagnosis", refs["dx-cascade-db"]))
-    run = agent.run_task(t, b, chat)
+    s = Server(("list_problem_pods", {"namespace": "inventory"}),
+               ("pod_logs", {"namespace": "inventory", "pod": api, "container": "", "previous": False, "tail": 40}),
+               ("describe", {"kind": "deployment", "namespace": "inventory", "name": "stock-db"}),
+               ("submit_diagnosis", refs["dx-cascade-db"]))
+    run = agent.run_task(t, b, llm_for(s))
     assert run["stop"] == "submitted" and check(t, run["diagnosis"], run["trace"], b)["pass"]
-    assert agent.request_headers(tasks["dx-rightsizing"])["X-Priority"] == "batch"
+    off = agent.run_task({**t, "max_steps": 3}, b, llm_for(Server(("list_problem_pods", {"namespace": "inventory"}))), harness=False)
+    assert all(not c["error"] for st in off["steps"] for c in st["calls"])
+
+
+def test_hosted_tracing_is_forced_off():
+    import os
+    assert all(os.environ[v] == "false" for v in ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2", "LANGCHAIN_TRACING"))
