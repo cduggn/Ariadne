@@ -121,3 +121,12 @@ def test_watch_entry_point_once(refs, tmp_path):
     for argv in (["watch", "-n", "Bad_NS", "--snapshot", "crashloop"], ["watch", "--snapshot", "nope"],
                  ["watch", "--snapshot", "crashloop", "-n", "billing"]):
         assert cli.main(argv, llm=llm_for(Server(status=503)), stdout=io.StringIO(), stderr=io.StringIO()) == cli.EXIT_USAGE
+
+
+def test_a_crashing_diagnosis_does_not_stop_the_watcher():
+    class Boom:
+        def invoke(self, _messages):
+            raise RuntimeError("unexpected")
+    b, *_ = backend()
+    w = watch.Watcher(b, Boom(), namespaces=["orders"], audit_every_s=0, rightsize_every_s=0)
+    assert [r["stop"] for r in w.cycle()] == ["error_RuntimeError"]

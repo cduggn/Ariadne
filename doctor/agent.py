@@ -93,6 +93,25 @@ def _add_headers(request: httpx.Request) -> None:
         request.headers[k] = v
 
 
+class _ToolSafeChatOpenAI(ChatOpenAI):
+    """A tool call whose arguments decode to something other than a JSON object (seen on the GPU: a JSON string
+    holding a Python dict repr) would crash message construction. Turn it into an invalid tool call instead, so the
+    act node tells the model and the run continues (D-39)."""
+
+    def _create_chat_result(self, response, generation_info=None):
+        data = response if isinstance(response, dict) else response.model_dump()
+        for choice in data.get("choices") or []:
+            for tc in (choice.get("message") or {}).get("tool_calls") or []:
+                fn = tc.get("function") or {}
+                try:
+                    ok = isinstance(json.loads(fn.get("arguments") or "{}"), dict)
+                except (TypeError, ValueError):
+                    ok = True                                    # not JSON at all: LangChain already marks it invalid
+                if not ok:
+                    fn["arguments"] = "not a JSON object: " + str(fn.get("arguments"))[:500]
+        return super()._create_chat_result(data, generation_info)
+
+
 # Qwen3 non-thinking sampling as its model card recommends (greedy decoding causes endless repetition).
 SAMPLING = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0}
 
@@ -105,7 +124,7 @@ def build_llm(base_url: str, model: str, *, http_client: httpx.Client | None = N
     s = {**SAMPLING, **(sampling or {})}
     client = http_client or httpx.Client(timeout=HTTP_TIMEOUT_S)
     client.event_hooks.setdefault("request", []).append(_add_headers)
-    llm = ChatOpenAI(model=model, base_url=base_url, api_key=os.environ.get("VLLM_API_KEY") or "EMPTY",
+    llm = _ToolSafeChatOpenAI(model=model, base_url=base_url, api_key=os.environ.get("VLLM_API_KEY") or "EMPTY",
                      temperature=s["temperature"], top_p=s["top_p"], max_tokens=MAX_TOKENS_PER_STEP, max_retries=0,
                      http_client=client, extra_body={"chat_template_kwargs": {"enable_thinking": False},   # Qwen3 thinks by default
                                                      "top_k": s["top_k"], "min_p": s["min_p"]})
@@ -151,6 +170,10 @@ def agent_node(state: State, config) -> dict:
     except (openai.APIConnectionError, openai.APITimeoutError, httpx.HTTPError) as e:
         return {"n": n, "stop": "transport_error",
                 "steps": [{"step": n, "request_id": rid, "error": type(e).__name__, "latency_s": round(time.perf_counter() - t0, 3)}]}
+    except (ValueError, TypeError) as e:          # a response we cannot turn into a message: end this task, never the run
+        return {"n": n, "stop": "bad_response",
+                "steps": [{"step": n, "request_id": rid, "error": f"{type(e).__name__}: {str(e)[:160]}",
+                           "latency_s": round(time.perf_counter() - t0, 3)}]}
     finally:
         _REQUEST_HEADERS.reset(token)
     usage = msg.response_metadata.get("token_usage") or {}
@@ -184,7 +207,8 @@ def act_node(state: State, config) -> dict:
     trace: list[str] = []
     calls: list[dict] = []
     for bad in getattr(msg, "invalid_tool_calls", None) or []:           # arguments that were not valid JSON
-        out.append(ToolMessage(content=json.dumps({"error": "arguments are not valid JSON"}), tool_call_id=bad.get("id") or "", name=bad.get("name") or ""))
+        out.append(ToolMessage(content=json.dumps({"error": "arguments are not valid JSON: send exactly one JSON object"}),
+                               tool_call_id=bad.get("id") or "", name=bad.get("name") or ""))
         trace.append(bad.get("name") or "")
         calls.append({"step": state["n"], "name": bad.get("name"), "error": "arguments are not valid JSON", "rejected": False})
     if not msg.tool_calls and not out:

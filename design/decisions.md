@@ -156,3 +156,29 @@ The serving-side signature of this failure (completion tokens pinned at max_toke
 ~5 s steps) is worth an alert and a slide: it looked like a slow model, but it was a decoding constraint.
 **Open:** `dx-crashloop` now answers `config_missing` (the app logs `FATAL: DATABASE_URL is not set`), which the answer
 key does not allow. That may be a labelling question, not a model error; left unchanged pending review.
+
+### D-39 — Robustness after the first full baseline; what the baseline says (2026-09-27)
+**Observed:** the first full `make golden` (26 tasks × 2) crashed in the second pass. The model sent tool-call
+arguments as a JSON *string* holding a Python dict repr (`"{'kind': 'service', …}"`). LangChain accepted it as a tool
+call with string args, and message construction raised a pydantic error that escaped the agent. The runner wrote
+results only at the end, so the whole run's file was lost.
+**Choice:** (1) the chat model turns arguments that are not a JSON object into an invalid tool call, so the model is
+told "send exactly one JSON object" and continues; any other unparseable response ends that task with stop
+`bad_response`. (2) The runner records a crashing task as a failed row (`stop error_<Type>`) and appends every row as
+it finishes. (3) The watcher survives a crashing diagnosis. (4) Scheduled audits group 3 namespaces, not 4
+(`dx-audit-2`, 4 namespaces, reached the 23k context budget; 3-namespace audits finished).
+**First baseline (pass 1, complete, from the console):** 9/26 = 35 % — easy 6/14, multi-hop 1/7, red-herring 2/4,
+right-sizing 0/1. Pass 2 (24 tasks before the crash): 9/24. Failures by kind (pass 1):
+
+| Kind | Tasks | Reading |
+|---|---|---|
+| Named the victim or a Service, not the root | cascade-db, dns-misconfig, limitrange-oom, mixed, tls-expired, audit-3 | the multi-hop gap: where a stronger model, a reviewer role (C17) or ruleset work pays |
+| Category label differs | crashloop → config_missing, no-endpoints → service_misconfig, probe → service_misconfig, port-mismatch → probe_failure | the first two are defensible readings (answer-key question); the last two are wrong |
+| Right diagnosis, missed a required tool | init-wait (pod_logs), quota-exhausted (get_events) | `must_call` is a process rule; is it pass/fail or advisory? |
+| Failed closed after repairs | imagepull (pass 2: also healthy, job-failed) | grounding rejected the answer — working as designed; inspect the validation errors |
+| Context budget / step cap | audit-2 (4 namespaces), rollout | audit size; step efficiency |
+| Right-sizing outside the safe band | rightsizing | judgement on the numbers |
+
+**Open (the user decides):** accept `config_missing` for crashloop and `service_misconfig` for no-endpoints; make
+`must_call` advisory. Model-side levers, measured one at a time: ruleset wording for the category boundaries, a
+larger model (Qwen3-14B-AWQ fits a 20 GiB slice with a smaller KV pool), the reviewer role.

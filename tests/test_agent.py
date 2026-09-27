@@ -91,3 +91,21 @@ def test_multi_hop_reference_run_and_harness_off(tasks, refs):
 def test_hosted_tracing_is_forced_off():
     import os
     assert all(os.environ[v] == "false" for v in ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2", "LANGCHAIN_TRACING"))
+
+
+def test_tool_call_arguments_that_are_not_an_object_do_not_crash(tasks, refs):
+    """Seen on the GPU: arguments encoded as a JSON string holding a Python dict repr (D-39)."""
+    t = tasks["dx-oom"]
+    b = backend_for(t["snapshots"])
+    s = Server(("describe", json.dumps("{'kind': 'service', 'namespace': 'reports', 'name': 'x'}")),
+               ("submit_diagnosis", refs["dx-oom"]))
+    run = agent.run_task(t, b, llm_for(s))
+    assert run["stop"] == "submitted" and "not valid JSON" in run["steps"][0]["calls"][0]["error"]
+    assert "send exactly one JSON object" in json.dumps(s.requests[1]["body"]["messages"][-1])
+
+
+def test_a_crashing_task_is_a_failed_row_not_a_lost_run(tasks):
+    from evals.run_golden import error_row, summarise
+    row = error_row(tasks["dx-oom"], RuntimeError("boom"))
+    s = summarise([row], {})
+    assert s["pass_rate"] == 0 and s["stop_reasons"] == {"error_RuntimeError": 1}

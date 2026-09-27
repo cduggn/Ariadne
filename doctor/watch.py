@@ -38,7 +38,7 @@ from .agent import build_llm, run_task
 from .backends import Backend, check_name
 
 SYSTEM_NAMESPACES = {"kube-system", "kube-public", "kube-node-lease", "local-path-storage"}
-AUDIT_GROUP = 4
+AUDIT_GROUP = 3            # 4 namespaces reached the context budget on the GPU (dx-audit-2, D-39)
 REPORTS = {
     "audit": "Scheduled audit: check these namespaces and report every root cause, or confirm they are healthy.",
     "rightsize": "Scheduled right-sizing: which workloads are over-provisioned, and what should their requests be? Don't break anything.",
@@ -276,7 +276,12 @@ class Watcher:
 
     def run(self, task: dict) -> dict:
         t0 = time.perf_counter()
-        run = run_task(task, self.b, self.llm, cluster=self.cluster)
+        try:
+            run = run_task(task, self.b, self.llm, cluster=self.cluster)
+        except Exception as e:  # one task must never stop the watcher
+            self.log(f"{task['task_type']} {','.join(task['namespaces'])} crashed: {type(e).__name__}: {e}")
+            run = {"diagnosis": None, "steps": [], "trace": [], "repairs": 0, "stop": f"error_{type(e).__name__}",
+                   "run_id": f"{task['id']}-error"}
         wall = round(time.perf_counter() - t0, 2)
         d, steps, mode = run["diagnosis"], run["steps"], task["task_type"]
         status = (d or {}).get("status", "none")

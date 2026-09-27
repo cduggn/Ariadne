@@ -15,6 +15,7 @@ import argparse
 import json
 import statistics
 import sys
+import threading
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -45,6 +46,14 @@ def score(task: dict, run: dict) -> dict:
             "prompt_tokens": [s.get("prompt_tokens") for s in steps], "completion_tokens": [s.get("completion_tokens") for s in steps],
             "cached_tokens": [s.get("cached_tokens") for s in steps], "latency_s": [s.get("latency_s") for s in steps],
             "headers": run["headers"], "diagnosis": run["diagnosis"]}
+
+
+def error_row(task: dict, e: Exception) -> dict:
+    """One task crashed: record it as a failure with the reason, keep the run going."""
+    return {"id": task["id"], "task_type": task["task_type"], "tier": task.get("tier", "easy"), "pass": False,
+            "failed": [f"exception: {type(e).__name__}: {str(e)[:200]}"], "stop": f"error_{type(e).__name__}", "n_steps": 0,
+            "trace": [], "repairs": 0, "harness": True, "http_status": [], "tool_errors": 0, "prompt_tokens": [],
+            "completion_tokens": [], "cached_tokens": [], "latency_s": [], "headers": {}, "diagnosis": None}
 
 
 def _pct(xs, p):
@@ -92,20 +101,26 @@ def main() -> int:
     tasks = load_tasks(a.only) * max(1, a.repeat)
     llm = build_llm(a.base_url, a.model)
     t0 = time.time()
-
-    def one(task: dict) -> dict:
-        row = score(task, run_task(task, backend_for(task["snapshots"]), llm, harness=not a.no_harness))
-        print(f"{row['id']:22} {row['tier']:11} {'PASS' if row['pass'] else 'FAIL'} steps={row['n_steps']:2} "
-              f"stop={row['stop']:13} {'; '.join(row['failed'])[:110]}", flush=True)
-        return row
-
-    with ThreadPoolExecutor(max_workers=max(1, a.concurrency)) as ex:
-        rows = list(ex.map(one, tasks))
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     base = out / f"golden-{a.tag}-{stamp}"
-    base.with_suffix(".jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
+    lock = threading.Lock()
+
+    def one(task: dict) -> dict:
+        try:
+            row = score(task, run_task(task, backend_for(task["snapshots"]), llm, harness=not a.no_harness))
+        except Exception as e:  # one task must never lose the run
+            row = error_row(task, e)
+        with lock:                                  # written as each task finishes: an interrupted run keeps its rows
+            with base.with_suffix(".jsonl").open("a") as f:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            print(f"{row['id']:22} {row['tier']:11} {'PASS' if row['pass'] else 'FAIL'} steps={row['n_steps']:2} "
+                  f"stop={row['stop']:13} {'; '.join(row['failed'])[:110]}", flush=True)
+        return row
+
+    with ThreadPoolExecutor(max_workers=max(1, a.concurrency)) as ex:
+        rows = list(ex.map(one, tasks))
     summary = summarise(rows, {"tag": a.tag, "model": a.model, "base_url": a.base_url, "concurrency": a.concurrency,
                                "repeat": a.repeat, "harness": not a.no_harness, "wall_s": round(time.time() - t0, 1), "timestamp": stamp})
     Path(f"{base}.summary.json").write_text(json.dumps(summary, indent=2))
