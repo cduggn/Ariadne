@@ -24,7 +24,7 @@ Status: ✅ built and tested offline · 🟡 built, needs the GPU or the gateway
 
 | Question | Answer source |
 |---|---|
-| What is the app; which tokens are shared vs unique? | Ruleset + tool schemas (2,488) and cluster card shared; tool results (logs/events) unique — `design/capacity-qwen3-8b.md` |
+| What is the app; which tokens are shared vs unique? | Ruleset 1,202 + tool schemas 2,525 (prefix 3,787, measured) and cluster card 112 shared; tool results (logs/events) unique — `design/capacity-qwen3-8b.md` |
 | What dies at guard vs admit vs place vs queue? | gateway `orch_*` counters by reason, per run |
 | Where do I prevent work that will time out? | gateway queue deadline filter (`timeout_queue`) |
 | Where do I protect KV? | gateway KV line (0.80 on `vllm:kv_cache_usage_perc`) + the capacity arithmetic above |
