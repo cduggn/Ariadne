@@ -158,7 +158,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--json", action="store_true", help="print the full run record as JSON instead of the report")
     ap.add_argument("--out", help="also write the full run record as JSON to this file")
     ap.add_argument("-q", "--quiet", action="store_true", help="no progress lines")
-    return ap.parse_args(argv)
+    return ap.parse_intermixed_args(argv)            # the report may come after the options on every Python version
 
 
 def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -> int:
