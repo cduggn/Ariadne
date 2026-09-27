@@ -6,7 +6,7 @@ this run: the laptop talks to vLLM through the SSH tunnel.
 
 | # | Command | What it proves (claim → where it is written) |
 |---|---|---|
-| 0 | `make preflight` | lint, 34 tests, golden references pass and are committed, lam has an API key |
+| 0 | `make preflight` | lint, 39 tests, golden references pass and are committed, lam has an API key |
 | 1 | `make up` | node bootstraps: k3s, HAMi, Prometheus, Grafana, DCGM, OpenCost, Qwen3-8B weights (`ready.json`) |
 | 2 | `make deploy` then `make kv` | **KV pool per worker**: `Available KV cache memory` and `GPU KV cache size` vs paper 10.95 GiB / 79,700 tokens (capacity file) |
 | 3 | `make dashboards`, `make grafana` (terminal 3), `make tunnel` (terminal 2) | dashboards live: KV usage, running/waiting, TTFT/ITL, prefix hits, GPU power |
@@ -16,6 +16,7 @@ this run: the laptop talks to vLLM through the SSH tunnel.
 | 7 | Grafana during step 6 | DCGM power: audits (prefill-heavy, long contexts) vs investigations (decode-heavy) |
 | 8 | `make scale N=2` + `make golden TAG=w2` | second HAMi slice serves; KV per worker the same |
 | 9 | optional: `make kubeconfig`, `make k8s-tunnel`, `make record-live ONLY=gpu-unavailable` | first live-only fixture from the real GPU node |
+| 9b | `uv run python -m doctor investigate -n <ns> --kubeconfig .cache/lambda-kubeconfig --context lambda` | the demo: live read-only diagnosis of the real cluster, progress and tokens per step |
 | 10 | `make down` | billing stops |
 
 Record results in: `metrics/` (committed), capacity file (measured rows), decisions (D-29/D-34 results).

@@ -30,6 +30,7 @@ import operator
 import os
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
@@ -201,8 +202,13 @@ def act_node(state: State, config) -> dict:
             result = (harness and _guard(name, args, seen, used, len(task["namespaces"]))) or tools[name].invoke(args)
         out.append(ToolMessage(content=json.dumps(result, ensure_ascii=False), tool_call_id=tc["id"], name=name))
         trace.append(name)
-        calls.append({"step": state["n"], "name": name, "error": result.get("error") if isinstance(result, dict) else None,
-                      "rejected": isinstance(result, dict) and result.get("accepted") is False})
+        rec = {"step": state["n"], "name": name, "error": result.get("error") if isinstance(result, dict) else None,
+               "rejected": isinstance(result, dict) and result.get("accepted") is False}
+        if name != "submit_diagnosis":
+            rec["args"] = args                                               # small; the diagnosis is kept separately
+        elif rec["rejected"]:
+            rec["validation_errors"] = verdict["failed"][:8]
+        calls.append(rec)
     if diagnosis is None and harness and task.get("max_steps", 16) - state["n"] == WARN_STEPS_LEFT:
         out.append(HumanMessage(f"Only {WARN_STEPS_LEFT} model calls left. Call submit_diagnosis now with the findings "
                                 "you can ground in evidence; status healthy if none."))
@@ -245,14 +251,22 @@ GRAPH = build_graph()
 
 
 def run_task(task: dict, backend: Backend, llm: BaseChatModel, *, cluster: str = "doctor-lab", harness: bool = True,
-             graph=None) -> dict:
+             graph=None, on_update: Callable[[str, dict], None] | None = None) -> dict:
+    """Run one task to a stop. `on_update(node, update)` sees every node's state update as it happens
+    (the CLI prints progress from it); the returned record is the same with or without it."""
     run_id = f"{task['id']}-{uuid.uuid4().hex[:8]}"
     state: State = {"messages": initial_messages(task, backend, cluster), "n": 0, "trace": [], "steps": [], "calls": [],
                     "repairs": 0, "seen": [], "used": {}, "diagnosis": None, "stop": "", "last_tokens": 0}
     config = {"configurable": {"task": task, "backend": backend, "llm": llm, "harness": harness, "run_id": run_id,
                                "tools": make_tools(backend), "thread_id": run_id},
               "recursion_limit": 3 * task.get("max_steps", 16) + 10}
-    final = (graph or GRAPH).invoke(state, config)
+    final: dict = {}
+    for mode, chunk in (graph or GRAPH).stream(state, config, stream_mode=["updates", "values"]):
+        if mode == "values":
+            final = chunk
+        elif on_update:
+            for node, update in chunk.items():
+                on_update(node, update or {})
     steps = [dict(s, calls=[c for c in final["calls"] if c["step"] == s["step"]]) for s in final["steps"]]
     return {"task_id": task["id"], "run_id": run_id, "diagnosis": final["diagnosis"], "trace": final["trace"],
             "stop": final["stop"] or "step_cap", "steps": steps, "repairs": final["repairs"], "harness": harness,

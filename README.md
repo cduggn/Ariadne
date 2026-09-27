@@ -16,7 +16,7 @@ answers the brief in [`design/course-objectives.md`](design/course-objectives.md
 ```
 make tools          # pinned kind + kubectl into .bin/ (checksums verified)
 uv sync             # pinned agent stack: LangGraph + LangChain (uv.lock)
-make lint test      # 34 tests over recorded fault snapshots
+make lint test      # 39 tests over recorded fault snapshots
 make golden-build   # 26 golden tasks (easy, multi-hop, red-herring, right-sizing); every reference must pass
 ```
 
@@ -36,6 +36,17 @@ make golden TAG=baseline        # results per tier; or BASE=<gateway url>
 make sweep                      # concurrency 1/4/8/16/32 with a vLLM /metrics scrape per level
 make down
 ```
+
+## Diagnose a cluster
+```
+uv run python -m doctor investigate -n inventory "stock-api keeps restarting"     # current kube context
+uv run python -m doctor audit -n orders,pricing,finance --context lambda
+uv run python -m doctor rightsize -n analytics --json --out run.json
+uv run python -m doctor investigate -n orders --snapshot crashloop                # a recorded fault, no cluster
+```
+Needs a model at `DOCTOR_BASE_URL` (default `http://127.0.0.1:8000/v1`, i.e. `make tunnel`). Reads only
+(kubectl get/logs/top/version); every fix is a suggestion. Exit 0 healthy · 1 issue · 2 no grounded diagnosis.
+For the Lambda k3s cluster: `make kubeconfig k8s-tunnel`, then `--kubeconfig .cache/lambda-kubeconfig --context lambda`.
 
 ## Layout
 | Path | What |

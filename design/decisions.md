@@ -95,3 +95,16 @@ whose decisions still govern the serving stack this repo inherits.
 ### D-35 — Self-healing of the serving stack: planned stretch (2026-09-27)
 **Choice (not built):** after the Kubernetes tiers are solid, add remediation for the stack this project runs — vLLM (restart a wedged worker, scale the slice count, roll back a bad flag change, drain a worker whose KV is saturated) and the gateway (restart, shed-threshold rollback). It will run as a separate LangGraph path with a **separate, write-capable identity scoped to the doctor's own namespaces**, every action behind a human-approval interrupt, a dry-run diff first, and a post-action verification step; the read-only investigator is unchanged.
 **Because:** "doctor heals its own inference stack" is a strong demo and product story, but write access must never leak into the read-only diagnosis path (INV-3).
+
+### D-36 — The product surface is a command line; a web UI waits (2026-09-27)
+**Choice:** `python -m doctor {investigate|audit|rightsize} -n <namespaces> [report]` against a live cluster
+(`--context`, `--kubeconfig`; kubectl read-only verbs) or a recorded fault (`--snapshot`). Progress per model call
+(latency, prompt/cached/output tokens) and per tool call (arguments, errors, repairs) on stderr; the report or
+`--json` run record on stdout; exit 0 healthy · 1 issue · 2 no grounded diagnosis · 64 bad usage. Snapshot runs use
+the golden cluster name so their prefix matches golden runs (cache hits). Namespaces are checked against the
+cluster before any model call, because kubectl answers a typo with an empty list that would read as "healthy".
+**Because:** the live demo needs "diagnose this namespace now"; the rubric scores serving and observability, not
+app UI; a CLI is scriptable (cron audits, CI gates by exit code) and adds no server, port or dependency. The agent
+gained an `on_update(node, update)` hook (graph `stream` instead of `invoke`, same final record) and tool-call
+records now keep their arguments and a rejected submission's validation errors.
+**Revisit when:** there is time after the presentation — a localhost-only page that streams the same hook.

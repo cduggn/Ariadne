@@ -5,7 +5,7 @@ another language without reading the history.
 
 | | |
 |---|---|
-| Last updated | 2026-09-27 (LangGraph agent over LangChain tools: D-33; Lambda test plan: D-34) |
+| Last updated | 2026-09-27 (LangGraph agent: D-33; Lambda test plan: D-34; command line: D-36) |
 | Why things are the way they are | [`design/decisions.md`](design/decisions.md) |
 | Course mapping | [`design/course-objectives.md`](design/course-objectives.md) |
 | Capacity and measurements | [`design/capacity-qwen3-8b.md`](design/capacity-qwen3-8b.md) |
@@ -154,6 +154,9 @@ memory → MiB, percentiles as the sorted sample at index round(p × (n − 1)).
   → `StructuredTool.invoke`; submit-now nudge at `max_steps − 2`.
 - **Limits:** `max_steps` 16 investigate / 12 rightsize / 30 audit; context stop at prompt + completion > 23,000 tokens.
 - **Stops:** `submitted | inconclusive | step_cap | context_budget | http_<code> | transport_error`.
+- **Progress hook:** `run_task(…, on_update=fn)` streams the graph (`updates` + `values`) and calls `fn(node, update)`;
+  the returned record is identical. Tool-call records keep `args` (not for `submit_diagnosis`) and a rejected
+  submission's `validation_errors`.
 - **Hosted tracing** (LangSmith) env vars are forced to `false` at import (INV-13).
 
 ### C8 — Validation (expect-blind) ✅ (`doctor/validate.py`)
@@ -188,6 +191,20 @@ fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `schema`, `co
   resourcequotas, networkpolicies, persistentvolumeclaims, ingresses; `pods/log`; `metrics.k8s.io`) — no Secrets,
   no writes, no exec.
 - `deploy/aws/`: dry-run-by-default `setup.sh` / `teardown.sh`, 1-day lifecycle, read-only and put-only policies.
+
+### C18 — Command line ✅ (`doctor/cli.py`, `python -m doctor`, D-36)
+- `python -m doctor {investigate|audit|rightsize} -n ns1,ns2 ["report"]`; source is `--context`/`--kubeconfig`
+  (KubectlBackend, verbs get/logs/top/version only) or `--snapshot <fixtures/snapshots name>` (card name `doctor-lab`,
+  same prefix as golden runs). Model: `--base-url`/`DOCTOR_BASE_URL` (default `http://127.0.0.1:8000/v1`),
+  `--model`/`DOCTOR_MODEL`, key `VLLM_API_KEY`; `--tenant` → `X-Tenant`. Defaults: report per mode; max steps 16 / 30 / 12.
+- Before any model call: namespaces and tenant must match RFC 1123; namespaces must exist in the cluster or recording
+  (a typo must not read as healthy); snapshot names resolve only inside `fixtures/snapshots/`.
+- stderr: one line per model call (latency, prompt, cached, output tokens, or the HTTP/transport failure) and per tool
+  call (arguments, error; submit accepted/rejected with validation errors). stdout: report (findings with category,
+  root object, why, affects, evidence refs, suggested fix, resize; totals with cached share, stop and run id) or `--json`
+  (run record + mode, namespaces, source, model, wall time); `--out` also writes the record. `NO_COLOR` respected.
+- Exit: 0 healthy · 1 issue · 2 no grounded diagnosis (inconclusive, step cap, context budget, http_*, transport, cluster
+  unreadable) · 64 usage.
 
 ### Planned ⬜
 | Id | Component | Summary |
@@ -225,15 +242,16 @@ fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `schema`, `co
 | Lab | kind v0.33.0 · kubectl v1.37.1 · node v1.36.4 · metrics-server v0.9.0 · cryptography 50.0.1 (lab only) |
 | Tokens (measured) | prefix 3,787 · card 112 · unique per task median: easy 2,459, multi-hop 3,570, red herring 4,768, rightsize 5,200, audits 7.7k–11.2k · max context 15.1k |
 | KV (paper) | 144 KiB/token · ≈ 79,700 tokens per 20 GiB slice · 0.80 line ≈ 24 easy / 17 multi-hop / 6 audits |
-| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · 34 offline tests |
+| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · 39 offline tests |
 | Agent stack | langgraph 1.2.12 · langchain-core 1.6.5 · langchain-openai 1.6.6 (locked in `uv.lock`); dev pytest 9.1.1 |
 
 ## 5. How to verify
 ```
 make tools                 # pinned kind + kubectl into .bin/
 uv sync                    # pinned agent stack (LangGraph, LangChain) from uv.lock
-make preflight             # lint + 34 tests + golden references committed + lam API key — before paying for a GPU
-make lint test             # ruff + 34 offline tests over recorded snapshots
+make preflight             # lint + 39 tests + golden references committed + lam API key — before paying for a GPU
+make lint test             # ruff + 39 offline tests over recorded snapshots
+uv run python -m doctor investigate -n orders --snapshot crashloop   # needs a model at DOCTOR_BASE_URL
 make golden-build          # rebuild the golden set; fails if any reference diagnosis fails its checker
 make lab-up lab-record     # re-record fixtures on kind (~25 min, batches of 4), then make golden-build
 make up deploy kv          # Lambda A100 (costs money: ask first) — full sequence in design/lambda-test-plan.md
@@ -268,3 +286,4 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-09-27 | Initial build: faults, lab recorder, backends, tools, agent, validation, evals, deploy, docs | D-19 … D-30 |
 | 2026-09-27 | Tiered catalogue (multi-hop, red-herring, right-sizing), causal chains, certificate inspection, new kinds, `--max-model-len 24576` | D-29 (amended), D-31, D-32 |
 | 2026-09-27 | Agent on LangGraph + LangChain tools; preflight, sweep, live-recording targets; GPU power panel; test plan; self-healing planned | D-33, D-34, D-35 |
+| 2026-09-27 | Command line (`python -m doctor`); progress hook on the agent; call records keep arguments | D-36 |
