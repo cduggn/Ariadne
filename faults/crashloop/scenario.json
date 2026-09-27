@@ -1,0 +1,29 @@
+{
+  "id": "crashloop",
+  "namespace": "orders",
+  "live_only": false,
+  "title": "Application crash loop",
+  "report": "The orders-api keeps restarting and the orders page is down.",
+  "category": "crashloop_app_error",
+  "allowed": [
+    "crashloop_app_error"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "orders-api"
+    }
+  ],
+  "evidence": [
+    "log"
+  ],
+  "must_call": [
+    "list_problem_pods",
+    "pod_logs"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "restarts>=2"
+}

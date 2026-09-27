@@ -1,0 +1,30 @@
+{
+  "id": "imagepull",
+  "namespace": "storefront",
+  "live_only": false,
+  "title": "Image cannot be pulled",
+  "report": "The new frontend never starts after today's deploy.",
+  "category": "image_pull",
+  "allowed": [
+    "image_pull"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "frontend"
+    }
+  ],
+  "evidence": [
+    "event",
+    "status"
+  ],
+  "must_call": [
+    "list_problem_pods",
+    "get_events"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "waiting:ImagePullBackOff"
+}

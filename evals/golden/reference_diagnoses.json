@@ -1,0 +1,313 @@
+{
+ "dx-config-missing": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "config_missing",
+    "namespace": "billing",
+    "kind": "Deployment",
+    "name": "billing",
+    "root_cause": "a referenced ConfigMap does not exist",
+    "evidence": [
+     "st-billing-597d6775c9-2lgk8",
+     "ev-c90746"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-crashloop": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "crashloop_app_error",
+    "namespace": "orders",
+    "kind": "Deployment",
+    "name": "orders-api",
+    "root_cause": "the container exits at start-up with an application error (see log)",
+    "evidence": [
+     "lg-orders-api-54b7775f96-ds4kf-c2"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-healthy": {
+  "status": "healthy",
+  "findings": [],
+  "summary": "No failing workloads, events or endpoints found."
+ },
+ "dx-imagepull": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "image_pull",
+    "namespace": "storefront",
+    "kind": "Deployment",
+    "name": "frontend",
+    "root_cause": "the image or tag cannot be pulled",
+    "evidence": [
+     "ev-280222",
+     "st-frontend-b86cc5bdc-mqf7p"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-job-failed": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "job_failed",
+    "namespace": "exports",
+    "kind": "Job",
+    "name": "nightly-export",
+    "root_cause": "the job's pods fail and it exhausted its retries",
+    "evidence": [
+     "lg-nightly-export-pmmzk-c1"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-mixed": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "crashloop_app_error",
+    "namespace": "ledger",
+    "kind": "Deployment",
+    "name": "ledger",
+    "root_cause": "the container exits at start-up with an application error (see log)",
+    "evidence": [
+     "lg-ledger-5c968c7fbb-fqxsv-c1",
+     "ds-deployment-ledger"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   },
+   {
+    "category": "service_no_endpoints",
+    "namespace": "ledger",
+    "kind": "Service",
+    "name": "ledger-api",
+    "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "evidence": [
+     "lg-ledger-api-cb6cb6f66-nqrzb-c16",
+     "ds-service-ledger-api"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "2 problem(s) found."
+ },
+ "dx-no-endpoints": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "service_no_endpoints",
+    "namespace": "checkout",
+    "kind": "Service",
+    "name": "checkout",
+    "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "evidence": [
+     "ds-service-checkout",
+     "rs-service-checkout"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-oom": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "oom_killed",
+    "namespace": "reports",
+    "kind": "Deployment",
+    "name": "report-worker",
+    "root_cause": "the container is killed for exceeding its memory limit",
+    "evidence": [
+     "st-report-worker-677cff484b-qxp6c",
+     "ds-deployment-report-worker"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-pending-constraints": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "unschedulable_constraints",
+    "namespace": "cache",
+    "kind": "Deployment",
+    "name": "cache",
+    "root_cause": "the pod's node selector matches no node",
+    "evidence": [
+     "ev-babf2b"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-pending-resources": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "unschedulable_resources",
+    "namespace": "ml",
+    "kind": "Deployment",
+    "name": "ml-trainer",
+    "root_cause": "no node has enough of the requested resources",
+    "evidence": [
+     "ev-a37a10"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-probe": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "probe_failure",
+    "namespace": "web",
+    "kind": "Deployment",
+    "name": "web",
+    "root_cause": "the readiness probe fails, so the pod never becomes ready",
+    "evidence": [
+     "ev-d1c260",
+     "ds-deployment-web"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-rollout": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "rollout_stuck",
+    "namespace": "catalog",
+    "kind": "Deployment",
+    "name": "catalog",
+    "root_cause": "the new ReplicaSet cannot become ready, so the rollout stalled on the old version",
+    "evidence": [
+     "ds-deployment-catalog",
+     "ev-3af2d8"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "1 problem(s) found."
+ },
+ "dx-audit-1": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "crashloop_app_error",
+    "namespace": "orders",
+    "kind": "Deployment",
+    "name": "orders-api",
+    "root_cause": "the container exits at start-up with an application error (see log)",
+    "evidence": [
+     "lg-orders-api-54b7775f96-ds4kf-c2"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   },
+   {
+    "category": "service_no_endpoints",
+    "namespace": "checkout",
+    "kind": "Service",
+    "name": "checkout",
+    "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "evidence": [
+     "ds-service-checkout",
+     "rs-service-checkout"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "2 problem(s) found."
+ },
+ "dx-audit-2": {
+  "status": "issue",
+  "findings": [
+   {
+    "category": "oom_killed",
+    "namespace": "reports",
+    "kind": "Deployment",
+    "name": "report-worker",
+    "root_cause": "the container is killed for exceeding its memory limit",
+    "evidence": [
+     "st-report-worker-677cff484b-qxp6c",
+     "ds-deployment-report-worker"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   },
+   {
+    "category": "unschedulable_resources",
+    "namespace": "ml",
+    "kind": "Deployment",
+    "name": "ml-trainer",
+    "root_cause": "no node has enough of the requested resources",
+    "evidence": [
+     "ev-a37a10"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   },
+   {
+    "category": "probe_failure",
+    "namespace": "web",
+    "kind": "Deployment",
+    "name": "web",
+    "root_cause": "the readiness probe fails, so the pod never becomes ready",
+    "evidence": [
+     "ev-d1c260",
+     "ds-deployment-web"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   },
+   {
+    "category": "config_missing",
+    "namespace": "billing",
+    "kind": "Deployment",
+    "name": "billing",
+    "root_cause": "a referenced ConfigMap does not exist",
+    "evidence": [
+     "st-billing-597d6775c9-2lgk8",
+     "ev-c90746"
+    ],
+    "fix": "see root cause; change the object's spec or config",
+    "confidence": "high"
+   }
+  ],
+  "summary": "4 problem(s) found."
+ }
+}

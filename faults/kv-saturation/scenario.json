@@ -1,0 +1,25 @@
+{
+  "id": "kv-saturation",
+  "namespace": "inference",
+  "live_only": true,
+  "title": "Inference worker KV cache saturated",
+  "report": "Chat answers are slow and time out during the load test.",
+  "category": "kv_saturation",
+  "allowed": [
+    "kv_saturation"
+  ],
+  "objects": [
+    {
+      "kind": "Pod",
+      "name": "vllm-0"
+    }
+  ],
+  "evidence": [
+    "metrics"
+  ],
+  "must_call": [
+    "resource_usage"
+  ],
+  "cluster": "lambda-k3s",
+  "apply": []
+}

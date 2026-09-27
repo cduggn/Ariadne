@@ -1,0 +1,1 @@
+deploy/aws/runaway-writer.yaml writes small objects to the lab bucket in a loop, capped by MAX_OBJECTS (default 20000); bucket lifecycle expires objects after 1 day. Same-day signal: bucket object count and the pod's logs; next-day signal: S3 cost in Cost Explorer via ccexplorer.

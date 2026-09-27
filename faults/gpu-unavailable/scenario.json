@@ -1,0 +1,28 @@
+{
+  "id": "gpu-unavailable",
+  "namespace": "embeddings",
+  "live_only": true,
+  "title": "GPU slice request larger than any free slice",
+  "report": "The embedder pod is Pending on the GPU node.",
+  "category": "unschedulable_resources",
+  "allowed": [
+    "unschedulable_resources",
+    "gpu_unavailable"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "embedder"
+    }
+  ],
+  "evidence": [
+    "event"
+  ],
+  "must_call": [
+    "get_events"
+  ],
+  "cluster": "lambda-k3s",
+  "apply": [
+    "manifest.yaml"
+  ]
+}

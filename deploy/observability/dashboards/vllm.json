@@ -1,0 +1,627 @@
+{
+ "uid": "vllm-engine",
+ "title": "vLLM engine + GPU",
+ "tags": [
+  "final-project"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "refresh": "5s",
+ "time": {
+  "from": "now-30m",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "type": "row",
+   "title": "Engine state \u2014 the four scarce resources",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 0
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "KV cache usage",
+   "description": "Share of KV blocks in use per worker. Shed threshold lives here.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 0,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vllm:kv_cache_usage_perc",
+     "legendFormat": "{{pod}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Requests running vs waiting",
+   "description": "Running is capped by --max-num-seqs (decode slots). Waiting > 0 means the engine queue is building.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 8,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vllm:num_requests_running",
+     "legendFormat": "{{pod}} running"
+    },
+    {
+     "refId": "B",
+     "expr": "vllm:num_requests_waiting",
+     "legendFormat": "{{pod}} waiting"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Preemptions /s",
+   "description": "V1 preemption is recompute: every one throws work away.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "rate(vllm:num_preemptions_total[1m])",
+     "legendFormat": "{{pod}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Prefix cache hit rate",
+   "description": "Should approach prefix/prompt \u2248 2k of the prompt once the ruleset is warm.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 0,
+    "y": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "rate(vllm:prefix_cache_hits_total[1m]) / clamp_min(rate(vllm:prefix_cache_queries_total[1m]), 1)",
+     "legendFormat": "{{pod}}"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Token throughput /s",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 8,
+    "y": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (pod) (rate(vllm:prompt_tokens_total[1m]))",
+     "legendFormat": "{{pod}} prompt"
+    },
+    {
+     "refId": "B",
+     "expr": "sum by (pod) (rate(vllm:generation_tokens_total[1m]))",
+     "legendFormat": "{{pod}} generated"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Requests finished /s",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 9
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (pod, finished_reason) (rate(vllm:request_success_total[1m]))",
+     "legendFormat": "{{pod}} {{finished_reason}}"
+    }
+   ]
+  },
+  {
+   "type": "row",
+   "title": "Latency at the engine (p50 / p95)",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 17
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "Time to first token",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 0,
+    "y": 18
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:time_to_first_token_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:time_to_first_token_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p95"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Inter-token latency",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 8,
+    "y": 18
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:inter_token_latency_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:inter_token_latency_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p95"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Queue time",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 18
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:request_queue_time_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:request_queue_time_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p95"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "End-to-end request latency",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 26
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:e2e_request_latency_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:e2e_request_latency_seconds_bucket[1m])))",
+     "legendFormat": "{{pod}} p95"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Prompt length (p50 / p95)",
+   "description": "Agent context growth: ~2k at step 1, ~5k by submit.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 26
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:request_prompt_tokens_bucket[1m])))",
+     "legendFormat": "{{pod}} p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:request_prompt_tokens_bucket[1m])))",
+     "legendFormat": "{{pod}} p95"
+    }
+   ]
+  },
+  {
+   "type": "row",
+   "title": "GPU \u2014 whole A100 (DCGM) and per slice (HAMi)",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 34
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "GPU utilisation / SM active",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 0,
+    "y": 35
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "DCGM_FI_DEV_GPU_UTIL / 100",
+     "legendFormat": "util"
+    },
+    {
+     "refId": "B",
+     "expr": "DCGM_FI_PROF_SM_ACTIVE",
+     "legendFormat": "SM active"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Framebuffer used",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 8,
+    "y": 35
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "DCGM_FI_DEV_FB_USED * 1024 * 1024",
+     "legendFormat": "used"
+    },
+    {
+     "refId": "B",
+     "expr": "(DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) * 1024 * 1024",
+     "legendFormat": "total"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "HAMi slice memory: used vs limit",
+   "description": "Metric names from HAMi's device-plugin monitor; verify on first boot.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 35
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vGPU_device_memory_usage_in_bytes",
+     "legendFormat": "{{podname}} used"
+    },
+    {
+     "refId": "B",
+     "expr": "vGPU_device_memory_limit_in_bytes",
+     "legendFormat": "{{podname}} limit"
+    }
+   ]
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "annotations": {
+  "list": []
+ },
+ "editable": true
+}

@@ -1,0 +1,30 @@
+{
+  "id": "probe",
+  "namespace": "web",
+  "live_only": false,
+  "title": "Readiness probe fails",
+  "report": "web shows 0/1 ready and gets no traffic, but the container is running.",
+  "category": "probe_failure",
+  "allowed": [
+    "probe_failure"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "web"
+    }
+  ],
+  "evidence": [
+    "event",
+    "describe"
+  ],
+  "must_call": [
+    "list_problem_pods",
+    "get_events"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "event:Unhealthy"
+}

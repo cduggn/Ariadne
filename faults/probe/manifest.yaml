@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8081
+            periodSeconds: 5

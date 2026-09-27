@@ -1,0 +1,937 @@
+{
+ "logs": {
+  "exports/nightly-export-pmmzk/export/current": "exporting orders for 2026-09-27\nERROR: permission denied: cannot write /exports/orders-2026-09-27.csv\n",
+  "exports/nightly-export-pxcqv/export/current": "exporting orders for 2026-09-27\nERROR: permission denied: cannot write /exports/orders-2026-09-27.csv\n"
+ },
+ "namespaces": {
+  "exports": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "exports",
+      "uid": "a61a6a1c-f6de-4491-b990-7ba4588c6d72"
+     }
+    }
+   ],
+   "deployments": [],
+   "endpointslices": [],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "nightly-export-pmmzk",
+      "namespace": "exports",
+      "resourceVersion": "1172",
+      "uid": "44741a84-e371-48bf-a0e7-7148de1decd2"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Successfully assigned exports/nightly-export-pmmzk to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "nightly-export-pmmzk.18d92656fd762fd2",
+      "namespace": "exports",
+      "uid": "a5ce9062-3901-4a54-ba83-39d2c37a4ed9"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{export}",
+      "kind": "Pod",
+      "name": "nightly-export-pmmzk",
+      "namespace": "exports",
+      "resourceVersion": "1173",
+      "uid": "44741a84-e371-48bf-a0e7-7148de1decd2"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Pulling image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "nightly-export-pmmzk.18d92657127c8e22",
+      "namespace": "exports",
+      "uid": "d22307fe-a2a8-4efd-93ad-9e047dcb72db"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:28Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{export}",
+      "kind": "Pod",
+      "name": "nightly-export-pmmzk",
+      "namespace": "exports",
+      "resourceVersion": "1173",
+      "uid": "44741a84-e371-48bf-a0e7-7148de1decd2"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:28Z",
+     "message": "Successfully pulled image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" in 705ms (6.514s including waiting). Image size: 1911395 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:28Z",
+      "name": "nightly-export-pmmzk.18d9265896ca5efb",
+      "namespace": "exports",
+      "uid": "091f3aab-a5e9-4ae9-8ecb-8c930df13db7"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:28Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{export}",
+      "kind": "Pod",
+      "name": "nightly-export-pmmzk",
+      "namespace": "exports",
+      "resourceVersion": "1173",
+      "uid": "44741a84-e371-48bf-a0e7-7148de1decd2"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:28Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:28Z",
+      "name": "nightly-export-pmmzk.18d926589875f16b",
+      "namespace": "exports",
+      "uid": "aac4454d-38fd-4486-be88-780fe6eebc15"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:28Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{export}",
+      "kind": "Pod",
+      "name": "nightly-export-pmmzk",
+      "namespace": "exports",
+      "resourceVersion": "1173",
+      "uid": "44741a84-e371-48bf-a0e7-7148de1decd2"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:28Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:28Z",
+      "name": "nightly-export-pmmzk.18d926589b94fa0c",
+      "namespace": "exports",
+      "uid": "86e05546-c966-49c6-a626-f4f5f1e4af8e"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:38Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "nightly-export-pxcqv",
+      "namespace": "exports",
+      "resourceVersion": "1496",
+      "uid": "7c4ce832-417d-4e13-8456-7f87ca24ed3a"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:38Z",
+     "message": "Successfully assigned exports/nightly-export-pxcqv to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:38Z",
+      "name": "nightly-export-pxcqv.18d9265abd1f421e",
+      "namespace": "exports",
+      "uid": "0435e8e1-0c1c-4ab5-92e7-c43af28559e4"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:38Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{export}",
+      "kind": "Pod",
+      "name": "nightly-export-pxcqv",
+      "namespace": "exports",
+      "resourceVersion": "1499",
+      "uid": "7c4ce832-417d-4e13-8456-7f87ca24ed3a"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:38Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:38Z",
+      "name": "nightly-export-pxcqv.18d9265ad49757d8",
+      "namespace": "exports",
+      "uid": "4d766716-161f-4bb5-b056-14f9b1548042"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:38Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{export}",
+      "kind": "Pod",
+      "name": "nightly-export-pxcqv",
+      "namespace": "exports",
+      "resourceVersion": "1499",
+      "uid": "7c4ce832-417d-4e13-8456-7f87ca24ed3a"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:38Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:38Z",
+      "name": "nightly-export-pxcqv.18d9265ad4f3b8f8",
+      "namespace": "exports",
+      "uid": "98f4ee41-a281-4742-b5fc-5f27ac1ae076"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:38Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{export}",
+      "kind": "Pod",
+      "name": "nightly-export-pxcqv",
+      "namespace": "exports",
+      "resourceVersion": "1499",
+      "uid": "7c4ce832-417d-4e13-8456-7f87ca24ed3a"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:38Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:38Z",
+      "name": "nightly-export-pxcqv.18d9265ad64cce02",
+      "namespace": "exports",
+      "uid": "34a284c9-134c-45ec-8bae-7e2f1dca93cf"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "batch/v1",
+      "kind": "Job",
+      "name": "nightly-export",
+      "namespace": "exports",
+      "resourceVersion": "1171",
+      "uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Created pod: nightly-export-pmmzk",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "nightly-export.18d92656fd523cd0",
+      "namespace": "exports",
+      "uid": "d2b54f66-0da6-45d2-8a12-f86e94227e9c"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "job-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "job-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:38Z",
+     "involvedObject": {
+      "apiVersion": "batch/v1",
+      "kind": "Job",
+      "name": "nightly-export",
+      "namespace": "exports",
+      "resourceVersion": "1441",
+      "uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:38Z",
+     "message": "Created pod: nightly-export-pxcqv",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:38Z",
+      "name": "nightly-export.18d9265abc88c84a",
+      "namespace": "exports",
+      "uid": "f3005ceb-6791-43f6-b630-bb1858db3c9c"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "job-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "job-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:40Z",
+     "involvedObject": {
+      "apiVersion": "batch/v1",
+      "kind": "Job",
+      "name": "nightly-export",
+      "namespace": "exports",
+      "resourceVersion": "1533",
+      "uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:40Z",
+     "message": "Job has reached the specified backoff limit",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:40Z",
+      "name": "nightly-export.18d9265b649d42ba",
+      "namespace": "exports",
+      "uid": "d88b68ee-a859-4195-a52a-8c482ad47546"
+     },
+     "reason": "BackoffLimitExceeded",
+     "reportingComponent": "job-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "job-controller"
+     },
+     "type": "Warning"
+    }
+   ],
+   "jobs": [
+    {
+     "apiVersion": "batch/v1",
+     "kind": "Job",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "labels": {
+       "batch.kubernetes.io/controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+       "batch.kubernetes.io/job-name": "nightly-export",
+       "controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+       "job-name": "nightly-export"
+      },
+      "name": "nightly-export",
+      "namespace": "exports",
+      "uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9"
+     },
+     "spec": {
+      "backoffLimit": 1,
+      "completionMode": "NonIndexed",
+      "completions": 1,
+      "manualSelector": false,
+      "parallelism": 1,
+      "podReplacementPolicy": "TerminatingOrFailed",
+      "selector": {
+       "matchLabels": {
+        "batch.kubernetes.io/controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9"
+       }
+      },
+      "suspend": false,
+      "template": {
+       "metadata": {
+        "labels": {
+         "batch.kubernetes.io/controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+         "batch.kubernetes.io/job-name": "nightly-export",
+         "controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+         "job-name": "nightly-export"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"exporting orders for 2026-09-27\"; echo \"ERROR: permission denied: cannot write /exports/orders-2026-09-27.csv\"; exit 2"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "export",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Never",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": "2026-09-27T10:21:40Z",
+        "lastTransitionTime": "2026-09-27T10:21:40Z",
+        "message": "Job has reached the specified backoff limit",
+        "reason": "BackoffLimitExceeded",
+        "status": "True",
+        "type": "FailureTarget"
+       },
+       {
+        "lastProbeTime": "2026-09-27T10:21:40Z",
+        "lastTransitionTime": "2026-09-27T10:21:40Z",
+        "message": "Job has reached the specified backoff limit",
+        "reason": "BackoffLimitExceeded",
+        "status": "True",
+        "type": "Failed"
+       }
+      ],
+      "failed": 2,
+      "ready": 0,
+      "startTime": "2026-09-27T10:21:21Z",
+      "terminating": 0,
+      "uncountedTerminatedPods": {}
+     }
+    }
+   ],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generateName": "nightly-export-",
+      "generation": 1,
+      "labels": {
+       "batch.kubernetes.io/controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+       "batch.kubernetes.io/job-name": "nightly-export",
+       "controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+       "job-name": "nightly-export"
+      },
+      "name": "nightly-export-pmmzk",
+      "namespace": "exports",
+      "ownerReferences": [
+       {
+        "apiVersion": "batch/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Job",
+        "name": "nightly-export",
+        "uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9"
+       }
+      ],
+      "uid": "44741a84-e371-48bf-a0e7-7148de1decd2"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"exporting orders for 2026-09-27\"; echo \"ERROR: permission denied: cannot write /exports/orders-2026-09-27.csv\"; exit 2"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "export",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-vx62n",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Never",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-vx62n",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:30Z",
+        "observedGeneration": 1,
+        "status": "False",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:29Z",
+        "observedGeneration": 1,
+        "reason": "PodFailed",
+        "status": "False",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:29Z",
+        "observedGeneration": 1,
+        "reason": "PodFailed",
+        "status": "False",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://9120700b9049c710db8ea207c08698c1986d20fcc4653b146d376c56d0d74ac1",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {},
+        "name": "export",
+        "ready": false,
+        "resources": {},
+        "restartCount": 0,
+        "started": false,
+        "state": {
+         "terminated": {
+          "containerID": "containerd://9120700b9049c710db8ea207c08698c1986d20fcc4653b146d376c56d0d74ac1",
+          "exitCode": 2,
+          "finishedAt": "2026-09-27T10:21:28Z",
+          "reason": "Error",
+          "startedAt": "2026-09-27T10:21:28Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-vx62n",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Failed",
+      "podIP": "10.244.0.11",
+      "podIPs": [
+       {
+        "ip": "10.244.0.11"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:21Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:38Z",
+      "generateName": "nightly-export-",
+      "generation": 1,
+      "labels": {
+       "batch.kubernetes.io/controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+       "batch.kubernetes.io/job-name": "nightly-export",
+       "controller-uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9",
+       "job-name": "nightly-export"
+      },
+      "name": "nightly-export-pxcqv",
+      "namespace": "exports",
+      "ownerReferences": [
+       {
+        "apiVersion": "batch/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Job",
+        "name": "nightly-export",
+        "uid": "e022b75b-c7f2-4bfb-8a00-87af120799e9"
+       }
+      ],
+      "uid": "7c4ce832-417d-4e13-8456-7f87ca24ed3a"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"exporting orders for 2026-09-27\"; echo \"ERROR: permission denied: cannot write /exports/orders-2026-09-27.csv\"; exit 2"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "export",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-qtg6g",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Never",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-qtg6g",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:39Z",
+        "observedGeneration": 1,
+        "status": "False",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:38Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:38Z",
+        "observedGeneration": 1,
+        "reason": "PodFailed",
+        "status": "False",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:38Z",
+        "observedGeneration": 1,
+        "reason": "PodFailed",
+        "status": "False",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:38Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://0c36255e5838d737782f079cfc0cac750fa0f16be0f1cfad986af233728dabbf",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {},
+        "name": "export",
+        "ready": false,
+        "resources": {},
+        "restartCount": 0,
+        "started": false,
+        "state": {
+         "terminated": {
+          "containerID": "containerd://0c36255e5838d737782f079cfc0cac750fa0f16be0f1cfad986af233728dabbf",
+          "exitCode": 2,
+          "finishedAt": "2026-09-27T10:21:38Z",
+          "reason": "Error",
+          "startedAt": "2026-09-27T10:21:38Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-qtg6g",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Failed",
+      "podIP": "10.244.0.20",
+      "podIPs": [
+       {
+        "ip": "10.244.0.20"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:38Z"
+     }
+    }
+   ],
+   "replicasets": [],
+   "services": []
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "job-failed",
+  "time": "2026-09-27T10:22:47Z"
+ },
+ "usage": {
+  "exports": []
+ }
+}

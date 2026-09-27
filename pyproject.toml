@@ -1,0 +1,22 @@
+[project]
+name = "cluster-doctor"
+version = "0.1.0"
+description = "Read-only Kubernetes cluster doctor served by self-hosted vLLM (course final project)"
+requires-python = ">=3.11"
+dependencies = []            # runtime is the standard library only (D-21)
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "UP", "S"]
+ignore = ["S603", "S607", "S310", "E501"]   # subprocess to a pinned kubectl/aws/ccexplorer and urlopen to configured endpoints are the design
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]

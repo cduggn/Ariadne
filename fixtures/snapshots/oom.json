@@ -1,0 +1,744 @@
+{
+ "logs": {
+  "reports/report-worker-677cff484b-qxp6c/report-worker/current": "warming report cache\n"
+ },
+ "namespaces": {
+  "reports": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "reports",
+      "uid": "cb3aed71-d2c4-42a4-8c26-7725be45cabb"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generation": 1,
+      "name": "report-worker",
+      "namespace": "reports",
+      "uid": "3f9dfc73-c6b5-430b-a355-f1d670e76897"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "report-worker"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "report-worker"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo 'warming report cache'; tail /dev/zero"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "report-worker",
+          "resources": {
+           "limits": {
+            "memory": "32Mi"
+           },
+           "requests": {
+            "memory": "16Mi"
+           }
+          },
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "lastUpdateTime": "2026-09-27T10:21:31Z",
+        "message": "ReplicaSet \"report-worker-677cff484b\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T10:22:09Z",
+        "lastUpdateTime": "2026-09-27T10:22:09Z",
+        "message": "Deployment does not have minimum availability.",
+        "reason": "MinimumReplicasUnavailable",
+        "status": "False",
+        "type": "Available"
+       }
+      ],
+      "observedGeneration": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "unavailableReplicas": 1,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "resourceVersion": "1248",
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Successfully assigned reports/report-worker-677cff484b-qxp6c to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "report-worker-677cff484b-qxp6c.18d926570fb1dac7",
+      "namespace": "reports",
+      "uid": "7597a9e5-283b-4498-8bcf-52f9ee76873c"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{report-worker}",
+      "kind": "Pod",
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "resourceVersion": "1253",
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Pulling image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "report-worker-677cff484b-qxp6c.18d9265724f57119",
+      "namespace": "reports",
+      "uid": "c946b2a0-fff0-4b9c-8487-e0d6aa52a25a"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:31Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{report-worker}",
+      "kind": "Pod",
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "resourceVersion": "1253",
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:31Z",
+     "message": "Successfully pulled image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" in 614ms (8.798s including waiting). Image size: 1911395 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:31Z",
+      "name": "report-worker-677cff484b-qxp6c.18d92659316aa638",
+      "namespace": "reports",
+      "uid": "032dce46-f1c0-41d9-aa9f-2fe731b62dbc"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:31Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{report-worker}",
+      "kind": "Pod",
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "resourceVersion": "1253",
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:09Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:31Z",
+      "name": "report-worker-677cff484b-qxp6c.18d92659326a8550",
+      "namespace": "reports",
+      "uid": "3e44a0f1-c3da-4614-b200-5af912a87d0b"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:31Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{report-worker}",
+      "kind": "Pod",
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "resourceVersion": "1253",
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:09Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:31Z",
+      "name": "report-worker-677cff484b-qxp6c.18d9265934c40faa",
+      "namespace": "reports",
+      "uid": "375d68a9-a3c1-4b45-ad38-fee50c1a762e"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:31Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{report-worker}",
+      "kind": "Pod",
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "resourceVersion": "1253",
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:09Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:31Z",
+      "name": "report-worker-677cff484b-qxp6c.18d9265944c509b5",
+      "namespace": "reports",
+      "uid": "7df44aed-cc2c-457c-92ad-cbf4eca5de68"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:32Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{report-worker}",
+      "kind": "Pod",
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "resourceVersion": "1253",
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:09Z",
+     "message": "Back-off restarting failed container report-worker in pod report-worker-677cff484b-qxp6c_reports(d34696fd-85db-46f2-a85d-d72b009ff6cf)",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:32Z",
+      "name": "report-worker-677cff484b-qxp6c.18d9265980f0fa76",
+      "namespace": "reports",
+      "uid": "da3a7f31-9ca4-4789-a00c-b6ea453cfc01"
+     },
+     "reason": "BackOff",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "report-worker-677cff484b",
+      "namespace": "reports",
+      "resourceVersion": "1241",
+      "uid": "5023622f-09ac-447e-9c5c-7ef244bb529f"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Created pod: report-worker-677cff484b-qxp6c",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "report-worker-677cff484b.18d926570f547d62",
+      "namespace": "reports",
+      "uid": "60baad5e-8e41-412f-8a11-5f0f8a7594cc"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "report-worker",
+      "namespace": "reports",
+      "resourceVersion": "1230",
+      "uid": "3f9dfc73-c6b5-430b-a355-f1d670e76897"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Scaled up replica set report-worker-677cff484b from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "report-worker.18d926570bc862ee",
+      "namespace": "reports",
+      "uid": "36313eb8-91b6-47dd-9fa0-1a9fae776e7c"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "jobs": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generateName": "report-worker-677cff484b-",
+      "generation": 1,
+      "labels": {
+       "app": "report-worker",
+       "pod-template-hash": "677cff484b"
+      },
+      "name": "report-worker-677cff484b-qxp6c",
+      "namespace": "reports",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "report-worker-677cff484b",
+        "uid": "5023622f-09ac-447e-9c5c-7ef244bb529f"
+       }
+      ],
+      "uid": "d34696fd-85db-46f2-a85d-d72b009ff6cf"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo 'warming report cache'; tail /dev/zero"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "report-worker",
+        "resources": {
+         "limits": {
+          "memory": "32Mi"
+         },
+         "requests": {
+          "memory": "16Mi"
+         }
+        },
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-z244p",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-z244p",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "allocatedResources": {
+       "memory": "16Mi"
+      },
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:22:09Z",
+        "message": "containers with unready status: [report-worker]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:22:09Z",
+        "message": "containers with unready status: [report-worker]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "allocatedResources": {
+         "memory": "16Mi"
+        },
+        "containerID": "containerd://26b2a1c89cc2d72d3ecd0df068647d76e72301e194da9fd4974f154383f5dcf7",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {
+         "terminated": {
+          "containerID": "containerd://d0198b020f32f92d7d5c3059691d78311bb7499c43ab80686c873df46bcae9d9",
+          "exitCode": 137,
+          "finishedAt": "2026-09-27T10:21:45Z",
+          "reason": "OOMKilled",
+          "startedAt": "2026-09-27T10:21:45Z"
+         }
+        },
+        "name": "report-worker",
+        "ready": false,
+        "resources": {
+         "limits": {
+          "memory": "32Mi"
+         },
+         "requests": {
+          "memory": "16Mi"
+         }
+        },
+        "restartCount": 3,
+        "started": false,
+        "state": {
+         "terminated": {
+          "containerID": "containerd://26b2a1c89cc2d72d3ecd0df068647d76e72301e194da9fd4974f154383f5dcf7",
+          "exitCode": 137,
+          "finishedAt": "2026-09-27T10:22:09Z",
+          "reason": "OOMKilled",
+          "startedAt": "2026-09-27T10:22:09Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-z244p",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.15",
+      "podIPs": [
+       {
+        "ip": "10.244.0.15"
+       }
+      ],
+      "qosClass": "Burstable",
+      "resources": {
+       "limits": {
+        "memory": "32Mi"
+       },
+       "requests": {
+        "memory": "16Mi"
+       }
+      },
+      "startTime": "2026-09-27T10:21:22Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generation": 1,
+      "labels": {
+       "app": "report-worker",
+       "pod-template-hash": "677cff484b"
+      },
+      "name": "report-worker-677cff484b",
+      "namespace": "reports",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "report-worker",
+        "uid": "3f9dfc73-c6b5-430b-a355-f1d670e76897"
+       }
+      ],
+      "uid": "5023622f-09ac-447e-9c5c-7ef244bb529f"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "report-worker",
+        "pod-template-hash": "677cff484b"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "report-worker",
+         "pod-template-hash": "677cff484b"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo 'warming report cache'; tail /dev/zero"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "report-worker",
+          "resources": {
+           "limits": {
+            "memory": "32Mi"
+           },
+           "requests": {
+            "memory": "16Mi"
+           }
+          },
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "services": []
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "oom",
+  "time": "2026-09-27T10:22:48Z"
+ },
+ "usage": {
+  "reports": []
+ }
+}

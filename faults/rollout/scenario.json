@@ -1,0 +1,31 @@
+{
+  "id": "rollout",
+  "namespace": "catalog",
+  "live_only": false,
+  "title": "Rollout stuck on a bad image; old version still serving",
+  "report": "We deployed the catalog hotfix an hour ago but users still see the old version.",
+  "category": "rollout_stuck",
+  "allowed": [
+    "rollout_stuck",
+    "image_pull"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "catalog"
+    }
+  ],
+  "evidence": [
+    "describe",
+    "event"
+  ],
+  "must_call": [
+    "describe"
+  ],
+  "apply": [
+    "manifest.yaml",
+    "update.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "deploy_stalled"
+}

@@ -1,0 +1,6 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Sid": "LabPrefixWrite", "Effect": "Allow", "Action": ["s3:PutObject"], "Resource": "arn:aws:s3:::__BUCKET__/runaway/*"}
+  ]
+}

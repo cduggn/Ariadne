@@ -1,0 +1,21 @@
+{
+  "id": "healthy",
+  "namespace": "status",
+  "live_only": false,
+  "title": "Nothing wrong (control)",
+  "report": "Can you check the status-page namespace is healthy before the demo?",
+  "category": "healthy",
+  "allowed": [
+    "healthy"
+  ],
+  "objects": [],
+  "evidence": [],
+  "must_call": [
+    "list_problem_pods"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "ready_all"
+}

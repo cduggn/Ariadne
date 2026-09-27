@@ -1,0 +1,1 @@
+Deploy a vLLM worker with nvidia.com/gpumem 6144 and --gpu-memory-utilization 0.9: model weights (5.7 GiB) + KV cannot fit the slice; vLLM logs CUDA out of memory and the pod crash-loops. Uses the pinned image from deploy/k8s/vllm.yaml.

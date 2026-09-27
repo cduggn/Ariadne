@@ -1,0 +1,48 @@
+# Read-only identity for running the doctor inside a cluster (D-21). Grants get/list/watch on the
+# objects the tools read and on pod logs. Deliberately NO access to Secrets, no create/update/delete,
+# no exec, no port-forward. ConfigMap *data* is dropped by the backend; names are enough.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: doctor
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-doctor
+  namespace: doctor
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-doctor-read
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "events", "nodes", "namespaces", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-doctor-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-doctor-read
+subjects:
+  - kind: ServiceAccount
+    name: cluster-doctor
+    namespace: doctor

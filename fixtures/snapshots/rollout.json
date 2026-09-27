@@ -1,0 +1,1543 @@
+{
+ "logs": {
+  "catalog/catalog-86c9fdb8c6-kqdvw/catalog/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 10:21:32 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 10:21:32 [notice] 1#1: nginx/1.29.8\n2026/09/27 10:21:32 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 10:21:32 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 10:21:32 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 10:21:32 [notice] 1#1: start worker processes\n2026/09/27 10:21:32 [notice] 1#1: start worker process 37\n2026/09/27 10:21:32 [notice] 1#1: start worker process 38\n",
+  "catalog/catalog-86c9fdb8c6-wzpd7/catalog/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 10:21:33 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 10:21:33 [notice] 1#1: nginx/1.29.8\n2026/09/27 10:21:33 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 10:21:33 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 10:21:33 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 10:21:33 [notice] 1#1: start worker processes\n2026/09/27 10:21:33 [notice] 1#1: start worker process 36\n2026/09/27 10:21:33 [notice] 1#1: start worker process 37\n"
+ },
+ "namespaces": {
+  "catalog": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "catalog",
+      "uid": "0d07403b-6e52-4b3e-a573-bb6f307836cf"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generation": 2,
+      "name": "catalog",
+      "namespace": "catalog",
+      "uid": "433db45f-a6df-40da-81fa-0a416f42a83e"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 45,
+      "replicas": 2,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "catalog"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": 1,
+        "maxUnavailable": 0
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "catalog"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine-hotfix",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "catalog",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 2,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "lastUpdateTime": "2026-09-27T10:21:33Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T10:22:19Z",
+        "lastUpdateTime": "2026-09-27T10:22:19Z",
+        "message": "ReplicaSet \"catalog-58664cc6f\" has timed out progressing.",
+        "reason": "ProgressDeadlineExceeded",
+        "status": "False",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 2,
+      "readyReplicas": 2,
+      "replicas": 3,
+      "terminatingReplicas": 0,
+      "unavailableReplicas": 1,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:33Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "catalog-58664cc6f-vt9xl",
+      "namespace": "catalog",
+      "resourceVersion": "1470",
+      "uid": "b36f2bd6-7817-48b0-9257-7f3c2d0aefbb"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:33Z",
+     "message": "Successfully assigned catalog/catalog-58664cc6f-vt9xl to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "name": "catalog-58664cc6f-vt9xl.18d92659ada83452",
+      "namespace": "catalog",
+      "uid": "1c8f0bbb-548b-40ca-b9de-8ba0a6ba1b55"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:33Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-58664cc6f-vt9xl",
+      "namespace": "catalog",
+      "resourceVersion": "1475",
+      "uid": "b36f2bd6-7817-48b0-9257-7f3c2d0aefbb"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:15Z",
+     "message": "Pulling image \"nginx:1.29-alpine-hotfix\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "name": "catalog-58664cc6f-vt9xl.18d92659c33b7ffe",
+      "namespace": "catalog",
+      "uid": "0b2aa29e-32b8-480f-9e34-0eec85a95263"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:34Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-58664cc6f-vt9xl",
+      "namespace": "catalog",
+      "resourceVersion": "1475",
+      "uid": "b36f2bd6-7817-48b0-9257-7f3c2d0aefbb"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:16Z",
+     "message": "Failed to pull image \"nginx:1.29-alpine-hotfix\": rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/nginx:1.29-alpine-hotfix\": failed to resolve reference \"docker.io/library/nginx:1.29-alpine-hotfix\": docker.io/library/nginx:1.29-alpine-hotfix: not found",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:34Z",
+      "name": "catalog-58664cc6f-vt9xl.18d92659e957fb28",
+      "namespace": "catalog",
+      "uid": "37ca237a-4964-4b76-97a9-8a989a97d5e1"
+     },
+     "reason": "Failed",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:34Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-58664cc6f-vt9xl",
+      "namespace": "catalog",
+      "resourceVersion": "1475",
+      "uid": "b36f2bd6-7817-48b0-9257-7f3c2d0aefbb"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:16Z",
+     "message": "Error: ErrImagePull",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:34Z",
+      "name": "catalog-58664cc6f-vt9xl.18d92659e95cfb17",
+      "namespace": "catalog",
+      "uid": "87adad92-ba37-4cd1-9c85-795b24e3f2fc"
+     },
+     "reason": "Failed",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:34Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-58664cc6f-vt9xl",
+      "namespace": "catalog",
+      "resourceVersion": "1475",
+      "uid": "b36f2bd6-7817-48b0-9257-7f3c2d0aefbb"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:43Z",
+     "message": "Back-off pulling image \"nginx:1.29-alpine-hotfix\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:34Z",
+      "name": "catalog-58664cc6f-vt9xl.18d92659f8b88241",
+      "namespace": "catalog",
+      "uid": "9e086c7d-10ee-46b3-8349-9a323fef7aaa"
+     },
+     "reason": "BackOff",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:34Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-58664cc6f-vt9xl",
+      "namespace": "catalog",
+      "resourceVersion": "1475",
+      "uid": "b36f2bd6-7817-48b0-9257-7f3c2d0aefbb"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:43Z",
+     "message": "Error: ImagePullBackOff",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:34Z",
+      "name": "catalog-58664cc6f-vt9xl.18d92659f8ba22c0",
+      "namespace": "catalog",
+      "uid": "3f7e593a-3120-46ea-a1c9-f059aebc18ab"
+     },
+     "reason": "Failed",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:33Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "catalog-58664cc6f",
+      "namespace": "catalog",
+      "resourceVersion": "1469",
+      "uid": "20505cd9-1844-4d91-9bf0-cb43f29a8562"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:33Z",
+     "message": "Created pod: catalog-58664cc6f-vt9xl",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "name": "catalog-58664cc6f.18d92659ad6e2c39",
+      "namespace": "catalog",
+      "uid": "b95f14b5-b5dd-4752-997e-d7ba12bc1dc4"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-kqdvw",
+      "namespace": "catalog",
+      "resourceVersion": "1306",
+      "uid": "a3b31cc4-b375-4158-9cea-2c2accb7c540"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Successfully assigned catalog/catalog-86c9fdb8c6-kqdvw to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "catalog-86c9fdb8c6-kqdvw.18d926572c9f091a",
+      "namespace": "catalog",
+      "uid": "2a7d2216-6746-4152-9e12-0642cc15c2d8"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:23Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-kqdvw",
+      "namespace": "catalog",
+      "resourceVersion": "1307",
+      "uid": "a3b31cc4-b375-4158-9cea-2c2accb7c540"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:23Z",
+     "message": "Pulling image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:23Z",
+      "name": "catalog-86c9fdb8c6-kqdvw.18d9265742caff4a",
+      "namespace": "catalog",
+      "uid": "ae88235e-851e-42eb-b5ef-41eddae1ee51"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:32Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-kqdvw",
+      "namespace": "catalog",
+      "resourceVersion": "1307",
+      "uid": "a3b31cc4-b375-4158-9cea-2c2accb7c540"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:32Z",
+     "message": "Successfully pulled image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" in 641ms (9.575s including waiting). Image size: 25839530 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:32Z",
+      "name": "catalog-86c9fdb8c6-kqdvw.18d926597d8be9fa",
+      "namespace": "catalog",
+      "uid": "70733220-e730-48fc-80e9-a457681ec409"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:32Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-kqdvw",
+      "namespace": "catalog",
+      "resourceVersion": "1307",
+      "uid": "a3b31cc4-b375-4158-9cea-2c2accb7c540"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:32Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:32Z",
+      "name": "catalog-86c9fdb8c6-kqdvw.18d926597f2526cb",
+      "namespace": "catalog",
+      "uid": "81dc531a-ccf0-4ab8-ac6d-99796fa82b8c"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:32Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-kqdvw",
+      "namespace": "catalog",
+      "resourceVersion": "1307",
+      "uid": "a3b31cc4-b375-4158-9cea-2c2accb7c540"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:32Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:32Z",
+      "name": "catalog-86c9fdb8c6-kqdvw.18d9265982cd0136",
+      "namespace": "catalog",
+      "uid": "956af0b7-d903-45b0-94a1-3da863e10355"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-wzpd7",
+      "namespace": "catalog",
+      "resourceVersion": "1309",
+      "uid": "3f6f41cd-7c7c-4941-89f8-47a2e1688da3"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Successfully assigned catalog/catalog-86c9fdb8c6-wzpd7 to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "catalog-86c9fdb8c6-wzpd7.18d926572d0caaaa",
+      "namespace": "catalog",
+      "uid": "966154f1-0ac2-41ab-8e45-f4770b63be66"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:23Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-wzpd7",
+      "namespace": "catalog",
+      "resourceVersion": "1313",
+      "uid": "3f6f41cd-7c7c-4941-89f8-47a2e1688da3"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:23Z",
+     "message": "Pulling image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:23Z",
+      "name": "catalog-86c9fdb8c6-wzpd7.18d9265742e39193",
+      "namespace": "catalog",
+      "uid": "fd0038b1-f9d8-4b4e-9e74-12cc511144bb"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:33Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-wzpd7",
+      "namespace": "catalog",
+      "resourceVersion": "1313",
+      "uid": "3f6f41cd-7c7c-4941-89f8-47a2e1688da3"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:33Z",
+     "message": "Successfully pulled image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" in 643ms (10.217s including waiting). Image size: 25839530 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "name": "catalog-86c9fdb8c6-wzpd7.18d92659a3e35bf0",
+      "namespace": "catalog",
+      "uid": "70f4074c-56ae-40f0-a8f3-ced1f1807397"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:33Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-wzpd7",
+      "namespace": "catalog",
+      "resourceVersion": "1313",
+      "uid": "3f6f41cd-7c7c-4941-89f8-47a2e1688da3"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:33Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "name": "catalog-86c9fdb8c6-wzpd7.18d92659a5040359",
+      "namespace": "catalog",
+      "uid": "17ff56e9-9bb0-4c47-a13f-b63ea7216a94"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:33Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{catalog}",
+      "kind": "Pod",
+      "name": "catalog-86c9fdb8c6-wzpd7",
+      "namespace": "catalog",
+      "resourceVersion": "1313",
+      "uid": "3f6f41cd-7c7c-4941-89f8-47a2e1688da3"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:33Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "name": "catalog-86c9fdb8c6-wzpd7.18d92659a7974924",
+      "namespace": "catalog",
+      "uid": "42ffbce8-34eb-4710-a9cd-1b2476daba23"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "catalog-86c9fdb8c6",
+      "namespace": "catalog",
+      "resourceVersion": "1305",
+      "uid": "6150419c-1183-44df-ba51-35d1fb58a3b0"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Created pod: catalog-86c9fdb8c6-kqdvw",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "catalog-86c9fdb8c6.18d926572c86c8af",
+      "namespace": "catalog",
+      "uid": "48248f21-8e5d-4209-bb3b-a9b5d50c8e04"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "catalog-86c9fdb8c6",
+      "namespace": "catalog",
+      "resourceVersion": "1305",
+      "uid": "6150419c-1183-44df-ba51-35d1fb58a3b0"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Created pod: catalog-86c9fdb8c6-wzpd7",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "catalog-86c9fdb8c6.18d926572cca5b21",
+      "namespace": "catalog",
+      "uid": "3a37b70d-7e61-4b78-84ab-78b852f585db"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "catalog",
+      "namespace": "catalog",
+      "resourceVersion": "1272",
+      "uid": "433db45f-a6df-40da-81fa-0a416f42a83e"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Scaled up replica set catalog-86c9fdb8c6 from 0 to 2",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:23Z",
+      "name": "catalog.18d926572c652811",
+      "namespace": "catalog",
+      "uid": "fcffc440-6a82-4685-bcb6-de5d4fa60ba3"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:33Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "catalog",
+      "namespace": "catalog",
+      "resourceVersion": "1468",
+      "uid": "433db45f-a6df-40da-81fa-0a416f42a83e"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:33Z",
+     "message": "Scaled up replica set catalog-58664cc6f from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "name": "catalog.18d92659ad3f89e4",
+      "namespace": "catalog",
+      "uid": "1d2df926-2178-4693-85da-f35459dec2a5"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "jobs": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "generateName": "catalog-58664cc6f-",
+      "generation": 1,
+      "labels": {
+       "app": "catalog",
+       "pod-template-hash": "58664cc6f"
+      },
+      "name": "catalog-58664cc6f-vt9xl",
+      "namespace": "catalog",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "catalog-58664cc6f",
+        "uid": "20505cd9-1844-4d91-9bf0-cb43f29a8562"
+       }
+      ],
+      "uid": "b36f2bd6-7817-48b0-9257-7f3c2d0aefbb"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine-hotfix",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "catalog",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-8n6nz",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-8n6nz",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "message": "containers with unready status: [catalog]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "message": "containers with unready status: [catalog]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "image": "nginx:1.29-alpine-hotfix",
+        "imageID": "",
+        "lastState": {},
+        "name": "catalog",
+        "ready": false,
+        "restartCount": 0,
+        "started": false,
+        "state": {
+         "waiting": {
+          "message": "Back-off pulling image \"nginx:1.29-alpine-hotfix\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/nginx:1.29-alpine-hotfix\": failed to resolve reference \"docker.io/library/nginx:1.29-alpine-hotfix\": docker.io/library/nginx:1.29-alpine-hotfix: not found",
+          "reason": "ImagePullBackOff"
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-8n6nz",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Pending",
+      "podIP": "10.244.0.19",
+      "podIPs": [
+       {
+        "ip": "10.244.0.19"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:33Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generateName": "catalog-86c9fdb8c6-",
+      "generation": 1,
+      "labels": {
+       "app": "catalog",
+       "pod-template-hash": "86c9fdb8c6"
+      },
+      "name": "catalog-86c9fdb8c6-kqdvw",
+      "namespace": "catalog",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "catalog-86c9fdb8c6",
+        "uid": "6150419c-1183-44df-ba51-35d1fb58a3b0"
+       }
+      ],
+      "uid": "a3b31cc4-b375-4158-9cea-2c2accb7c540"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "catalog",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-w67bd",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-w67bd",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:23Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:32Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:32Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://4726d733336ac927395f818db75c1f02eb9939dd0e3bfef65f001775436eb050",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {},
+        "name": "catalog",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T10:21:32Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-w67bd",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.17",
+      "podIPs": [
+       {
+        "ip": "10.244.0.17"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:22Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generateName": "catalog-86c9fdb8c6-",
+      "generation": 1,
+      "labels": {
+       "app": "catalog",
+       "pod-template-hash": "86c9fdb8c6"
+      },
+      "name": "catalog-86c9fdb8c6-wzpd7",
+      "namespace": "catalog",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "catalog-86c9fdb8c6",
+        "uid": "6150419c-1183-44df-ba51-35d1fb58a3b0"
+       }
+      ],
+      "uid": "3f6f41cd-7c7c-4941-89f8-47a2e1688da3"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "catalog",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-ljsqx",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-ljsqx",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:23Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:33Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://666d93621039716893db3509bffc2972f9e11a777eec5fe478a717e272ccf18d",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {},
+        "name": "catalog",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T10:21:33Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-ljsqx",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.18",
+      "podIPs": [
+       {
+        "ip": "10.244.0.18"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:22Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:33Z",
+      "generation": 1,
+      "labels": {
+       "app": "catalog",
+       "pod-template-hash": "58664cc6f"
+      },
+      "name": "catalog-58664cc6f",
+      "namespace": "catalog",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "catalog",
+        "uid": "433db45f-a6df-40da-81fa-0a416f42a83e"
+       }
+      ],
+      "uid": "20505cd9-1844-4d91-9bf0-cb43f29a8562"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "catalog",
+        "pod-template-hash": "58664cc6f"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "catalog",
+         "pod-template-hash": "58664cc6f"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine-hotfix",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "catalog",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generation": 1,
+      "labels": {
+       "app": "catalog",
+       "pod-template-hash": "86c9fdb8c6"
+      },
+      "name": "catalog-86c9fdb8c6",
+      "namespace": "catalog",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "catalog",
+        "uid": "433db45f-a6df-40da-81fa-0a416f42a83e"
+       }
+      ],
+      "uid": "6150419c-1183-44df-ba51-35d1fb58a3b0"
+     },
+     "spec": {
+      "replicas": 2,
+      "selector": {
+       "matchLabels": {
+        "app": "catalog",
+        "pod-template-hash": "86c9fdb8c6"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "catalog",
+         "pod-template-hash": "86c9fdb8c6"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "catalog",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 2,
+      "fullyLabeledReplicas": 2,
+      "observedGeneration": 1,
+      "readyReplicas": 2,
+      "replicas": 2,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "services": []
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "rollout",
+  "time": "2026-09-27T10:22:49Z"
+ },
+ "usage": {
+  "catalog": [
+   {
+    "cpu": "0m",
+    "memory": "3Mi",
+    "pod": "catalog-86c9fdb8c6-kqdvw"
+   },
+   {
+    "cpu": "0m",
+    "memory": "3Mi",
+    "pod": "catalog-86c9fdb8c6-wzpd7"
+   }
+  ]
+ }
+}

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diagnosis.schema.json",
+  "title": "Diagnosis",
+  "description": "What submit_diagnosis must produce: grounded findings only. Evidence refs must exist in the tool results for that namespace (checked).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "findings",
+    "summary"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "issue",
+        "healthy"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "namespace",
+          "kind",
+          "name",
+          "root_cause",
+          "evidence",
+          "fix",
+          "confidence"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "crashloop_app_error",
+              "oom_killed",
+              "image_pull",
+              "unschedulable_resources",
+              "unschedulable_constraints",
+              "probe_failure",
+              "service_no_endpoints",
+              "config_missing",
+              "job_failed",
+              "rollout_stuck",
+              "gpu_slice_oom",
+              "gpu_unavailable",
+              "kv_saturation",
+              "runaway_cost",
+              "other"
+            ]
+          },
+          "namespace": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$",
+            "description": "Kubernetes namespace"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Pod",
+              "Deployment",
+              "ReplicaSet",
+              "Service",
+              "Job",
+              "ConfigMap",
+              "Node"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$",
+            "description": "the object whose spec or config must change (usually the Deployment, Job or Service, not the pod)"
+          },
+          "root_cause": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "pattern": "^(st|ev|ds|lg|rs|mt|cs)-[a-z0-9][-a-z0-9._]*$"
+            },
+            "description": "refs copied exactly from tool results"
+          },
+          "fix": {
+            "type": "string",
+            "maxLength": 240,
+            "description": "suggested change; never applied by you"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 400
+    }
+  }
+}

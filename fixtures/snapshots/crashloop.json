@@ -1,0 +1,698 @@
+{
+ "logs": {
+  "orders/orders-api-54b7775f96-ds4kf/orders-api/current": "orders-api starting\nloading config from environment\nFATAL: DATABASE_URL is not set\n"
+ },
+ "namespaces": {
+  "orders": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "orders",
+      "uid": "63d0c8e6-1a7d-4e91-b1f1-1f67201daafc"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "name": "orders-api",
+      "namespace": "orders",
+      "uid": "05d17267-1726-4d59-a20d-2a8e6a5a5292"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "orders-api"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "orders-api"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"orders-api starting\"; echo \"loading config from environment\"; echo \"FATAL: DATABASE_URL is not set\"; exit 1"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "orders-api",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastUpdateTime": "2026-09-27T10:21:24Z",
+        "message": "ReplicaSet \"orders-api-54b7775f96\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T10:22:45Z",
+        "lastUpdateTime": "2026-09-27T10:22:45Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "resourceVersion": "1124",
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Successfully assigned orders/orders-api-54b7775f96-ds4kf to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "orders-api-54b7775f96-ds4kf.18d92656f17c4833",
+      "namespace": "orders",
+      "uid": "0eee4f08-29a4-455e-85a4-c2571e03f234"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{orders-api}",
+      "kind": "Pod",
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "resourceVersion": "1125",
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Pulling image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "orders-api-54b7775f96-ds4kf.18d9265706c58a77",
+      "namespace": "orders",
+      "uid": "3cd9d529-d7b4-4892-a7a7-649d3f7d9b77"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:24Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{orders-api}",
+      "kind": "Pod",
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "resourceVersion": "1125",
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:24Z",
+     "message": "Successfully pulled image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" in 613ms (2.601s including waiting). Image size: 1911395 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:24Z",
+      "name": "orders-api-54b7775f96-ds4kf.18d92657a1d1997b",
+      "namespace": "orders",
+      "uid": "7de76d16-e0a8-46e2-a714-5712066dfbf2"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 5,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:24Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{orders-api}",
+      "kind": "Pod",
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "resourceVersion": "1125",
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:45Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:24Z",
+      "name": "orders-api-54b7775f96-ds4kf.18d92657a2d76ca2",
+      "namespace": "orders",
+      "uid": "25eaec81-ad26-4193-84aa-f8acabebf360"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 5,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:24Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{orders-api}",
+      "kind": "Pod",
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "resourceVersion": "1125",
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:45Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:24Z",
+      "name": "orders-api-54b7775f96-ds4kf.18d92657a5961e25",
+      "namespace": "orders",
+      "uid": "5b5d7026-a521-4349-b1aa-656e9504fd40"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:25Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{orders-api}",
+      "kind": "Pod",
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "resourceVersion": "1125",
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:45Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:25Z",
+      "name": "orders-api-54b7775f96-ds4kf.18d92657dcad8ff9",
+      "namespace": "orders",
+      "uid": "489fdc9f-baaf-4e50-a5a4-d19513c7e6ad"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 5,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:26Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{orders-api}",
+      "kind": "Pod",
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "resourceVersion": "1125",
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:46Z",
+     "message": "Back-off restarting failed container orders-api in pod orders-api-54b7775f96-ds4kf_orders(fa5f34a0-9452-42df-90d2-ff4d30a9c2bf)",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:26Z",
+      "name": "orders-api-54b7775f96-ds4kf.18d9265819302d8e",
+      "namespace": "orders",
+      "uid": "e27bb243-ac77-4f30-b76d-6256f20c76d4"
+     },
+     "reason": "BackOff",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "orders-api-54b7775f96",
+      "namespace": "orders",
+      "resourceVersion": "1120",
+      "uid": "6c72299b-47b2-4154-88ec-9d6d343ebb01"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Created pod: orders-api-54b7775f96-ds4kf",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "orders-api-54b7775f96.18d92656f1582adf",
+      "namespace": "orders",
+      "uid": "1a91dadc-4651-47d5-93a9-5c1d0baa7c8a"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "orders-api",
+      "namespace": "orders",
+      "resourceVersion": "1119",
+      "uid": "05d17267-1726-4d59-a20d-2a8e6a5a5292"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Scaled up replica set orders-api-54b7775f96 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "orders-api.18d92656edfcb705",
+      "namespace": "orders",
+      "uid": "156b30bc-da23-4401-9760-f8c776c53b33"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "jobs": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generateName": "orders-api-54b7775f96-",
+      "generation": 1,
+      "labels": {
+       "app": "orders-api",
+       "pod-template-hash": "54b7775f96"
+      },
+      "name": "orders-api-54b7775f96-ds4kf",
+      "namespace": "orders",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "orders-api-54b7775f96",
+        "uid": "6c72299b-47b2-4154-88ec-9d6d343ebb01"
+       }
+      ],
+      "uid": "fa5f34a0-9452-42df-90d2-ff4d30a9c2bf"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"orders-api starting\"; echo \"loading config from environment\"; echo \"FATAL: DATABASE_URL is not set\"; exit 1"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "orders-api",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-82rq4",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-82rq4",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:22:45Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:22:45Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://8e5ec0788013bcbde8ed5db1fa8e0c7e1c20da2fe334f3d60a9420185b50f0c1",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {
+         "terminated": {
+          "containerID": "containerd://47471d66deed5d3b5043355bb6c1130e67b636563922c2595e80b1d4f16c14ed",
+          "exitCode": 1,
+          "finishedAt": "2026-09-27T10:22:03Z",
+          "reason": "Error",
+          "startedAt": "2026-09-27T10:22:03Z"
+         }
+        },
+        "name": "orders-api",
+        "ready": true,
+        "resources": {},
+        "restartCount": 4,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T10:22:45Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-82rq4",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.8",
+      "podIPs": [
+       {
+        "ip": "10.244.0.8"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:21Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "labels": {
+       "app": "orders-api",
+       "pod-template-hash": "54b7775f96"
+      },
+      "name": "orders-api-54b7775f96",
+      "namespace": "orders",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "orders-api",
+        "uid": "05d17267-1726-4d59-a20d-2a8e6a5a5292"
+       }
+      ],
+      "uid": "6c72299b-47b2-4154-88ec-9d6d343ebb01"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "orders-api",
+        "pod-template-hash": "54b7775f96"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "orders-api",
+         "pod-template-hash": "54b7775f96"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"orders-api starting\"; echo \"loading config from environment\"; echo \"FATAL: DATABASE_URL is not set\"; exit 1"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "orders-api",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "services": []
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "crashloop",
+  "time": "2026-09-27T10:22:46Z"
+ },
+ "usage": {
+  "orders": []
+ }
+}

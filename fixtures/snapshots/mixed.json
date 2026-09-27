@@ -1,0 +1,1357 @@
+{
+ "logs": {
+  "ledger/ledger-5c968c7fbb-fqxsv/ledger/current": "ledger v2.3.1\npanic: invalid config key \"retries\": expected integer, got \"three\"\n",
+  "ledger/ledger-api-cb6cb6f66-nqrzb/ledger-api/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 10:21:29 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 10:21:29 [notice] 1#1: nginx/1.29.8\n2026/09/27 10:21:29 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 10:21:29 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 10:21:29 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 10:21:29 [notice] 1#1: start worker processes\n2026/09/27 10:21:29 [notice] 1#1: start worker process 37\n2026/09/27 10:21:29 [notice] 1#1: start worker process 38\n"
+ },
+ "namespaces": {
+  "ledger": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "ledger",
+      "uid": "79079728-ffaf-476f-a0e1-d4bd7819dbaf"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "name": "ledger",
+      "namespace": "ledger",
+      "uid": "5557af65-6642-4ca9-ab0a-40544c681341"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "ledger"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "ledger"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"ledger v2.3.1\"; echo \"panic: invalid config key \\\"retries\\\": expected integer, got \\\"three\\\"\"; exit 2"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "ledger",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastUpdateTime": "2026-09-27T10:21:30Z",
+        "message": "ReplicaSet \"ledger-5c968c7fbb\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T10:22:08Z",
+        "lastUpdateTime": "2026-09-27T10:22:08Z",
+        "message": "Deployment does not have minimum availability.",
+        "reason": "MinimumReplicasUnavailable",
+        "status": "False",
+        "type": "Available"
+       }
+      ],
+      "observedGeneration": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "unavailableReplicas": 1,
+      "updatedReplicas": 1
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "name": "ledger-api",
+      "namespace": "ledger",
+      "uid": "1a2bc581-558e-4b35-b691-713a1c77b4cc"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "ledger-api"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "ledger-api"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "ledger-api",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T10:21:29Z",
+        "lastUpdateTime": "2026-09-27T10:21:29Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastUpdateTime": "2026-09-27T10:21:29Z",
+        "message": "ReplicaSet \"ledger-api-cb6cb6f66\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [
+    {
+     "addressType": "IPv4",
+     "apiVersion": "discovery.k8s.io/v1",
+     "endpoints": null,
+     "kind": "EndpointSlice",
+     "metadata": {
+      "annotations": {
+       "endpoints.kubernetes.io/last-change-trigger-time": "2026-09-27T10:21:21Z"
+      },
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generateName": "ledger-api-",
+      "generation": 1,
+      "labels": {
+       "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+       "kubernetes.io/service-name": "ledger-api"
+      },
+      "name": "ledger-api-2kzm6",
+      "namespace": "ledger",
+      "ownerReferences": [
+       {
+        "apiVersion": "v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Service",
+        "name": "ledger-api",
+        "uid": "eca7142f-ff18-42ff-97b4-3b6319fb6aa4"
+       }
+      ],
+      "uid": "859537f8-48bd-4a6a-ba24-cecd2792a99b"
+     },
+     "ports": null
+    }
+   ],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "resourceVersion": "1201",
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Successfully assigned ledger/ledger-5c968c7fbb-fqxsv to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "ledger-5c968c7fbb-fqxsv.18d92657039e3b8f",
+      "namespace": "ledger",
+      "uid": "b1c86fb0-c395-462d-9db7-d4cfc46d8498"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger}",
+      "kind": "Pod",
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "resourceVersion": "1208",
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Pulling image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "ledger-5c968c7fbb-fqxsv.18d926571afce849",
+      "namespace": "ledger",
+      "uid": "00bb9e1e-5382-431a-ab33-c7b96a1f63e3"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:30Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger}",
+      "kind": "Pod",
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "resourceVersion": "1208",
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:30Z",
+     "message": "Successfully pulled image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" in 640ms (7.727s including waiting). Image size: 1911395 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:30Z",
+      "name": "ledger-5c968c7fbb-fqxsv.18d92658e797a282",
+      "namespace": "ledger",
+      "uid": "5bd51db3-1b25-475e-b429-bc014ec8c41e"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:30Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger}",
+      "kind": "Pod",
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "resourceVersion": "1208",
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:08Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:30Z",
+      "name": "ledger-5c968c7fbb-fqxsv.18d92658e87688ca",
+      "namespace": "ledger",
+      "uid": "e7377100-c11f-4bc9-82e2-d4911bf4f466"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:30Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger}",
+      "kind": "Pod",
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "resourceVersion": "1208",
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:08Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:30Z",
+      "name": "ledger-5c968c7fbb-fqxsv.18d92658eb2b8678",
+      "namespace": "ledger",
+      "uid": "73a30194-7c22-45d5-b868-fa75cd3e7839"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 3,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:30Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger}",
+      "kind": "Pod",
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "resourceVersion": "1208",
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:08Z",
+     "message": "Container image \"busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e\" already present on machine and can be accessed by the pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:30Z",
+      "name": "ledger-5c968c7fbb-fqxsv.18d92659088f80b0",
+      "namespace": "ledger",
+      "uid": "f590be92-8d6c-46e8-aff6-df8d57ae4fe4"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 4,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:31Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger}",
+      "kind": "Pod",
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "resourceVersion": "1208",
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:22:08Z",
+     "message": "Back-off restarting failed container ledger in pod ledger-5c968c7fbb-fqxsv_ledger(6ecc26ca-45e0-474c-ab8b-d9ffc0a86414)",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:31Z",
+      "name": "ledger-5c968c7fbb-fqxsv.18d9265944405c25",
+      "namespace": "ledger",
+      "uid": "9712c8f9-2610-41f5-b41b-6148968bb858"
+     },
+     "reason": "BackOff",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Warning"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "ledger-5c968c7fbb",
+      "namespace": "ledger",
+      "resourceVersion": "1182",
+      "uid": "c68ac9da-5b97-4895-b93d-f95e9d7e11d2"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Created pod: ledger-5c968c7fbb-fqxsv",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "ledger-5c968c7fbb.18d9265703437d62",
+      "namespace": "ledger",
+      "uid": "15f7ebff-15d1-41c9-8d14-4d815886c298"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "ledger-api-cb6cb6f66-nqrzb",
+      "namespace": "ledger",
+      "resourceVersion": "1202",
+      "uid": "0e19ee0c-ab2d-4a71-a773-6e41cf4409dd"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Successfully assigned ledger/ledger-api-cb6cb6f66-nqrzb to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "ledger-api-cb6cb6f66-nqrzb.18d9265703ee52e2",
+      "namespace": "ledger",
+      "uid": "b4dbafb6-b2f3-44f2-8f37-f4385562f6e8"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger-api}",
+      "kind": "Pod",
+      "name": "ledger-api-cb6cb6f66-nqrzb",
+      "namespace": "ledger",
+      "resourceVersion": "1207",
+      "uid": "0e19ee0c-ab2d-4a71-a773-6e41cf4409dd"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Pulling image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "ledger-api-cb6cb6f66-nqrzb.18d926571af801e8",
+      "namespace": "ledger",
+      "uid": "34fe3c7f-c5b7-4bc3-a88b-7d4e3e9eaf97"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:29Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger-api}",
+      "kind": "Pod",
+      "name": "ledger-api-cb6cb6f66-nqrzb",
+      "namespace": "ledger",
+      "resourceVersion": "1207",
+      "uid": "0e19ee0c-ab2d-4a71-a773-6e41cf4409dd"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:29Z",
+     "message": "Successfully pulled image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" in 714ms (7.087s including waiting). Image size: 25839530 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:29Z",
+      "name": "ledger-api-cb6cb6f66-nqrzb.18d92658c1655ff9",
+      "namespace": "ledger",
+      "uid": "b9315c9e-daf9-4273-ba5d-27899817f803"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:29Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger-api}",
+      "kind": "Pod",
+      "name": "ledger-api-cb6cb6f66-nqrzb",
+      "namespace": "ledger",
+      "resourceVersion": "1207",
+      "uid": "0e19ee0c-ab2d-4a71-a773-6e41cf4409dd"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:29Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:29Z",
+      "name": "ledger-api-cb6cb6f66-nqrzb.18d92658c2972df3",
+      "namespace": "ledger",
+      "uid": "1873811a-f514-4396-99f5-87761e585ff3"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:29Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{ledger-api}",
+      "kind": "Pod",
+      "name": "ledger-api-cb6cb6f66-nqrzb",
+      "namespace": "ledger",
+      "resourceVersion": "1207",
+      "uid": "0e19ee0c-ab2d-4a71-a773-6e41cf4409dd"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:29Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:29Z",
+      "name": "ledger-api-cb6cb6f66-nqrzb.18d92658c5041d13",
+      "namespace": "ledger",
+      "uid": "9453bcd1-9aec-4d90-a7c2-18a073b1db96"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "ledger-api-cb6cb6f66",
+      "namespace": "ledger",
+      "resourceVersion": "1186",
+      "uid": "e2272909-f068-4ec8-967c-25bc9e6df189"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Created pod: ledger-api-cb6cb6f66-nqrzb",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "ledger-api-cb6cb6f66.18d92657034b6e66",
+      "namespace": "ledger",
+      "uid": "11d95c55-08b4-4f19-8794-570c06adafbe"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "ledger-api",
+      "namespace": "ledger",
+      "resourceVersion": "1185",
+      "uid": "1a2bc581-558e-4b35-b691-713a1c77b4cc"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Scaled up replica set ledger-api-cb6cb6f66 from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "ledger-api.18d92656fea4895a",
+      "namespace": "ledger",
+      "uid": "c87e097a-3240-4330-a050-474c58c3fa30"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "ledger",
+      "namespace": "ledger",
+      "resourceVersion": "1181",
+      "uid": "5557af65-6642-4ca9-ab0a-40544c681341"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Scaled up replica set ledger-5c968c7fbb from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "ledger.18d92656fe462ace",
+      "namespace": "ledger",
+      "uid": "d9b7ab72-6b12-4d7d-9d93-0829b8d4fdac"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "jobs": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generateName": "ledger-5c968c7fbb-",
+      "generation": 1,
+      "labels": {
+       "app": "ledger",
+       "pod-template-hash": "5c968c7fbb"
+      },
+      "name": "ledger-5c968c7fbb-fqxsv",
+      "namespace": "ledger",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "ledger-5c968c7fbb",
+        "uid": "c68ac9da-5b97-4895-b93d-f95e9d7e11d2"
+       }
+      ],
+      "uid": "6ecc26ca-45e0-474c-ab8b-d9ffc0a86414"
+     },
+     "spec": {
+      "containers": [
+       {
+        "command": [
+         "sh",
+         "-c",
+         "echo \"ledger v2.3.1\"; echo \"panic: invalid config key \\\"retries\\\": expected integer, got \\\"three\\\"\"; exit 2"
+        ],
+        "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "ledger",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-l8gbj",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-l8gbj",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:22:08Z",
+        "message": "containers with unready status: [ledger]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:22:08Z",
+        "message": "containers with unready status: [ledger]",
+        "observedGeneration": 1,
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://571789359347969ef73a09564a959764ebb105d63e2a7139ac744e3903145847",
+        "image": "sha256:ad4f11f7c85f87c0a6d6c0fe492ad53f9cdcff6e8c88b881360c70eff701c67b",
+        "imageID": "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        "lastState": {
+         "terminated": {
+          "containerID": "containerd://f8ccbd2f4b1ad46107f104171e826520fdf27060fc2a85a022fa7f7105b0acd1",
+          "exitCode": 2,
+          "finishedAt": "2026-09-27T10:21:42Z",
+          "reason": "Error",
+          "startedAt": "2026-09-27T10:21:42Z"
+         }
+        },
+        "name": "ledger",
+        "ready": false,
+        "resources": {},
+        "restartCount": 3,
+        "started": false,
+        "state": {
+         "terminated": {
+          "containerID": "containerd://571789359347969ef73a09564a959764ebb105d63e2a7139ac744e3903145847",
+          "exitCode": 2,
+          "finishedAt": "2026-09-27T10:22:08Z",
+          "reason": "Error",
+          "startedAt": "2026-09-27T10:22:08Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           10
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-l8gbj",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.13",
+      "podIPs": [
+       {
+        "ip": "10.244.0.13"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:22Z"
+     }
+    },
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "generateName": "ledger-api-cb6cb6f66-",
+      "generation": 1,
+      "labels": {
+       "app": "ledger-api",
+       "pod-template-hash": "cb6cb6f66"
+      },
+      "name": "ledger-api-cb6cb6f66-nqrzb",
+      "namespace": "ledger",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "ledger-api-cb6cb6f66",
+        "uid": "e2272909-f068-4ec8-967c-25bc9e6df189"
+       }
+      ],
+      "uid": "0e19ee0c-ab2d-4a71-a773-6e41cf4409dd"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "ledger-api",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-7zjb2",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-7zjb2",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:29Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:29Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://4bc492c9f25952c901bb7d6e7dc9af487ad75e1b99a55908f768942091251fd3",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {},
+        "name": "ledger-api",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T10:21:29Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-7zjb2",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.12",
+      "podIPs": [
+       {
+        "ip": "10.244.0.12"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:22Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "labels": {
+       "app": "ledger",
+       "pod-template-hash": "5c968c7fbb"
+      },
+      "name": "ledger-5c968c7fbb",
+      "namespace": "ledger",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "ledger",
+        "uid": "5557af65-6642-4ca9-ab0a-40544c681341"
+       }
+      ],
+      "uid": "c68ac9da-5b97-4895-b93d-f95e9d7e11d2"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "ledger",
+        "pod-template-hash": "5c968c7fbb"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "ledger",
+         "pod-template-hash": "5c968c7fbb"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "command": [
+           "sh",
+           "-c",
+           "echo \"ledger v2.3.1\"; echo \"panic: invalid config key \\\"retries\\\": expected integer, got \\\"three\\\"\"; exit 2"
+          ],
+          "image": "busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "ledger",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    },
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "labels": {
+       "app": "ledger-api",
+       "pod-template-hash": "cb6cb6f66"
+      },
+      "name": "ledger-api-cb6cb6f66",
+      "namespace": "ledger",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "ledger-api",
+        "uid": "1a2bc581-558e-4b35-b691-713a1c77b4cc"
+       }
+      ],
+      "uid": "e2272909-f068-4ec8-967c-25bc9e6df189"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "ledger-api",
+        "pod-template-hash": "cb6cb6f66"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "ledger-api",
+         "pod-template-hash": "cb6cb6f66"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "ledger-api",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "services": [
+    {
+     "apiVersion": "v1",
+     "kind": "Service",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "ledger-api",
+      "namespace": "ledger",
+      "uid": "eca7142f-ff18-42ff-97b4-3b6319fb6aa4"
+     },
+     "spec": {
+      "clusterIP": "10.96.236.144",
+      "clusterIPs": [
+       "10.96.236.144"
+      ],
+      "internalTrafficPolicy": "Cluster",
+      "ipFamilies": [
+       "IPv4"
+      ],
+      "ipFamilyPolicy": "SingleStack",
+      "ports": [
+       {
+        "port": 80,
+        "protocol": "TCP",
+        "targetPort": 80
+       }
+      ],
+      "selector": {
+       "app": "ledger-gateway"
+      },
+      "sessionAffinity": "None",
+      "type": "ClusterIP"
+     },
+     "status": {
+      "loadBalancer": {}
+     }
+    }
+   ]
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "mixed",
+  "time": "2026-09-27T10:22:47Z"
+ },
+ "usage": {
+  "ledger": [
+   {
+    "cpu": "0m",
+    "memory": "3Mi",
+    "pod": "ledger-api-cb6cb6f66-nqrzb"
+   }
+  ]
+ }
+}

@@ -1,0 +1,85 @@
+# vLLM workers: a StatefulSet so each worker has a stable name (vllm-0, vllm-1) the gateway can
+# pick by; a headless Service gives each one DNS (vllm-0.vllm.default.svc). Cluster-internal only:
+# no hostPort, no NodePort, no LoadBalancer. Reach it with `make tunnel`.
+#
+# Each replica is one HAMi slice: 20 GiB of the A100's 40 GiB and half its cores. Model: Qwen3-8B-AWQ
+# (D-16): 5.7 GiB weights, standard attention, 144 KiB KV/token, ≈ 10.95 GiB KV pool per slice, ≈ 15 tasks
+# per slice with the prefix cached (--gpu-memory-utilization 0.9 of the slice). Thinking is disabled per request.
+# Start with replicas: 1; `make scale N=2` adds the second worker.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  labels: {app: vllm}
+spec:
+  clusterIP: None
+  selector: {app: vllm}
+  ports:
+    - {name: http, port: 8000, targetPort: 8000}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm
+  labels: {app: vllm}
+spec:
+  serviceName: vllm
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: {app: vllm}
+  template:
+    metadata:
+      labels: {app: vllm}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      schedulerName: hami-scheduler
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          image: docker.io/vllm/vllm-openai:v0.29.0-cu129@sha256:7ef5a35d1ef8ce2cf9d671dd91eec6e367c5849262e0362b4d3d4a26be0d87d2
+          imagePullPolicy: IfNotPresent
+          args:
+            - --model=Qwen/Qwen3-8B-AWQ
+            - --revision=4da05a8edb55c6046cce958586c33b61da07bb79
+            - --served-model-name=Qwen/Qwen3-8B-AWQ
+            - --host=0.0.0.0
+            - --port=8000
+            - --max-model-len=16384
+            - --gpu-memory-utilization=0.9
+            - --max-num-seqs=32
+            - --max-num-batched-tokens=8192
+            - --enable-prefix-caching
+            - --enable-auto-tool-choice
+            - --tool-call-parser=hermes
+            - --enable-prompt-tokens-details   # usage.prompt_tokens_details.cached_tokens per request
+            - --enable-request-id-headers      # echo X-Request-Id so traces join across hops
+          env:
+            - {name: HF_HUB_OFFLINE, value: "1"}          # weights were fetched at boot; never download at serve time
+            - {name: HF_HOME, value: /root/.cache/huggingface}
+          ports:
+            - {name: http, containerPort: 8000}
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              nvidia.com/gpumem: "20480"     # MiB — one half of the A100 40 GB
+              nvidia.com/gpucores: "50"      # percent of SMs
+          startupProbe:                      # load + CUDA graph capture can take minutes
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - {name: hf-cache, mountPath: /root/.cache/huggingface}
+            - {name: shm, mountPath: /dev/shm}
+      volumes:
+        - name: hf-cache
+          hostPath: {path: /opt/hf-cache, type: Directory}
+        - name: shm
+          emptyDir: {medium: Memory, sizeLimit: 2Gi}

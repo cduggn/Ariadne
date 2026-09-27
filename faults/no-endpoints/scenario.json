@@ -1,0 +1,29 @@
+{
+  "id": "no-endpoints",
+  "namespace": "checkout",
+  "live_only": false,
+  "title": "Service selector matches no pods",
+  "report": "Calls to the checkout service fail with connection refused, yet the checkout pods look healthy.",
+  "category": "service_no_endpoints",
+  "allowed": [
+    "service_no_endpoints"
+  ],
+  "objects": [
+    {
+      "kind": "Service",
+      "name": "checkout"
+    }
+  ],
+  "evidence": [
+    "describe",
+    "resources"
+  ],
+  "must_call": [
+    "describe"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "ready_all"
+}

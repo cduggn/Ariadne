@@ -1,0 +1,29 @@
+{
+  "id": "pending-constraints",
+  "namespace": "cache",
+  "live_only": false,
+  "title": "Pod cannot be scheduled: node selector matches no node",
+  "report": "The cache deployment never gets a pod running.",
+  "category": "unschedulable_constraints",
+  "allowed": [
+    "unschedulable_constraints"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "cache"
+    }
+  ],
+  "evidence": [
+    "event"
+  ],
+  "must_call": [
+    "list_problem_pods",
+    "get_events"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "event:FailedScheduling"
+}

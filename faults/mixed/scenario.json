@@ -1,0 +1,37 @@
+{
+  "id": "mixed",
+  "namespace": "ledger",
+  "live_only": false,
+  "title": "Two independent faults: crash loop and a service with no endpoints",
+  "report": "The ledger area is broken: ledger crashes and the ledger-api service does not answer.",
+  "category": "crashloop_app_error",
+  "allowed": [
+    "crashloop_app_error"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "ledger",
+      "category": "crashloop_app_error"
+    },
+    {
+      "kind": "Service",
+      "name": "ledger-api",
+      "category": "service_no_endpoints"
+    }
+  ],
+  "evidence": [
+    "log",
+    "describe"
+  ],
+  "must_call": [
+    "list_problem_pods",
+    "pod_logs",
+    "describe"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "restarts>=2"
+}

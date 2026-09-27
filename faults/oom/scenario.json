@@ -1,0 +1,30 @@
+{
+  "id": "oom",
+  "namespace": "reports",
+  "live_only": false,
+  "title": "Container killed for exceeding its memory limit",
+  "report": "report-worker restarts every few seconds; no error in its logs.",
+  "category": "oom_killed",
+  "allowed": [
+    "oom_killed"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "report-worker"
+    }
+  ],
+  "evidence": [
+    "status",
+    "describe"
+  ],
+  "must_call": [
+    "list_problem_pods",
+    "describe"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "oom"
+}

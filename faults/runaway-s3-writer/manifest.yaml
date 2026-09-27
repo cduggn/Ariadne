@@ -1,0 +1,44 @@
+# Live-only (D-27). Needs the lab bucket and the writer's keys in a Secret:
+#   kubectl -n sync create secret generic lab-writer --from-literal=AWS_ACCESS_KEY_ID=… --from-literal=AWS_SECRET_ACCESS_KEY=…
+# Writes MAX_OBJECTS tiny objects then idles; the bucket expires them after one day.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sync
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: export-sync
+  namespace: sync
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: export-sync}
+  template:
+    metadata:
+      labels: {app: export-sync}
+    spec:
+      containers:
+        - name: export-sync
+          image: amazon/aws-cli:2.27.0
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while [ "$i" -lt "${MAX_OBJECTS}" ]; do
+                echo "sync batch $i" | aws s3 cp - "s3://${BUCKET}/runaway/obj-$i.txt" --only-show-errors
+                if [ $((i % 500)) -eq 0 ]; then echo "export-sync: uploaded $i objects, retrying full resync (checkpoint missing)"; fi
+                i=$((i+1))
+              done
+              echo "export-sync: cap of ${MAX_OBJECTS} reached, idling"; sleep infinity
+          env:
+            - {name: BUCKET, value: "__BUCKET__"}
+            - {name: MAX_OBJECTS, value: "20000"}
+            - {name: AWS_DEFAULT_REGION, value: "__REGION__"}
+          envFrom:
+            - secretRef: {name: lab-writer}
+          resources:
+            limits: {cpu: 200m, memory: 128Mi}

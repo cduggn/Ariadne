@@ -1,0 +1,18 @@
+# Offline checks on every push and PR: lint, unit tests over recorded snapshots, golden references.
+# Actions pinned by commit SHA (supply-chain hygiene); no secrets, no network beyond package installs.
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uvx -q ruff@0.13.2 check doctor evals lab tests
+      - run: python3 -m evals.build_golden && git diff --exit-code evals/golden    # references still pass and are up to date
+      - run: uv run -q --python 3.12 --with pytest python -m pytest

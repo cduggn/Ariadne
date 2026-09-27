@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: exports
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nightly-export
+  namespace: exports
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: export
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"exporting orders for 2026-09-27\"; echo \"ERROR: permission denied: cannot write /exports/orders-2026-09-27.csv\"; exit 2"]

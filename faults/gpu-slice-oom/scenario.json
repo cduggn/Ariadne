@@ -1,0 +1,26 @@
+{
+  "id": "gpu-slice-oom",
+  "namespace": "inference-canary",
+  "live_only": true,
+  "title": "Model does not fit its GPU slice",
+  "report": "A new vLLM replica keeps crashing on start.",
+  "category": "gpu_slice_oom",
+  "allowed": [
+    "gpu_slice_oom",
+    "crashloop_app_error"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "vllm-small"
+    }
+  ],
+  "evidence": [
+    "log"
+  ],
+  "must_call": [
+    "pod_logs"
+  ],
+  "cluster": "lambda-k3s",
+  "apply": []
+}

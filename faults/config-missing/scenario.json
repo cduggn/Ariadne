@@ -1,0 +1,29 @@
+{
+  "id": "config-missing",
+  "namespace": "billing",
+  "live_only": false,
+  "title": "Referenced ConfigMap does not exist",
+  "report": "billing is stuck and never reaches Running.",
+  "category": "config_missing",
+  "allowed": [
+    "config_missing"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "billing"
+    }
+  ],
+  "evidence": [
+    "status",
+    "event"
+  ],
+  "must_call": [
+    "list_problem_pods"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "waiting:CreateContainerConfigError"
+}

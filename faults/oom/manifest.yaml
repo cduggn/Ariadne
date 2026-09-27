@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: reports
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-worker
+  namespace: reports
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: report-worker
+  template:
+    metadata:
+      labels:
+        app: report-worker
+    spec:
+      containers:
+        - name: report-worker
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo 'warming report cache'; tail /dev/zero"]
+          resources:
+            limits:
+              memory: 32Mi
+            requests:
+              memory: 16Mi

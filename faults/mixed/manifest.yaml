@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ledger
+  labels:
+    doctor.lab/managed: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledger
+  namespace: ledger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ledger
+  template:
+    metadata:
+      labels:
+        app: ledger
+    spec:
+      containers:
+        - name: ledger
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          command: ["sh", "-c", "echo \"ledger v2.3.1\"; echo \"panic: invalid config key \\\"retries\\\": expected integer, got \\\"three\\\"\"; exit 2"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledger-api
+  namespace: ledger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ledger-api
+  template:
+    metadata:
+      labels:
+        app: ledger-api
+    spec:
+      containers:
+        - name: ledger-api
+          image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledger-api
+  namespace: ledger
+spec:
+  selector:
+    app: ledger-gateway
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario.schema.json",
+  "title": "Fault scenario (answer key)",
+  "type": "object",
+  "required": [
+    "id",
+    "namespace",
+    "title",
+    "report",
+    "category",
+    "allowed",
+    "objects",
+    "evidence",
+    "must_call",
+    "live_only",
+    "apply",
+    "cluster"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$",
+      "description": "Kubernetes namespace"
+    },
+    "title": {
+      "type": "string"
+    },
+    "report": {
+      "type": "string",
+      "description": "what a user would say; shown to the model"
+    },
+    "category": {
+      "enum": [
+        "crashloop_app_error",
+        "oom_killed",
+        "image_pull",
+        "unschedulable_resources",
+        "unschedulable_constraints",
+        "probe_failure",
+        "service_no_endpoints",
+        "config_missing",
+        "job_failed",
+        "rollout_stuck",
+        "gpu_slice_oom",
+        "gpu_unavailable",
+        "kv_saturation",
+        "runaway_cost",
+        "other",
+        "healthy"
+      ]
+    },
+    "allowed": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "crashloop_app_error",
+          "oom_killed",
+          "image_pull",
+          "unschedulable_resources",
+          "unschedulable_constraints",
+          "probe_failure",
+          "service_no_endpoints",
+          "config_missing",
+          "job_failed",
+          "rollout_stuck",
+          "gpu_slice_oom",
+          "gpu_unavailable",
+          "kv_saturation",
+          "runaway_cost",
+          "other",
+          "healthy"
+        ]
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ]
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "status",
+          "event",
+          "describe",
+          "log",
+          "resources",
+          "metrics",
+          "cost"
+        ]
+      }
+    },
+    "must_call": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "live_only": {
+      "type": "boolean"
+    },
+    "apply": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cluster": {
+      "type": "string"
+    },
+    "settle": {
+      "type": "string"
+    }
+  }
+}

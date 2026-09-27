@@ -1,0 +1,721 @@
+{
+ "logs": {
+  "status/status-page-7c589b76d-5dndg/status-page/current": "/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration\n/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh\n10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf\n10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf\n/docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh\n/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh\n/docker-entrypoint.sh: Configuration complete; ready for start up\n2026/09/27 10:21:28 [notice] 1#1: using the \"epoll\" event method\n2026/09/27 10:21:28 [notice] 1#1: nginx/1.29.8\n2026/09/27 10:21:28 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) \n2026/09/27 10:21:28 [notice] 1#1: OS: Linux 6.8.0-117-generic\n2026/09/27 10:21:28 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1073741816:1073741816\n2026/09/27 10:21:28 [notice] 1#1: start worker processes\n2026/09/27 10:21:28 [notice] 1#1: start worker process 37\n2026/09/27 10:21:28 [notice] 1#1: start worker process 38\n"
+ },
+ "namespaces": {
+  "status": {
+   "configmaps": [
+    {
+     "apiVersion": "v1",
+     "kind": "ConfigMap",
+     "metadata": {
+      "annotations": {
+       "kubernetes.io/description": "Contains a CA bundle that can be used to verify the kube-apiserver when using internal endpoints such as the internal service IP or kubernetes.default.svc. No other usage is guaranteed across distributions of Kubernetes clusters."
+      },
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "kube-root-ca.crt",
+      "namespace": "status",
+      "uid": "23fcffed-51bf-47ff-bc27-2367a2cda25e"
+     }
+    }
+   ],
+   "deployments": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "Deployment",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "name": "status-page",
+      "namespace": "status",
+      "uid": "88af333c-72e2-4589-a779-372294c0481f"
+     },
+     "spec": {
+      "progressDeadlineSeconds": 600,
+      "replicas": 1,
+      "revisionHistoryLimit": 10,
+      "selector": {
+       "matchLabels": {
+        "app": "status-page"
+       }
+      },
+      "strategy": {
+       "rollingUpdate": {
+        "maxSurge": "25%",
+        "maxUnavailable": "25%"
+       },
+       "type": "RollingUpdate"
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "status-page"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "status-page",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "conditions": [
+       {
+        "lastTransitionTime": "2026-09-27T10:21:28Z",
+        "lastUpdateTime": "2026-09-27T10:21:28Z",
+        "message": "Deployment has minimum availability.",
+        "reason": "MinimumReplicasAvailable",
+        "status": "True",
+        "type": "Available"
+       },
+       {
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "lastUpdateTime": "2026-09-27T10:21:28Z",
+        "message": "ReplicaSet \"status-page-7c589b76d\" has successfully progressed.",
+        "reason": "NewReplicaSetAvailable",
+        "status": "True",
+        "type": "Progressing"
+       }
+      ],
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0,
+      "updatedReplicas": 1
+     }
+    }
+   ],
+   "endpointslices": [
+    {
+     "addressType": "IPv4",
+     "apiVersion": "discovery.k8s.io/v1",
+     "endpoints": [
+      {
+       "addresses": [
+        "10.244.0.10"
+       ],
+       "conditions": {
+        "ready": true,
+        "serving": true,
+        "terminating": false
+       },
+       "nodeName": "doctor-lab-control-plane",
+       "targetRef": {
+        "kind": "Pod",
+        "name": "status-page-7c589b76d-5dndg",
+        "namespace": "status",
+        "uid": "cd9c3b49-fff7-4308-9d97-8cfd174962a9"
+       }
+      }
+     ],
+     "kind": "EndpointSlice",
+     "metadata": {
+      "annotations": {
+       "endpoints.kubernetes.io/last-change-trigger-time": "2026-09-27T10:21:28Z"
+      },
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generateName": "status-page-",
+      "generation": 2,
+      "labels": {
+       "endpointslice.kubernetes.io/managed-by": "endpointslice-controller.k8s.io",
+       "kubernetes.io/service-name": "status-page"
+      },
+      "name": "status-page-5ljvp",
+      "namespace": "status",
+      "ownerReferences": [
+       {
+        "apiVersion": "v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Service",
+        "name": "status-page",
+        "uid": "c2cfec98-e655-42ba-8ed1-8a524b331932"
+       }
+      ],
+      "uid": "6c435bf5-cd7b-44cd-995c-958f757ad292"
+     },
+     "ports": [
+      {
+       "name": "",
+       "port": 80,
+       "protocol": "TCP"
+      }
+     ]
+    }
+   ],
+   "events": [
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "name": "status-page-7c589b76d-5dndg",
+      "namespace": "status",
+      "resourceVersion": "1153",
+      "uid": "cd9c3b49-fff7-4308-9d97-8cfd174962a9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Successfully assigned status/status-page-7c589b76d-5dndg to doctor-lab-control-plane",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "status-page-7c589b76d-5dndg.18d92656f7c2e89d",
+      "namespace": "status",
+      "uid": "3b489490-e10f-4558-b13b-eb75e82a3a5d"
+     },
+     "reason": "Scheduled",
+     "reportingComponent": "default-scheduler",
+     "reportingInstance": "",
+     "source": {
+      "component": "default-scheduler"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:22Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{status-page}",
+      "kind": "Pod",
+      "name": "status-page-7c589b76d-5dndg",
+      "namespace": "status",
+      "resourceVersion": "1158",
+      "uid": "cd9c3b49-fff7-4308-9d97-8cfd174962a9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:22Z",
+     "message": "Pulling image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\"",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:22Z",
+      "name": "status-page-7c589b76d-5dndg.18d926570ef198f8",
+      "namespace": "status",
+      "uid": "0f914429-9584-4e9a-86a1-0549d4497b3e"
+     },
+     "reason": "Pulling",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:28Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{status-page}",
+      "kind": "Pod",
+      "name": "status-page-7c589b76d-5dndg",
+      "namespace": "status",
+      "resourceVersion": "1158",
+      "uid": "cd9c3b49-fff7-4308-9d97-8cfd174962a9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:28Z",
+     "message": "Successfully pulled image \"nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de\" in 2.822s (5.868s including waiting). Image size: 25839530 bytes.",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:28Z",
+      "name": "status-page-7c589b76d-5dndg.18d926586cbb109b",
+      "namespace": "status",
+      "uid": "4ca9fb9d-bab6-42f3-b32b-b2c41b94aabb"
+     },
+     "reason": "Pulled",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:28Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{status-page}",
+      "kind": "Pod",
+      "name": "status-page-7c589b76d-5dndg",
+      "namespace": "status",
+      "resourceVersion": "1158",
+      "uid": "cd9c3b49-fff7-4308-9d97-8cfd174962a9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:28Z",
+     "message": "Container created",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:28Z",
+      "name": "status-page-7c589b76d-5dndg.18d926586d0aa225",
+      "namespace": "status",
+      "uid": "1800fdbd-3518-452c-abb7-64a5d20b77aa"
+     },
+     "reason": "Created",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:28Z",
+     "involvedObject": {
+      "apiVersion": "v1",
+      "fieldPath": "spec.containers{status-page}",
+      "kind": "Pod",
+      "name": "status-page-7c589b76d-5dndg",
+      "namespace": "status",
+      "resourceVersion": "1158",
+      "uid": "cd9c3b49-fff7-4308-9d97-8cfd174962a9"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:28Z",
+     "message": "Container started",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:28Z",
+      "name": "status-page-7c589b76d-5dndg.18d926586ebfc189",
+      "namespace": "status",
+      "uid": "2c8b0f21-ee9c-4100-83b5-fe1eec2d9eee"
+     },
+     "reason": "Started",
+     "reportingComponent": "kubelet",
+     "reportingInstance": "doctor-lab-control-plane",
+     "source": {
+      "component": "kubelet",
+      "host": "doctor-lab-control-plane"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "name": "status-page-7c589b76d",
+      "namespace": "status",
+      "resourceVersion": "1136",
+      "uid": "6a0d8de8-9299-4d2c-a4ab-9904c6ba4352"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Created pod: status-page-7c589b76d-5dndg",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "status-page-7c589b76d.18d92656f760563b",
+      "namespace": "status",
+      "uid": "606d6cf9-e6e5-418a-a282-c9453a6120fe"
+     },
+     "reason": "SuccessfulCreate",
+     "reportingComponent": "replicaset-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "replicaset-controller"
+     },
+     "type": "Normal"
+    },
+    {
+     "apiVersion": "v1",
+     "count": 1,
+     "eventTime": null,
+     "firstTimestamp": "2026-09-27T10:21:21Z",
+     "involvedObject": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "status-page",
+      "namespace": "status",
+      "resourceVersion": "1135",
+      "uid": "88af333c-72e2-4589-a779-372294c0481f"
+     },
+     "kind": "Event",
+     "lastTimestamp": "2026-09-27T10:21:21Z",
+     "message": "Scaled up replica set status-page-7c589b76d from 0 to 1",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "status-page.18d92656f2d5bedd",
+      "namespace": "status",
+      "uid": "16498ea3-0596-4227-b2df-08b0f9278575"
+     },
+     "reason": "ScalingReplicaSet",
+     "reportingComponent": "deployment-controller",
+     "reportingInstance": "",
+     "source": {
+      "component": "deployment-controller"
+     },
+     "type": "Normal"
+    }
+   ],
+   "jobs": [],
+   "pods": [
+    {
+     "apiVersion": "v1",
+     "kind": "Pod",
+     "metadata": {
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generateName": "status-page-7c589b76d-",
+      "generation": 1,
+      "labels": {
+       "app": "status-page",
+       "pod-template-hash": "7c589b76d"
+      },
+      "name": "status-page-7c589b76d-5dndg",
+      "namespace": "status",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "status-page-7c589b76d",
+        "uid": "6a0d8de8-9299-4d2c-a4ab-9904c6ba4352"
+       }
+      ],
+      "uid": "cd9c3b49-fff7-4308-9d97-8cfd174962a9"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "imagePullPolicy": "IfNotPresent",
+        "name": "status-page",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-h8znr",
+          "readOnly": true
+         }
+        ]
+       }
+      ],
+      "dnsPolicy": "ClusterFirst",
+      "enableServiceLinks": true,
+      "nodeName": "doctor-lab-control-plane",
+      "preemptionPolicy": "PreemptLowerPriority",
+      "priority": 0,
+      "restartPolicy": "Always",
+      "schedulerName": "default-scheduler",
+      "securityContext": {},
+      "serviceAccount": "default",
+      "serviceAccountName": "default",
+      "terminationGracePeriodSeconds": 30,
+      "tolerations": [
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       },
+       {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+       }
+      ],
+      "volumes": [
+       {
+        "name": "kube-api-access-h8znr",
+        "projected": {
+         "defaultMode": 420,
+         "sources": [
+          {
+           "serviceAccountToken": {
+            "expirationSeconds": 3607,
+            "path": "token"
+           }
+          },
+          {
+           "configMap": {
+            "items": [
+             {
+              "key": "ca.crt",
+              "path": "ca.crt"
+             }
+            ],
+            "name": "kube-root-ca.crt"
+           }
+          },
+          {
+           "downwardAPI": {
+            "items": [
+             {
+              "fieldRef": {
+               "apiVersion": "v1",
+               "fieldPath": "metadata.namespace"
+              },
+              "path": "namespace"
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     },
+     "status": {
+      "conditions": [
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:22Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:28Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:28Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+       },
+       {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-09-27T10:21:21Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+       }
+      ],
+      "containerStatuses": [
+       {
+        "containerID": "containerd://b5ac6268bc549af74a11ca49141ab45eeba5c59968dff544fe39a03b0704db14",
+        "image": "sha256:7f7dcd27f920b22e980508bd5009b452e3d30b68c1041aa82e98e471d367db03",
+        "imageID": "docker.io/library/nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+        "lastState": {},
+        "name": "status-page",
+        "ready": true,
+        "resources": {},
+        "restartCount": 0,
+        "started": true,
+        "state": {
+         "running": {
+          "startedAt": "2026-09-27T10:21:28Z"
+         }
+        },
+        "user": {
+         "linux": {
+          "gid": 0,
+          "supplementalGroups": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           6,
+           10,
+           11,
+           20,
+           26,
+           27
+          ],
+          "uid": 0
+         }
+        },
+        "volumeMounts": [
+         {
+          "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+          "name": "kube-api-access-h8znr",
+          "readOnly": true,
+          "recursiveReadOnly": "Disabled"
+         }
+        ]
+       }
+      ],
+      "hostIP": "172.18.0.2",
+      "hostIPs": [
+       {
+        "ip": "172.18.0.2"
+       }
+      ],
+      "observedGeneration": 1,
+      "phase": "Running",
+      "podIP": "10.244.0.10",
+      "podIPs": [
+       {
+        "ip": "10.244.0.10"
+       }
+      ],
+      "qosClass": "BestEffort",
+      "resources": {},
+      "startTime": "2026-09-27T10:21:21Z"
+     }
+    }
+   ],
+   "replicasets": [
+    {
+     "apiVersion": "apps/v1",
+     "kind": "ReplicaSet",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "generation": 1,
+      "labels": {
+       "app": "status-page",
+       "pod-template-hash": "7c589b76d"
+      },
+      "name": "status-page-7c589b76d",
+      "namespace": "status",
+      "ownerReferences": [
+       {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "Deployment",
+        "name": "status-page",
+        "uid": "88af333c-72e2-4589-a779-372294c0481f"
+       }
+      ],
+      "uid": "6a0d8de8-9299-4d2c-a4ab-9904c6ba4352"
+     },
+     "spec": {
+      "replicas": 1,
+      "selector": {
+       "matchLabels": {
+        "app": "status-page",
+        "pod-template-hash": "7c589b76d"
+       }
+      },
+      "template": {
+       "metadata": {
+        "labels": {
+         "app": "status-page",
+         "pod-template-hash": "7c589b76d"
+        }
+       },
+       "spec": {
+        "containers": [
+         {
+          "image": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+          "imagePullPolicy": "IfNotPresent",
+          "name": "status-page",
+          "resources": {},
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File"
+         }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "terminationGracePeriodSeconds": 30
+       }
+      }
+     },
+     "status": {
+      "availableReplicas": 1,
+      "fullyLabeledReplicas": 1,
+      "observedGeneration": 1,
+      "readyReplicas": 1,
+      "replicas": 1,
+      "terminatingReplicas": 0
+     }
+    }
+   ],
+   "services": [
+    {
+     "apiVersion": "v1",
+     "kind": "Service",
+     "metadata": {
+      "annotations": {},
+      "creationTimestamp": "2026-09-27T10:21:21Z",
+      "name": "status-page",
+      "namespace": "status",
+      "uid": "c2cfec98-e655-42ba-8ed1-8a524b331932"
+     },
+     "spec": {
+      "clusterIP": "10.96.86.189",
+      "clusterIPs": [
+       "10.96.86.189"
+      ],
+      "internalTrafficPolicy": "Cluster",
+      "ipFamilies": [
+       "IPv4"
+      ],
+      "ipFamilyPolicy": "SingleStack",
+      "ports": [
+       {
+        "port": 80,
+        "protocol": "TCP",
+        "targetPort": 80
+       }
+      ],
+      "selector": {
+       "app": "status-page"
+      },
+      "sessionAffinity": "None",
+      "type": "ClusterIP"
+     },
+     "status": {
+      "loadBalancer": {}
+     }
+    }
+   ]
+  }
+ },
+ "recorded": {
+  "context": "kind-doctor-lab",
+  "kubernetes": "v1.36.4",
+  "scenario": "healthy",
+  "time": "2026-09-27T10:22:46Z"
+ },
+ "usage": {
+  "status": [
+   {
+    "cpu": "0m",
+    "memory": "3Mi",
+    "pod": "status-page-7c589b76d-5dndg"
+   }
+  ]
+ }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "job-failed",
+  "namespace": "exports",
+  "live_only": false,
+  "title": "Batch job fails and exhausts its retries",
+  "report": "Last night's export job did not produce a file.",
+  "category": "job_failed",
+  "allowed": [
+    "job_failed"
+  ],
+  "objects": [
+    {
+      "kind": "Job",
+      "name": "nightly-export"
+    }
+  ],
+  "evidence": [
+    "log"
+  ],
+  "must_call": [
+    "pod_logs"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "job_failed"
+}

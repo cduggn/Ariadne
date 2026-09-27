@@ -1,0 +1,29 @@
+{
+  "id": "pending-resources",
+  "namespace": "ml",
+  "live_only": false,
+  "title": "Pod cannot be scheduled: insufficient resources",
+  "report": "ml-trainer has been Pending for ten minutes.",
+  "category": "unschedulable_resources",
+  "allowed": [
+    "unschedulable_resources"
+  ],
+  "objects": [
+    {
+      "kind": "Deployment",
+      "name": "ml-trainer"
+    }
+  ],
+  "evidence": [
+    "event"
+  ],
+  "must_call": [
+    "list_problem_pods",
+    "get_events"
+  ],
+  "apply": [
+    "manifest.yaml"
+  ],
+  "cluster": "kind",
+  "settle": "event:FailedScheduling"
+}
