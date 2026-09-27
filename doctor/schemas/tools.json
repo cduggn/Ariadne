@@ -4,7 +4,6 @@
     "function": {
       "name": "list_problem_pods",
       "description": "Pods in a namespace that are not healthy (not Running/Ready, restarting, waiting, pending, evicted or stuck in init), each with a status ref, reason, restarts and owning workload.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -26,7 +25,6 @@
     "function": {
       "name": "get_events",
       "description": "Recent Kubernetes events in a namespace, warnings first, each with a ref. object_name filters by name prefix (a Deployment name also matches its ReplicaSets and pods); use \"any\" for all.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -59,7 +57,6 @@
     "function": {
       "name": "describe",
       "description": "Condensed spec and status of one object. pod: containers (ports, resources, probes, env names, mounts), init containers, volumes, DNS config, conditions. deployment/replicaset: replicas and rollout conditions. service: selector, ports and targetPorts, matching pods, ready endpoints. job, node, configmap (keys only), limitrange, resourcequota (hard vs used), networkpolicy, persistentvolumeclaim, ingress.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -104,7 +101,6 @@
     "function": {
       "name": "pod_logs",
       "description": "Last lines of one container of a pod, each line with a ref. container \"\" = the first app container; name an init container or sidecar explicitly. previous=true reads the instance that crashed before the current one (may be unavailable).",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -146,7 +142,6 @@
     "function": {
       "name": "list_resources",
       "description": "Names and one-line status of objects of one kind in a namespace (configmaps: keys only, never values; services: ports as port->targetPort).",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -184,7 +179,6 @@
     "function": {
       "name": "resource_usage",
       "description": "Current usage: preset \"pods\" = CPU/memory per container; vllm_* and gpu_* presets read inference-server and GPU metrics where the cluster has them.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -218,7 +212,6 @@
     "function": {
       "name": "inspect_certificate",
       "description": "Subject, issuer, validity (expired? days left), DNS names and CA flag of a PUBLIC certificate stored in a ConfigMap key (e.g. a CA bundle ca.crt or a published tls.crt). Secrets are never readable.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -250,7 +243,6 @@
     "function": {
       "name": "rightsizing",
       "description": "Per workload container: CPU/memory requests and limits against observed usage (p50/p95/max over the sampled window), share of samples at the CPU limit (throttling), idle request and an estimated monthly cost of it.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -272,7 +264,6 @@
     "function": {
       "name": "s3_bucket_stats",
       "description": "Object count and total bytes of the configured lab S3 bucket (read-only). Only for cost or storage questions.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -293,7 +284,6 @@
     "function": {
       "name": "cost_report",
       "description": "Cost data: aws_by_service_7d and aws_anomalies_30d from AWS Cost Explorer (about one day behind); cluster_by_namespace_24h from OpenCost (same day). Only for cost questions.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -318,7 +308,6 @@
     "function": {
       "name": "submit_diagnosis",
       "description": "Submit once. One finding per ROOT CAUSE: name the object to change, its category, the causal chain, the victims in `affects`, evidence refs copied from tool results, and a fix you do not apply. Do not file separate findings for victims. If nothing is wrong: status healthy, no findings. If it returns accepted:false, fix the listed problems and submit again.",
-      "strict": true,
       "parameters": {
         "type": "object",
         "additionalProperties": false,

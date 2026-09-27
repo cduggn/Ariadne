@@ -1,0 +1,39 @@
+{
+  "tag": "baseline",
+  "model": "Qwen/Qwen3-8B-AWQ",
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 1,
+  "repeat": 2,
+  "harness": true,
+  "wall_s": 156.1,
+  "timestamp": "20260927-220614",
+  "tasks": 2,
+  "passed": 0,
+  "pass_rate": 0.0,
+  "pass_rate_by_type": {
+    "investigate": 0.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.0
+  },
+  "stop_reasons": {
+    "step_cap": 2
+  },
+  "inconclusive": 0,
+  "http_refusals": {},
+  "top_failed_rules": [
+    [
+      "no-diagnosis",
+      2
+    ]
+  ],
+  "repairs": 0,
+  "tool_errors": 26,
+  "steps_per_task_mean": 16,
+  "prompt_tokens_last_step_p50": 14493,
+  "prompt_tokens_last_step_max": 14493,
+  "completion_tokens_per_step_p50": 768,
+  "cached_share_of_prompt": 0.948,
+  "step_latency_s_p50": 5.682,
+  "step_latency_s_p95": 6.156
+}

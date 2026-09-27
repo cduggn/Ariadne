@@ -93,15 +93,23 @@ def _add_headers(request: httpx.Request) -> None:
         request.headers[k] = v
 
 
-def build_llm(base_url: str, model: str, *, http_client: httpx.Client | None = None, temperature: float = 0.0):
+# Qwen3 non-thinking sampling as its model card recommends (greedy decoding causes endless repetition).
+SAMPLING = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0}
+
+
+def build_llm(base_url: str, model: str, *, http_client: httpx.Client | None = None, sampling: dict | None = None):
     """ChatOpenAI against any OpenAI-compatible endpoint (vLLM or the gateway), bound to tools.json verbatim.
+    tool_choice is "auto" (D-38): "required" made vLLM constrain decoding with a grammar that collapsed into
+    whitespace until max_tokens on Qwen3-8B-AWQ; a reply without a tool call is nudged by the act node instead.
     The API key comes only from VLLM_API_KEY. Retries are off: a gateway 429/503 must surface, not be hidden."""
+    s = {**SAMPLING, **(sampling or {})}
     client = http_client or httpx.Client(timeout=HTTP_TIMEOUT_S)
     client.event_hooks.setdefault("request", []).append(_add_headers)
     llm = ChatOpenAI(model=model, base_url=base_url, api_key=os.environ.get("VLLM_API_KEY") or "EMPTY",
-                     temperature=temperature, max_tokens=MAX_TOKENS_PER_STEP, max_retries=0, http_client=client,
-                     extra_body={"chat_template_kwargs": {"enable_thinking": False}})    # Qwen3 thinks by default
-    return llm.bind_tools(TOOLS, tool_choice="required", strict=True)
+                     temperature=s["temperature"], top_p=s["top_p"], max_tokens=MAX_TOKENS_PER_STEP, max_retries=0,
+                     http_client=client, extra_body={"chat_template_kwargs": {"enable_thinking": False},   # Qwen3 thinks by default
+                                                     "top_k": s["top_k"], "min_p": s["min_p"]})
+    return llm.bind_tools(TOOLS, tool_choice="auto")
 
 
 # ---- graph -----------------------------------------------------------------------------------

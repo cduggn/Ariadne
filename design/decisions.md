@@ -130,3 +130,29 @@ count needs one `kubectl logs` per running container per scan (~7 s for 24 names
 Prometheus on the node scrapes them only once the watcher runs in-cluster.
 **Revisit when:** running in-cluster (image + Deployment with the read-only ServiceAccount + scrape annotation),
 Alertmanager webhook as a trigger, notification sink (Slack), and the gateway's priority ordering is in place.
+
+### D-38 — tool_choice "auto" and Qwen3 sampling; "required" broke decoding on vLLM (2026-09-27, first GPU run)
+**Observed:** the first Lambda smoke test (`dx-crashloop`, twice) ended `step_cap` with no diagnosis. From step 4 on,
+every model call returned exactly `max_tokens` (768) with `finish_reason=length` in ~5.4 s: a tool call that starts
+correctly and then collapses into newlines and spaces. It repeats even at temperature 0.7, because the output is
+forced by a grammar, not sampled. Cause: `tool_choice="required"` makes vLLM constrain decoding to the tool-call
+schema; on vLLM 0.29 + hermes + Qwen3-8B-AWQ that constraint degenerates into whitespace. Five tasks per arm, same
+server (`metrics/golden-baseline-20260927-220614.*`, `metrics/golden-fix-check-*`):
+
+| Arm | Pass | Steps at the 768 cap | Time per task |
+|---|---|---|---|
+| required + strict, greedy (as shipped) | 0/5 | 54 | ~120 s |
+| required + strict, Qwen sampling (+ presence penalty 1.5) | 0/5 (1/5) | 26 (16) | ~40–140 s |
+| required, no strict, greedy | 0/5 | 54 | ~110 s |
+| auto, greedy | 1/5 | 0 | ~10 s |
+| auto, Qwen sampling (chosen) | 2/5, then 3/5 on the real code path | 0 | ~9 s |
+
+**Choice:** `tool_choice="auto"`; `strict` removed from `tools.json` (it was never enforced as a schema); Qwen3's
+recommended non-thinking sampling `temperature 0.7, top_p 0.8, top_k 20, min_p 0` (its model card warns that greedy
+decoding causes endless repetition). The act node already nudges a reply without a tool call; our validators, not a
+grammar, guard arguments and the diagnosis.
+**Side effects:** runs are no longer deterministic, so golden results need `REPEAT ≥ 2` and are reported as rates.
+The serving-side signature of this failure (completion tokens pinned at max_tokens, `finish_reason=length`, flat
+~5 s steps) is worth an alert and a slide: it looked like a slow model, but it was a decoding constraint.
+**Open:** `dx-crashloop` now answers `config_missing` (the app logs `FATAL: DATABASE_URL is not set`), which the answer
+key does not allow. That may be a labelling question, not a model error; left unchanged pending review.

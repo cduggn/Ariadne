@@ -5,7 +5,7 @@ another language without reading the history.
 
 | | |
 |---|---|
-| Last updated | 2026-09-27 (LangGraph agent: D-33; Lambda test plan: D-34; command line: D-36; autonomous mode: D-37) |
+| Last updated | 2026-09-27 (… autonomous mode: D-37; tool_choice auto + Qwen3 sampling after the first GPU run: D-38) |
 | Why things are the way they are | [`design/decisions.md`](design/decisions.md) |
 | Course mapping | [`design/course-objectives.md`](design/course-objectives.md) |
 | Capacity and measurements | [`design/capacity-qwen3-8b.md`](design/capacity-qwen3-8b.md) |
@@ -141,9 +141,10 @@ memory → MiB, percentiles as the sorted sample at index round(p × (n − 1)).
   `build_graph(checkpointer=…)` accepts a LangGraph checkpointer (durable runs, future approval interrupts).
 - **Tools:** `make_tools(backend)` builds one `StructuredTool` per `tools.json` entry (args_schema = its JSON schema,
   executes `tools.call`). The model is bound to the **raw `tools.json` dicts** — byte-identical on the wire (tested).
-- **Model:** `build_llm(base_url, model)` = `ChatOpenAI` (`temperature 0`, `max_tokens 768` → sent as
-  `max_completion_tokens`, `max_retries 0`, `extra_body.chat_template_kwargs.enable_thinking=false`) `.bind_tools(TOOLS,
-  tool_choice="required", strict=True)`; API key from `VLLM_API_KEY`. Per-step headers via an httpx request hook
+- **Model:** `build_llm(base_url, model, sampling=None)` = `ChatOpenAI` (`SAMPLING`: `temperature 0.7, top_p 0.8`, and in
+  `extra_body` `top_k 20, min_p 0` — Qwen3 non-thinking; `max_tokens 768` → sent as `max_completion_tokens`,
+  `max_retries 0`, `extra_body.chat_template_kwargs.enable_thinking=false`) `.bind_tools(TOOLS, tool_choice="auto")` —
+  never `"required"` (D-38: vLLM's constrained decoding collapsed into whitespace); no `strict`. API key from `VLLM_API_KEY`. Per-step headers via an httpx request hook
   (context variable): `X-Request-Id: <task>-<run8>-s<n>`, `X-Tenant` (default `platform`), `X-App: cluster-doctor`,
   `X-Priority: interactive` (investigate) | `batch` (audit, rightsize), `X-Data-Class: restricted`.
 - **Prompt order (INV-1):** `SystemMessage(triage.md)` → `HumanMessage(cluster card)` → `HumanMessage(task)` → tool turns.
@@ -316,4 +317,5 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-09-27 | Tiered catalogue (multi-hop, red-herring, right-sizing), causal chains, certificate inspection, new kinds, `--max-model-len 24576` | D-29 (amended), D-31, D-32 |
 | 2026-09-27 | Agent on LangGraph + LangChain tools; preflight, sweep, live-recording targets; GPU power panel; test plan; self-healing planned | D-33, D-34, D-35 |
 | 2026-09-27 | Command line (`python -m doctor`); progress hook on the agent; call records keep arguments | D-36 |
+| 2026-09-27 | First GPU run: `tool_choice` auto, Qwen3 sampling, `strict` removed (required → whitespace loops) | D-38 |
 | 2026-09-27 | Autonomous mode (`watch`): cheap scan → change filter → diagnose, schedules, JSON lines, /metrics; lab fault injector; prom/opencost targets | D-37 |

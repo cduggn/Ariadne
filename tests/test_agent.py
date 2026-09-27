@@ -29,7 +29,9 @@ def test_wire_format_tools_prompt_order_and_headers(tasks, refs):
     b1, h1 = s1.requests[0]["body"], s1.requests[0]["headers"]
     b2, h2 = s2.requests[0]["body"], s2.requests[0]["headers"]
     assert b1["tools"] == agent.TOOLS                                            # tools.json verbatim
-    assert b1["tool_choice"] == "required" and b1["temperature"] == 0 and b1["chat_template_kwargs"] == {"enable_thinking": False}
+    assert b1["tool_choice"] == "auto" and b1["chat_template_kwargs"] == {"enable_thinking": False}     # D-38: not "required"
+    assert (b1["temperature"], b1["top_p"], b1["top_k"], b1["min_p"]) == (0.7, 0.8, 20, 0.0)                  # Qwen3 non-thinking
+    assert all("strict" not in t["function"] for t in b1["tools"])
     roles = [m["role"] for m in b1["messages"]]
     assert roles == ["system", "user", "user"] and b1["messages"][0]["content"] == agent.RULESET
     assert b1["messages"][:2] == b2["messages"][:2]                              # ruleset + card identical → cacheable prefix
