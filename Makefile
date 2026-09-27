@@ -9,6 +9,10 @@
 #   make sweep [LEVELS="1 4 8 16 32"] REPEAT=2   golden set at each concurrency + a vLLM /metrics scrape per level
 #   make preflight                  everything that must be true before paying for a GPU
 #   make kubeconfig / k8s-tunnel / record-live ONLY=gpu-unavailable   live-only faults on the Lambda k3s cluster
+#   make watch [WATCH_ARGS=…]       the doctor, autonomous, against CTX (default lambda); /metrics on :9109
+#   make inject FAULTS=… [STAGGER=60] / heal   break the lab cluster on purpose / remove what inject created
+#   make faults                     list injectable faults by tier
+#   make prom / opencost            port-forward Prometheus (:9090) / the OpenCost API (:9003) from the Lambda node
 NAME   ?= cluster-doctor
 TAG    ?= baseline
 N      ?= 2
@@ -18,14 +22,19 @@ BASE   ?= http://127.0.0.1:$(PORT)/v1
 CONC   ?= 1
 LEVELS ?= 1 4 8 16 32
 REPEAT ?= 2
+CTX    ?= lambda
+FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
+STAGGER ?= 0
+WATCH_EXCLUDE ?= monitoring,opencost,doctor,default
 KCFG   := $(CURDIR)/.cache/lambda-kubeconfig
 STAMP  := $(shell date +%Y%m%d-%H%M%S)
 KUBECTL := $(CURDIR)/.bin/kubectl
 KIND    := $(CURDIR)/.bin/kind
 REMOTE  = lam ssh $(NAME) --
 RUFF    = uvx -q ruff@0.13.2
+KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 
-.PHONY: tools preflight sweep kubeconfig k8s-tunnel record-live test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 tools:
 	bash lab/get-tools.sh
@@ -132,3 +141,33 @@ k8s-tunnel:
 
 record-live:
 	KUBECONFIG=$(KCFG) uv run -q python -m lab.record --context lambda --live $(if $(ONLY),--only $(ONLY))
+
+watch:
+	@mkdir -p metrics
+	$(KENV) DOCTOR_KUBECTL=$(KUBECTL) uv run -q python -m doctor watch --context $(CTX) --base-url $(BASE) --model $(MODEL) \
+	  --exclude $(WATCH_EXCLUDE) --out metrics/watch-$(STAMP).jsonl $(WATCH_ARGS)
+
+watch-metrics:
+	@mkdir -p metrics
+	curl -sf http://127.0.0.1:9109/metrics | tee metrics/watch-$(STAMP).prom | grep -v '^#'
+
+inject:
+	$(KENV) uv run -q python -m lab.inject --context $(CTX) --faults $(FAULTS) --stagger $(STAGGER)
+
+heal:
+	$(KENV) uv run -q python -m lab.inject --context $(CTX) --clear
+
+prom:
+	@eval "$$(lam env $(NAME))" && echo "Prometheus: http://localhost:9090 (Ctrl-C to close)" && \
+	  ssh -i "$$LAMBDA_SSH_KEY" "$$LAMBDA" "fuser -k -n tcp 9090 >/dev/null 2>&1 ; true" && \
+	  ssh -tt -i "$$LAMBDA_SSH_KEY" -o ExitOnForwardFailure=yes -L 9090:127.0.0.1:9090 "$$LAMBDA" \
+	    kubectl -n monitoring port-forward svc/prometheus-server 9090:80
+
+opencost:
+	@eval "$$(lam env $(NAME))" && echo "OpenCost API: http://localhost:9003/allocation/compute?window=1d&aggregate=namespace (Ctrl-C to close)" && \
+	  ssh -i "$$LAMBDA_SSH_KEY" "$$LAMBDA" "fuser -k -n tcp 9003 >/dev/null 2>&1 ; true" && \
+	  ssh -tt -i "$$LAMBDA_SSH_KEY" -o ExitOnForwardFailure=yes -L 9003:127.0.0.1:9003 "$$LAMBDA" \
+	    kubectl -n opencost port-forward svc/opencost 9003:9003
+
+faults:
+	@uv run -q python -m lab.inject --list

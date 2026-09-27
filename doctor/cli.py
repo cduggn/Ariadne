@@ -4,6 +4,7 @@
     uv run python -m doctor audit -n orders,pricing,finance --context lambda
     uv run python -m doctor rightsize -n analytics
     uv run python -m doctor investigate -n orders --snapshot crashloop       # recorded fault, no cluster needed
+    uv run python -m doctor watch --context lambda                            # autonomous: detect, then diagnose (doctor/watch.py)
 
 Model: --base-url / DOCTOR_BASE_URL (default http://127.0.0.1:8000/v1, the `make tunnel` port) and
 --model / DOCTOR_MODEL; the API key comes only from VLLM_API_KEY. Live reads go through kubectl with
@@ -144,7 +145,8 @@ def exit_code(run: dict) -> int:
 
 def parse(argv: list[str] | None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(prog="python -m doctor", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=sorted(MODES), help="investigate a report, audit namespaces, or find over-provisioned workloads")
+    ap.add_argument("mode", choices=sorted(MODES), help="investigate a report, audit namespaces, or find over-provisioned "
+                    "workloads; `watch` (see `python -m doctor watch --help`) runs autonomously")
     ap.add_argument("report", nargs="?", help="what the user sees (optional; a default per mode is used)")
     ap.add_argument("-n", "--namespaces", required=True, help="comma-separated namespaces to examine")
     src = ap.add_mutually_exclusive_group()
@@ -161,7 +163,40 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     return ap.parse_intermixed_args(argv)            # the report may come after the options on every Python version
 
 
+class SourceError(Exception):
+    def __init__(self, code: int, msg: str):
+        super().__init__(msg)
+        self.code = code
+
+
+def open_source(context: str | None, snapshot: str | None, kubeconfig: str | None):
+    """(backend, namespaces available, cluster name for the card, description) for a live context or recorded
+    faults (comma-separated). Raises SourceError(EXIT_USAGE | EXIT_NO_DIAGNOSIS, message)."""
+    if snapshot:
+        root = (FIXTURES / "snapshots").resolve()
+        paths = [FIXTURES / "snapshots" / f"{x.strip()}.json" for x in snapshot.split(",") if x.strip()]
+        bad = [p.stem for p in paths if not p.is_file() or p.resolve().parent != root]
+        if bad or not paths:
+            names = ", ".join(sorted(p.stem for p in root.glob("*.json")))
+            raise SourceError(EXIT_USAGE, f"no recorded snapshot {', '.join(bad) or snapshot!r}; available: {names}")
+        backend = SnapshotBackend.load(FIXTURES / "cluster.json", *paths)
+        return backend, sorted(backend.dump["namespaces"]), "doctor-lab", f"snapshot {snapshot}"   # golden card → same cached prefix
+    if kubeconfig:
+        os.environ["KUBECONFIG"] = kubeconfig                                        # inherited by the kubectl subprocess
+    backend = KubectlBackend(context=context)
+    try:
+        available = backend.namespaces()
+    except (LookupError, OSError, subprocess.TimeoutExpired, ValueError) as e:
+        raise SourceError(EXIT_NO_DIAGNOSIS, f"cannot read the cluster: {e}. For Lambda: make kubeconfig k8s-tunnel, then "
+                                             "--kubeconfig .cache/lambda-kubeconfig --context lambda") from e
+    return backend, available, context or "live", f"context {context or 'live'}"
+
+
 def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["watch"]:                      # autonomous mode (D-37)
+        from .watch import main as watch_main
+        return watch_main(argv[1:], llm=llm, stdout=stdout, stderr=stderr)
     out, err = stdout or sys.stdout, stderr or sys.stderr
     try:
         a = parse(argv)
@@ -181,25 +216,10 @@ def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -
     if not namespaces:
         return fail(EXIT_USAGE, "give at least one namespace with -n")
 
-    if a.snapshot:
-        path = FIXTURES / "snapshots" / f"{a.snapshot}.json"
-        if not path.is_file() or path.resolve().parent != (FIXTURES / "snapshots").resolve():
-            names = ", ".join(sorted(p.stem for p in (FIXTURES / "snapshots").glob("*.json")))
-            return fail(EXIT_USAGE, f"no recorded snapshot {a.snapshot!r}; available: {names}")
-        backend = SnapshotBackend.load(FIXTURES / "cluster.json", path)
-        available, cluster = sorted(backend.dump["namespaces"]), "doctor-lab"     # same card as the golden runs → same cached prefix
-        where = f"snapshot {a.snapshot}"
-    else:
-        if a.kubeconfig:
-            os.environ["KUBECONFIG"] = a.kubeconfig                                  # inherited by the kubectl subprocess
-        backend = KubectlBackend(context=a.context)
-        try:
-            available = backend.namespaces()
-        except (LookupError, OSError, subprocess.TimeoutExpired, ValueError) as e:
-            return fail(EXIT_NO_DIAGNOSIS, f"cannot read the cluster: {e}. For Lambda: make kubeconfig k8s-tunnel, then "
-                                           "--kubeconfig .cache/lambda-kubeconfig --context lambda")
-        cluster = a.context or "live"
-        where = f"context {cluster}"
+    try:
+        backend, available, cluster, where = open_source(a.context, a.snapshot, a.kubeconfig)
+    except SourceError as e:
+        return fail(e.code, str(e))
     missing = [ns for ns in namespaces if ns not in available]
     if missing:                                   # kubectl returns an empty list for a typo — that must not read as "healthy"
         return fail(EXIT_USAGE, f"namespace not found: {', '.join(missing)}; available: {', '.join(available)}")

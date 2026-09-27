@@ -5,7 +5,7 @@ another language without reading the history.
 
 | | |
 |---|---|
-| Last updated | 2026-09-27 (LangGraph agent: D-33; Lambda test plan: D-34; command line: D-36) |
+| Last updated | 2026-09-27 (LangGraph agent: D-33; Lambda test plan: D-34; command line: D-36; autonomous mode: D-37) |
 | Why things are the way they are | [`design/decisions.md`](design/decisions.md) |
 | Course mapping | [`design/course-objectives.md`](design/course-objectives.md) |
 | Capacity and measurements | [`design/capacity-qwen3-8b.md`](design/capacity-qwen3-8b.md) |
@@ -206,6 +206,34 @@ fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `schema`, `co
 - Exit: 0 healthy · 1 issue · 2 no grounded diagnosis (inconclusive, step cap, context budget, http_*, transport, cluster
   unreadable) · 64 usage.
 
+### C19 — Autonomous mode ✅ (`doctor/watch.py`, `python -m doctor watch`, D-37)
+- **Scan** (no model, every `--interval` 60 s, all namespaces but kube-system/kube-public/kube-node-lease/local-path-storage
+  and `--exclude`, or `-n`): `scan_namespace(b, ns, event_window_s, logs)` → `{fingerprint: symptom}` with
+  fingerprint `ns|Kind/name`: problem pods by owner (`Kind/name: <Reason>, ready r/n, restarts k`); Deployments with
+  readyReplicas < replicas; Jobs with failed and not succeeded; Services with a selector and no ready endpoint
+  (`NoReadyEndpoints`); Warning events on non-Pod objects seen within `--event-window` 900 s; running pods whose last
+  30 lines per container hold ≥ 3 matches of the error regex (`LogErrors, n of the last 30…`; `--no-log-scan`).
+  Reasons pass only if they match `^(Init:|Restarted after )?[A-Z][A-Za-z]{1,39}$`, else `Other`.
+- **Plan:** per namespace, `prev = diagnosed[ns] ∩ current` (forget resolved); new = current − prev; if new and
+  (never run or cool-down `--cooldown` 900 s passed) → investigate task `{id: watch-<ns>, report: "Automated detection
+  in <ns>: <symptoms>. Find the root cause of each problem."}`; cooling → `doctor_skipped_total{reason=cooldown}`.
+  Scheduled: audit groups of 4 sorted namespaces every `--audit-every` 86,400 s; rightsize per namespace every
+  `--rightsize-every` 604,800 s; first run one interval after start; 0 disables.
+- **Run:** up to `--max-parallel` 4 tasks at once through `run_task`; after an investigation, `diagnosed[ns]` = its
+  fingerprints and the cool-down starts, unless the stop starts with `http_` or is `transport_error` (retry next scan,
+  `doctor_skipped_total{reason=retry}`).
+- **Emit:** JSON line `{time, mode, namespaces, trigger, status (issue|healthy|inconclusive|none), stop, diagnosis,
+  run_id, model_calls, tool_calls, repairs, wall_s, prompt_tokens, cached_tokens, completion_tokens}` to stdout and
+  `--out` (append); stderr log lines. Metrics at `--metrics-addr` (127.0.0.1:9109): `doctor_scans_total`,
+  `doctor_scan_errors_total{namespace}`, `doctor_scan_seconds`, `doctor_last_scan_timestamp_seconds`,
+  `doctor_watched_namespaces`, `doctor_open_problems{namespace}`, `doctor_detections_total{namespace}`,
+  `doctor_skipped_total{reason}`, `doctor_diagnoses_total{mode,status,stop}`, `doctor_findings_total{category}`,
+  `doctor_diagnosis_seconds{_sum,_count}{mode}`, `doctor_{prompt,cached,completion}_tokens_total{mode}`,
+  `doctor_model_calls_total{mode}`. `--once` runs one cycle.
+- **Lab injector** (`lab/inject.py`, `make inject FAULTS=… STAGGER=… / heal / faults`): applies faults (ids, `all`,
+  `all-<tier>`; live-only only when named) with TLS setup, leaves them running; `--clear` deletes only namespaces
+  labelled `doctor.lab/managed=true`.
+
 ### Planned ⬜
 | Id | Component | Summary |
 |---|---|---|
@@ -242,15 +270,16 @@ fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `schema`, `co
 | Lab | kind v0.33.0 · kubectl v1.37.1 · node v1.36.4 · metrics-server v0.9.0 · cryptography 50.0.1 (lab only) |
 | Tokens (measured) | prefix 3,787 · card 112 · unique per task median: easy 2,459, multi-hop 3,570, red herring 4,768, rightsize 5,200, audits 7.7k–11.2k · max context 15.1k |
 | KV (paper) | 144 KiB/token · ≈ 79,700 tokens per 20 GiB slice · 0.80 line ≈ 24 easy / 17 multi-hop / 6 audits |
-| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · 39 offline tests |
+| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · 47 offline tests |
 | Agent stack | langgraph 1.2.12 · langchain-core 1.6.5 · langchain-openai 1.6.6 (locked in `uv.lock`); dev pytest 9.1.1 |
 
 ## 5. How to verify
 ```
 make tools                 # pinned kind + kubectl into .bin/
 uv sync                    # pinned agent stack (LangGraph, LangChain) from uv.lock
-make preflight             # lint + 39 tests + golden references committed + lam API key — before paying for a GPU
-make lint test             # ruff + 39 offline tests over recorded snapshots
+make preflight             # lint + 47 tests + golden references committed + lam API key — before paying for a GPU
+make lint test             # ruff + 47 offline tests over recorded snapshots
+uv run python -m doctor watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # autonomous mode, one cycle
 uv run python -m doctor investigate -n orders --snapshot crashloop   # needs a model at DOCTOR_BASE_URL
 make golden-build          # rebuild the golden set; fails if any reference diagnosis fails its checker
 make lab-up lab-record     # re-record fixtures on kind (~25 min, batches of 4), then make golden-build
@@ -287,3 +316,4 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-09-27 | Tiered catalogue (multi-hop, red-herring, right-sizing), causal chains, certificate inspection, new kinds, `--max-model-len 24576` | D-29 (amended), D-31, D-32 |
 | 2026-09-27 | Agent on LangGraph + LangChain tools; preflight, sweep, live-recording targets; GPU power panel; test plan; self-healing planned | D-33, D-34, D-35 |
 | 2026-09-27 | Command line (`python -m doctor`); progress hook on the agent; call records keep arguments | D-36 |
+| 2026-09-27 | Autonomous mode (`watch`): cheap scan → change filter → diagnose, schedules, JSON lines, /metrics; lab fault injector; prom/opencost targets | D-37 |

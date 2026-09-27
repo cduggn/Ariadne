@@ -1,66 +1,88 @@
 # cluster-doctor
 
-A read-only Kubernetes **cluster doctor**: tell it what looks wrong in a namespace, ask it to audit
-several, or ask where resources are wasted. A tool-using agent gathers evidence (pod status, events,
-specs, logs, certificates, policies, usage, cost), follows the causal chain from the symptom to the object
-that actually needs changing — the 502 on the frontend that is really an expired certificate upstream, the
-crash-looping API that is really an OOM-killed database — and returns one grounded finding per root cause,
-naming the victims, citing the exact tool results, and suggesting a fix it never applies. Inference is self-hosted (vLLM on a sliced A100 behind a Go gateway), so cluster data
-never leaves your infrastructure.
+An autonomous, read-only **root-cause detector for Kubernetes**. It watches a cluster continuously. A cheap
+scan with no model call looks at pod and controller status, Services without endpoints, warning events and
+error counts in logs. When something changes, a tool-using agent investigates it. The agent follows the
+causal chain from the symptom to the object that actually has to change: the frontend's 502 turns out to
+be an expired certificate upstream, and the crash-looping API turns out to be an OOM-killed database. It
+reports one grounded finding per root cause, naming the victims and citing the tool results. It suggests
+fixes but never applies them. Scheduled audits and right-sizing catch what never fails loudly. Inference is
+self-hosted (vLLM on a sliced A100, with a gateway to come), so cluster data never leaves your
+infrastructure.
+
+```
+ every 60 s   scan (no model)  ──new or changed symptom──►  investigate (agent, interactive)  ──►  JSON line + /metrics
+ nightly      audit (batch, 4 namespaces per task)                                             ──►  JSON line + /metrics
+ weekly       right-sizing (batch)                                                              ──►  JSON line + /metrics
+```
 
 Final project for *AI Inference Engineering & Systems Design* (Track B), and the seed of a product.
-Start with [`SPEC.md`](SPEC.md); decisions in [`design/decisions.md`](design/decisions.md); how it
-answers the brief in [`design/course-objectives.md`](design/course-objectives.md).
+Start with [`SPEC.md`](SPEC.md). Decisions are in [`design/decisions.md`](design/decisions.md), and how
+the project answers the brief is in [`design/course-objectives.md`](design/course-objectives.md).
 
-## Quick start (offline, no GPU)
+## Run it autonomously
 ```
-make tools          # pinned kind + kubectl into .bin/ (checksums verified)
-uv sync             # pinned agent stack: LangGraph + LangChain (uv.lock)
-make lint test      # 39 tests over recorded fault snapshots
-make golden-build   # 26 golden tasks (easy, multi-hop, red-herring, right-sizing); every reference must pass
+uv run python -m doctor watch --context <ctx>              # scan every 60 s, diagnose what changed, /metrics on :9109
+uv run python -m doctor watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # recorded faults, one cycle
 ```
+What it does:
+- **Filter.** Each symptom is fingerprinted as `namespace|Kind/name`. A namespace is diagnosed only when
+  a fingerprint is new since its last diagnosis. Each namespace has a 15-minute cool-down, and a relapse
+  after recovery triggers again.
+- **Retries.** A gateway refusal (429/503) or an unreachable model is retried on the next scan.
+- **Coverage.** The scan detects 21 of the 23 recorded faults and stays quiet on the healthy namespace.
+  Over-provisioning is left to the schedule.
+- **Safety.** Only CamelCase status reasons and counts reach the prompt, never free text from the cluster.
+- **Output.** One JSON line per diagnosis goes to stdout and `--out`. Prometheus metrics include
+  `doctor_detections_total`, `doctor_diagnoses_total{mode,status,stop}`, `doctor_findings_total{category}`,
+  diagnosis seconds, and prompt/cached/completion tokens.
 
-## Record the fault lab yourself
+## Ask it directly
 ```
-make lab-up         # kind cluster (Kubernetes v1.36.4) + metrics-server
-make lab-record     # inject 23 faults in batches, wait until each settles, record redacted snapshots (~25 min)
-make lab-down
-```
-
-## Run against a model
-```
-make preflight                  # before paying for a GPU
-make up && make deploy          # Lambda A100 via the `lam` CLI — billed from launch (plan: design/lambda-test-plan.md)
-make tunnel                     # terminal 2: localhost:8000 → vllm-0
-make golden TAG=baseline        # results per tier; or BASE=<gateway url>
-make sweep                      # concurrency 1/4/8/16/32 with a vLLM /metrics scrape per level
-make down
-```
-
-## Diagnose a cluster
-```
-uv run python -m doctor investigate -n inventory "stock-api keeps restarting"     # current kube context
+uv run python -m doctor investigate -n inventory "stock-api keeps restarting"
 uv run python -m doctor audit -n orders,pricing,finance --context lambda
 uv run python -m doctor rightsize -n analytics --json --out run.json
-uv run python -m doctor investigate -n orders --snapshot crashloop                # a recorded fault, no cluster
 ```
-Needs a model at `DOCTOR_BASE_URL` (default `http://127.0.0.1:8000/v1`, i.e. `make tunnel`). Reads only
-(kubectl get/logs/top/version); every fix is a suggestion. Exit 0 healthy · 1 issue · 2 no grounded diagnosis.
-For the Lambda k3s cluster: `make kubeconfig k8s-tunnel`, then `--kubeconfig .cache/lambda-kubeconfig --context lambda`.
+Exit codes are 0 healthy, 1 issue, 2 no grounded diagnosis. The model is at `DOCTOR_BASE_URL` (default
+`http://127.0.0.1:8000/v1`).
+
+## Offline (no GPU)
+```
+make tools && uv sync          # pinned kind + kubectl; pinned LangGraph/LangChain (uv.lock)
+make lint test                 # 47 tests over recorded fault snapshots
+make golden-build              # 26 golden tasks (easy, multi-hop, red-herring, right-sizing); references must pass
+make lab-up lab-record lab-down   # re-record the fault lab on kind (~25 min)
+```
+
+## On the Lambda GPU
+The full test plan is in [`design/lambda-test-plan.md`](design/lambda-test-plan.md). The node is billed
+from `make up` to `make down`.
+```
+make preflight && make up && make deploy && make kv
+make tunnel             # terminal 2: model at localhost:8000
+make kubeconfig && make k8s-tunnel     # terminal 3: k3s API at localhost:6443
+make watch              # terminal 4: the doctor, autonomous
+make inject FAULTS=crashloop,cascade-db,port-mismatch,tls-truststore STAGGER=60   # break things, watch it find them
+make golden TAG=baseline && make sweep && make metrics
+make heal && make down
+```
 
 ## Layout
 | Path | What |
 |---|---|
-| `doctor/` | backends (snapshot, kubectl), read-only tools with evidence refs, redaction, certificates, cluster card, LangGraph agent over LangChain tools, validation, schemas, triage ruleset |
+| `doctor/` | watcher; agent (LangGraph over LangChain tools); read-only tools with evidence refs; backends (kubectl, snapshots); validation; redaction; certificates; CLI |
 | `faults/` | 27 injected faults in tiers (easy, multi-hop, red-herring, right-sizing, live-only) with answer keys |
-| `lab/` | kind config, pinned tool fetcher, snapshot recorder |
+| `lab/` | kind config, pinned tool fetcher, snapshot recorder, fault injector |
 | `fixtures/` | recorded, redacted cluster snapshots |
-| `evals/` | golden-set builder with reference solver, checker, runner |
+| `evals/` | golden-set builder with reference solver, checker, runner (also the load generator) |
 | `deploy/` | Lambda bootstrap (k3s, HAMi, Prometheus, Grafana, DCGM, OpenCost), vLLM manifest, doctor RBAC, AWS lab scripts |
-| `design/` | decisions, architecture, capacity, course mapping |
+| `design/` | decisions, architecture, capacity, test plan, course mapping |
 
 ## Safety
-Read-only by construction (kubectl verbs `get|logs|top|version`; RBAC without Secrets or writes).
-Secrets are redacted before anything is stored or shown to a model. Log lines that try to instruct the
-model are flagged, not obeyed. A diagnosis that cites evidence the tools never returned is rejected;
-after two repairs the answer is `inconclusive`, never a guess.
+- **Read-only.** The doctor is read-only by construction: the only kubectl verbs it uses are
+  `get|logs|top|version`, and its RBAC has no Secrets and no writes. Only `lab/` writes, and only to lab
+  clusters.
+- **Secrets.** Secrets are redacted before anything is stored or shown to a model.
+- **Prompt injection.** Log lines that try to instruct the model are flagged, not obeyed.
+- **Grounding.** A diagnosis that cites evidence the tools never returned is rejected. After two repairs
+  the answer is `inconclusive`, never a guess.

@@ -4,7 +4,7 @@ Read [`SPEC.md`](SPEC.md) first — it is the source of truth. Why each choice w
 [`design/decisions.md`](design/decisions.md). Numbers: [`design/capacity-qwen3-8b.md`](design/capacity-qwen3-8b.md).
 
 ## Commands
-- `uv sync` once; `make lint test` — must pass before any commit; `make preflight` before any GPU session. The CLI (`python -m doctor`) is the product surface; keep its exit codes stable (D-36). `make golden-build` after changing tools, schemas, faults, fixtures or the checker.
+- `uv sync` once; `make lint test` — must pass before any commit; `make preflight` before any GPU session. The product surface is `python -m doctor watch` (autonomous, D-37) plus the one-shot CLI (D-36); keep exit codes, JSON-line fields and metric names stable. Only CamelCase reasons and counts may enter a report built from cluster data. `make golden-build` after changing tools, schemas, faults, fixtures or the checker.
 - `make lab-up lab-record` re-records fixtures on the local kind cluster only.
 - GPU work goes through the Makefile and the `lam` CLI. Launching costs money: never run `make up` without the user's say-so; always end with `make down`.
 - AWS scripts in `deploy/aws/` are dry runs unless `APPLY=1`; never apply without the user's say-so.

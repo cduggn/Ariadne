@@ -18,7 +18,7 @@ Status: ✅ built and tested offline · 🟡 built, needs the GPU or the gateway
 | 5 Queue (notebook with scrapes) | who waits where; preemption; chunked prefill flags; abort on disconnect | Gateway queue with deadlines; vLLM flags inherited | notebook | ⬜ |
 | 6 Hop and warm | record a hop or prove warm-up and re-quote TTFT | Warm-up proof on vllm-1 (hop store optional per office hours) | notebook | ⬜ |
 | 7 Wire the app | smoke the engine first | `make up/deploy`, `make golden ONLY=dx-crashloop` | Makefile | 🟡 |
-| 8 Proof under app traffic | real app traffic, mixes | `evals.run_golden --concurrency N --repeat M`: interactive + batch mix | metrics/, plots | 🟡 |
+| 8 Proof under app traffic | real app traffic, mixes | the doctor itself makes the traffic: `make watch` + `make inject` (incident storms of interactive investigations, scheduled batch audits), and `evals.run_golden --concurrency N --repeat M` for the controlled sweep (D-37) | metrics/, plots | 🟡 |
 
 ## The presentation questions (brief) → where the answer comes from
 

@@ -108,3 +108,25 @@ app UI; a CLI is scriptable (cron audits, CI gates by exit code) and adds no ser
 gained an `on_update(node, update)` hook (graph `stream` instead of `invoke`, same final record) and tool-call
 records now keep their arguments and a rejected submission's validation errors.
 **Revisit when:** there is time after the presentation — a localhost-only page that streams the same hook.
+
+### D-37 — Autonomous mode: detect cheaply, diagnose what changed (2026-09-27)
+**Choice:** `python -m doctor watch` runs a loop. Every 60 s it scans without a model: problem pods (fingerprinted
+by owner), Deployments short of ready replicas, failed Jobs, Services with no ready endpoints, recent Warning events
+on non-Pod objects, and running pods with ≥ 3 error-looking lines in their last 30 log lines (a count only). A
+namespace is investigated (interactive) when it has a fingerprint (`namespace|Kind/name`) that was not present at
+its last diagnosis and its 15-minute cool-down has passed. Resolved fingerprints are forgotten, so a relapse
+triggers again; a gateway refusal or transport error is retried on the next scan. Audits (4 namespaces per task,
+nightly) and right-sizing (per namespace, weekly) run on a schedule as batch. Output: one JSON line per diagnosis,
+and Prometheus text on `:9109` (stdlib server, no dependency). `lab/inject.py` applies faults to a lab cluster (only
+namespaces it labels `doctor.lab/managed=true` are ever deleted) to simulate incidents, storms and relapses.
+**Because:** the product is autonomous root-cause detection, not a chat box. A cheap scan gates the expensive
+model, so GPU time and KV are spent only on change. It also produces realistic app-shaped traffic for the brief
+(Part 8): bursts of interactive investigations when many things break at once, and batch audits in the background.
+**Side effects checked:** the scan detects 21 of 23 recorded faults and is quiet on the healthy namespace; the
+remaining one is over-provisioning, which the schedule covers. Only CamelCase status reasons and counts reach the
+report (a user turn), never free text from the cluster; tool results remain the only path for cluster text. The log
+count needs one `kubectl logs` per running container per scan (~7 s for 24 namespaces on kind); at larger scale use
+`get -A` and a log pipeline or Alertmanager as the trigger. The watcher's metrics are local to wherever it runs;
+Prometheus on the node scrapes them only once the watcher runs in-cluster.
+**Revisit when:** running in-cluster (image + Deployment with the read-only ServiceAccount + scrape annotation),
+Alertmanager webhook as a trigger, notification sink (Slack), and the gateway's priority ordering is in place.
