@@ -1,0 +1,168 @@
+# Gateway design (C11), synthesized 2026-09-28
+
+Status: proposed, awaiting sign-off. It comes from three competing sketches and a cross-judge. The sketches are in
+the session scratchpad (`arena-gateway/candidate-{1,2,3}`). Candidate 2 is the base. Candidates 1 and 3 each
+contributed several ideas.
+
+## Problem
+
+cluster-doctor makes 5 to 16 chained, non-streaming chat completions per run. Each call extends a prompt whose
+history is cached only on the worker that served the previous step. That caching was worth 95% of prompt tokens
+on one worker. The gateway has to do five things:
+- make the four ordered decisions (guard, admit, place, queue);
+- keep `X-Data-Class: restricted` on the box by construction;
+- keep vllm-1 unroutable until it is warm;
+- export class-10 `orch_*` metrics, which the dashboards and the presentation depend on;
+- forward the body byte for byte.
+
+The client never retries and understands only 429 (tenant) and 503 (capacity). The simulator adds three lessons.
+Excluding a stale worker from a 2-worker fleet did more harm than the staleness itself. Priority queueing cut
+interactive p99 TTFT 46× against FCFS. Admission and dispatch must not double-book capacity.
+
+## Usage
+
+Code lives in `~/workspace/cluster-doctor/gateway/`, a Go module with its own `go.mod` on go1.27. It uses
+`prometheus/client_golang`, plus the roughly 90-line expfmt parser copied from `inference-gateway`. The old
+`inference-gateway` repo stays as the course-lab reference and is not edited.
+
+```sh
+make gateway            # static linux build, pushed to /opt/gateway on the node, applied as deploy/k8s/gateway.yaml
+make scale N=2          # vllm-1 appears; orch_replica_warm{pod="vllm-1"} stays 0 until two warm probes pass
+make tunnel             # TUNNEL ?= svc/gateway, so localhost:8000 reaches the gateway; TUNNEL=pod/vllm-0 is the old direct path
+make golden TAG=gw WORKERS=2 CONC=8
+make sweep WORKERS=2    # also saves the gateway's /metrics and both pods' /metrics (through /debug/workers/<pod>/metrics)
+make gateway POLICY=least_loaded   # control arm for the stickiness A/B
+make demo               # laptop only: two fake vLLM processes, the gateway and run_golden; proves the pipeline without a GPU
+```
+
+The doctor doesn't change. It keeps `--base-url http://127.0.0.1:8000/v1`. The gateway runs in the cluster as a
+one-replica Deployment with a ClusterIP Service on port 8000, and its binary is mounted from hostPath into a pinned
+distroless image, the same way the weights are delivered, so no registry is needed. Its `prometheus.io/scrape`
+annotations let the existing Prometheus job scrape it. We rejected running it on the laptop. The scraper would then
+reach the pods over SSH, which makes the 2-second staleness line meaningless, and Prometheus couldn't scrape it.
+
+The handler makes three calls:
+
+```go
+g := decide.Inspect(body, header, now)          // 400, or a typed Request
+d, tk := gate.Admit(ctx, g.Req)                  // decide, reserve and queue under one lock
+res := forward(tk.Worker, body); tk.Release(res)  // bytes unchanged; the usage anchors the run's next step
+```
+
+## Shape
+
+**Data structures.**
+- `decide.Request` holds the parsed run id and step (from `X-Request-Id`), tenant, priority, data class, a
+  prompt-token estimate and the maximum output tokens. The enums are total: an unknown priority parses as batch and
+  an unknown data class as restricted.
+- `decide.Snapshot` is a by-value merge of two single-writer sources. `Scraped` is written by one goroutine per
+  worker. `Ledger` holds the gateway's reservations, written only under the Gate lock, and records which requests
+  were dispatched after each worker's last scrape. The effective free KV is the scraped free KV minus those
+  requests' estimates, so a burst between two scrapes can't pile onto one pod.
+- The run table maps a `RunID` to its worker, a boot counter and the last `usage.prompt_tokens`. It is the prefix
+  index, so there is no tokenizer and no trie. Warm-up primes the shared prefix on every worker, which means the run
+  id alone names the only prefix that differs between workers.
+
+**Pipeline.** Everything is in `decide`, which is pure. The clock and randomness are passed in, and an import test
+forbids `net`, `sync` and `os`.
+1. `Inspect` validates JSON and size. `stream:true` returns 400, because the doctor never streams.
+2. `Pick` keeps Ready workers only and applies the staleness rule below. It then calls `ShouldShed` on each
+   candidate, as the simulator's H4 check does, so routing and admission can't disagree. The gates run in order:
+   `tenant_tokens` (429), `no_eligible_pod`, `kv_free`, `timeout_queue`, `p99_spread` (batch only).
+   - `kv_free` sheds when effective free KV falls below 0.20, the 0.80 line. A run continuing on its own worker is
+     exempt down to 0.05, because its history is already resident.
+   - When candidates refuse for different reasons, the lowest gate wins, so a 429 always outranks a 503.
+   - The policy is `prefix_then_load`: keep the bound worker if its boot counter matches and its load is within the
+     best other worker's plus 4, otherwise pick the least loaded. `least_loaded` and `p2c` exist for the A/B test
+     and for label parity. At 2 workers `p2c` is the same as `least_loaded`.
+3. Stay or leave. Only a 503 reaches the overflow decision. `MayLeave` returns an `Offboxable` only for
+   non-restricted requests. It has unexported fields, and `forwardOverflow` calls `Valid()`, so a zero value
+   refuses too. A fuzz test asserts that no restricted input ever produces an overflow route. The shipped overflow
+   backend is null. Every saturated restricted 503 increments `orch_overflow_total{result="blocked_invariant"}`,
+   and `orch_restricted_offbox_total` is pre-registered at 0 and stays there.
+4. Queue. This is the only step that waits, and it lives in `fleet.Gate`. Each worker has an in-flight cap,
+   `--max-inflight`, default 16 (the sweep also runs a 32 arm). Past the cap, requests wait in two lanes, and
+   interactive drains first. The queue budgets are 10 s for interactive and 30 s for batch, under the client's
+   120 s timeout. A request that has been queued is never re-picked. An interactive arrival at a full queue
+   displaces the newest batch waiter (`queue_full`), so batch sheds first by construction.
+
+**Staleness per worker.** Each worker ages independently.
+- A stale worker (2 to 10 s since its last scrape) stays eligible while the fresh workers left would hold under
+  0.75 of Ready capacity. It is then picked on its last-known telemetry and counted on
+  `orch_pick_unknown_snapshot_total{pod}`. On a 2-worker fleet a stale worker is therefore never dropped. On 8 workers
+  up to two can be dropped. This is the "floor on surviving capacity" from the simulator report.
+- A worker with no scrape for 10 s is Down and always excluded. If every worker is Down, requests get a 503, because
+  the warm-up requirement forbids routing to a pod we can't see.
+
+**Warm-up gate.** Each worker moves through Down, Warming and Ready, and only Ready workers can be picked. On every
+Down-to-Up transition, the worker's own goroutine replays the doctor's recorded step-1 request with
+`max_completion_tokens: 1`. Two consecutive probes must come back under 1 s; a cold probe takes about 4.5 s. Probe
+times go to `orch_warmup_probe_seconds{pod}`, which is the re-quoted TTFT the brief asks for. A restart is detected
+as a Down period followed by recovery, not by `process_start_time_seconds`, which vLLM may not export. A restart
+also drops that worker's run bindings. `python -m doctor.warmup` writes the recorded body, so the warm-up prefix is
+byte-identical to live traffic.
+
+**Quota.** A fixed tenant set. Unknown tenants share one bucket, so a client can't mint fresh bursts by rotating
+`X-Tenant`. The burst is at least 32k tokens, the largest context plus output. The quota is charged at admit and
+corrected to the real usage afterwards. A refused request is never charged.
+
+**Metrics.** These use the class-10 `orch_*` names:
+- `requests`, `shed{reason,code}`, `pick{pod,policy}`, `pick_unknown_snapshot`, `sticky{outcome,reason}`;
+- `tokens_in_flight{phase=queued|running}`, `kv_free_ratio`, `overflow{result}`, `restricted_offbox`;
+- `completed{pod,status,finish_reason}`, `request_duration_seconds{stage=gateway|pick|queue|local|overflow|e2e}`;
+- `replica_{healthy,warm,saturating,kv_free_ratio,tokens_in_flight,waiting,running,queue_depth,active_requests,snapshot_age_seconds}{pool,pod}`,
+  computed at scrape time from the gate's own view;
+- `prompt_tokens_total{pod,kind=shared_hit|run_hit|miss}`, split from each response's `cached_tokens` with a
+  configured shared-prefix length (3,899: prefix plus cluster card).
+
+For per-hop time, each response carries `Server-Timing`, `X-Pod`, `X-Sticky` and `X-Gateway-Queue-Ms` headers, and
+the gateway writes one JSON log line per request keyed by `X-Request-Id`. vLLM logs the same id. Finally, a test
+checks that every metric name used in `deploy/observability/dashboards/gateway.json` is one the gateway emits.
+
+## Synthesis decision
+
+Candidate 2 (a new minimal gateway with a pure decision core) is the base. The judge scored it 28, against 22 for
+candidate 1 (evolve `inference-gateway`) and 15 for candidate 3 (thinnest proxy).
+- **Why candidate 2.** It is the only one that closes the admit/dispatch double-booking gap. It encodes the most
+  invariants structurally: an import-purity test, total enums, and a proof value plus a fuzz test for the overflow
+  rule. It has a three-call handler with no deletion work to do first.
+- **Taken from candidate 1:**
+  - the capacity-floor staleness rule, which also fixes a fail-open branch in candidate 2 that could never run;
+  - the integration scenarios (replaying the simulator's T3 stale-worker case, a rolling restart with re-warm,
+    sha256 byte identity on recorded golden bodies);
+  - `make demo`, `orch_restricted_offbox_total`, and the per-request response headers.
+- **Taken from candidate 3:**
+  - a fixed tenant set with a shared bucket for unknown tenants;
+  - returning 400 on streaming, which removes the SSE relay;
+  - `client_golang` for the metrics;
+  - the `blocked_invariant` label wording.
+- **Rejected:**
+  - Candidate 1's interface-based proof. Go allows embedding the interface, so another package could forge it.
+  - Candidate 1 deriving the shared-prefix length from warm-up. The warm-up request also contains the card and the
+    task, so the length would be too long.
+  - Candidate 3's lack of a gateway queue, which breaks the priority MUST.
+  - Candidate 3's hash placement. A run that spills to the other worker flips back and re-prefills its history.
+  - Candidate 3's permanent Down state, with no way back to Ready.
+  - Detecting restarts through `process_start_time_seconds`, which is version-sensitive.
+
+## Tradeoffs accepted
+
+- We accept a tokenizer-free estimate of the prompt size: bytes ÷ 3.5 on a run's first step, then the previous step's
+  real usage. In exchange there is no tokenizer. Errors only shift margins, and the scraped KV corrects them.
+- We accept one mutex around deciding and reserving, in exchange for no double-booking. At 32 concurrent requests it
+  is not contended.
+- We accept an in-flight cap of 16, below `max-num-seqs` 32, so that priority ordering happens at the gateway. The
+  32 arm shows what that costs.
+- We accept a static two-worker list, in exchange for no discovery code. The sliced topology can't exceed two anyway.
+- We accept no upstream retry and no re-pick. A pod that dies mid-request shows up as a 502.
+
+## Open questions
+
+- Tenant rates: `platform` 200k tokens/min with a 32k burst, other tenants shared at a lower rate. Does that make the
+  429 path demonstrable without firing during a sweep?
+- Does `lam push` handle a single binary? If not, `scp` through `lam env` works.
+
+## Next step
+
+Put the `decide` package and its table tests (the T3 case and the restricted fuzz test first) into
+`gateway/internal/decide`, from the candidate 2 sketch plus the grafts above.
