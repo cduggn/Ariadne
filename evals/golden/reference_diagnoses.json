@@ -7,7 +7,7 @@
     "namespace": "inventory",
     "kind": "Deployment",
     "name": "stock-db",
-    "root_cause": "the container is killed for exceeding its memory limit",
+    "root_cause": "stock-db is OOM-killed at its 24Mi memory limit, so stock-api cannot connect and crash-loops",
     "affects": [
      {
       "kind": "Deployment",
@@ -20,7 +20,7 @@
      "ds-deployment-stock-db",
      "ev-637214"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "raise the stock-db memory limit",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -62,12 +62,12 @@
     "namespace": "orders",
     "kind": "Deployment",
     "name": "orders-api",
-    "root_cause": "the container exits at start-up with an application error (see log)",
+    "root_cause": "orders-api exits at start-up with 'FATAL: DATABASE_URL is not set', so its pod crash-loops",
     "affects": [],
     "evidence": [
      "lg-orders-api-54b7775f96-6wmnn-orders-api-c2"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "set DATABASE_URL in the orders-api Deployment's environment",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -85,13 +85,13 @@
     "namespace": "notifications",
     "kind": "Deployment",
     "name": "mailer",
-    "root_cause": "the pod's DNS config points at a nameserver that does not answer",
+    "root_cause": "mailer's dnsConfig points at nameserver 10.96.0.99, which does not answer, so smtp-relay does not resolve",
     "affects": [],
     "evidence": [
      "lg-mailer-6878b79994-qj99g-mailer-c1",
      "ds-deployment-mailer"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "remove mailer's custom dnsConfig and use dnsPolicy ClusterFirst",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -210,7 +210,7 @@
     "namespace": "finance",
     "kind": "LimitRange",
     "name": "defaults",
-    "root_cause": "a namespace policy (LimitRange or ResourceQuota) constrains the workload",
+    "root_cause": "LimitRange defaults injects a 32Mi default memory limit into statement-builder, which is then OOM-killed",
     "affects": [
      {
       "kind": "Deployment",
@@ -222,7 +222,7 @@
      "ds-limitrange-defaults",
      "rs-limitrange-defaults"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "raise the LimitRange default memory limit, or give statement-builder an explicit limit",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -281,13 +281,13 @@
     "namespace": "checkout",
     "kind": "Service",
     "name": "checkout",
-    "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "root_cause": "Service checkout selects app=checkout-v2 but its pods are labelled app=checkout, so it has no endpoints",
     "affects": [],
     "evidence": [
      "ds-service-checkout",
      "rs-service-checkout"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "change the checkout Service selector to app: checkout",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -305,13 +305,13 @@
     "namespace": "reports",
     "kind": "Deployment",
     "name": "report-worker",
-    "root_cause": "the container is killed for exceeding its memory limit",
+    "root_cause": "report-worker is OOM-killed: it uses more memory than its 32Mi limit",
     "affects": [],
     "evidence": [
      "st-report-worker-677cff484b-hxr8r",
      "ds-deployment-report-worker"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "raise the report-worker memory limit (and request) above its working set",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -375,13 +375,13 @@
     "namespace": "pricing",
     "kind": "Service",
     "name": "pricing-api",
-    "root_cause": "the service targetPort does not match the port the container listens on",
+    "root_cause": "Service pricing-api sends port 80 to targetPort 8080, but the nginx container listens on port 80, so connections are refused",
     "affects": [],
     "evidence": [
      "ds-service-pricing-api",
      "rs-service-pricing-api"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "set the pricing-api Service targetPort to 80",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -399,13 +399,13 @@
     "namespace": "web",
     "kind": "Deployment",
     "name": "web",
-    "root_cause": "the readiness probe fails, so the pod never becomes ready",
+    "root_cause": "web's readiness probe checks port 8081 but nginx listens on 80, so the pod never becomes ready",
     "affects": [],
     "evidence": [
      "ev-12bbd1",
      "ds-deployment-web"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "point the web readiness probe at port 80",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -423,7 +423,7 @@
     "namespace": "batch",
     "kind": "ResourceQuota",
     "name": "team-quota",
-    "root_cause": "a namespace policy (LimitRange or ResourceQuota) constrains the workload",
+    "root_cause": "ResourceQuota team-quota is used up, so the renderer ReplicaSet cannot create replicas 3-5",
     "affects": [
      {
       "kind": "Deployment",
@@ -436,7 +436,7 @@
      "ds-resourcequota-team-quota",
      "rs-resourcequota-team-quota"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "raise team-quota or lower renderer's requests",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -525,7 +525,7 @@
     "namespace": "identity",
     "kind": "Deployment",
     "name": "auth-api",
-    "root_cause": "the upstream serving certificate has expired; callers fail verification",
+    "root_cause": "the upstream serving certificate has expired, so auth-api fails TLS verification",
     "affects": [
      {
       "kind": "Deployment",
@@ -537,7 +537,7 @@
      "ct-auth-api-cert-tls.crt",
      "lg-session-svc-58477fd99d-lp825-session-svc-c45"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "renew the expired serving certificate",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -555,14 +555,14 @@
     "namespace": "payments",
     "kind": "Deployment",
     "name": "checkout-web",
-    "root_cause": "the client trusts the wrong CA bundle, so upstream certificate verification fails",
+    "root_cause": "checkout-web verifies payments-api with a CA bundle that did not issue its certificate, so TLS verification fails",
     "affects": [],
     "evidence": [
      "lg-checkout-web-6447595cb4-4bn7r-checkout-web-c45",
      "ct-legacy-ca-ca.crt",
      "ds-deployment-checkout-web"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "mount the CA that issued the payments-api certificate",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -580,12 +580,12 @@
     "namespace": "orders",
     "kind": "Deployment",
     "name": "orders-api",
-    "root_cause": "the container exits at start-up with an application error (see log)",
+    "root_cause": "orders-api exits at start-up with 'FATAL: DATABASE_URL is not set', so its pod crash-loops",
     "affects": [],
     "evidence": [
      "lg-orders-api-54b7775f96-6wmnn-orders-api-c2"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "set DATABASE_URL in the orders-api Deployment's environment",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -597,13 +597,13 @@
     "namespace": "checkout",
     "kind": "Service",
     "name": "checkout",
-    "root_cause": "the service selector matches no pods, so it has no endpoints",
+    "root_cause": "Service checkout selects app=checkout-v2 but its pods are labelled app=checkout, so it has no endpoints",
     "affects": [],
     "evidence": [
      "ds-service-checkout",
      "rs-service-checkout"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "change the checkout Service selector to app: checkout",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -621,13 +621,13 @@
     "namespace": "reports",
     "kind": "Deployment",
     "name": "report-worker",
-    "root_cause": "the container is killed for exceeding its memory limit",
+    "root_cause": "report-worker is OOM-killed: it uses more memory than its 32Mi limit",
     "affects": [],
     "evidence": [
      "st-report-worker-677cff484b-hxr8r",
      "ds-deployment-report-worker"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "raise the report-worker memory limit (and request) above its working set",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -656,13 +656,13 @@
     "namespace": "web",
     "kind": "Deployment",
     "name": "web",
-    "root_cause": "the readiness probe fails, so the pod never becomes ready",
+    "root_cause": "web's readiness probe checks port 8081 but nginx listens on 80, so the pod never becomes ready",
     "affects": [],
     "evidence": [
      "ev-12bbd1",
      "ds-deployment-web"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "point the web readiness probe at port 80",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -698,7 +698,7 @@
     "namespace": "inventory",
     "kind": "Deployment",
     "name": "stock-db",
-    "root_cause": "the container is killed for exceeding its memory limit",
+    "root_cause": "stock-db is OOM-killed at its 24Mi memory limit, so stock-api cannot connect and crash-loops",
     "affects": [
      {
       "kind": "Deployment",
@@ -711,7 +711,7 @@
      "ds-deployment-stock-db",
      "ev-637214"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "raise the stock-db memory limit",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -723,13 +723,13 @@
     "namespace": "pricing",
     "kind": "Service",
     "name": "pricing-api",
-    "root_cause": "the service targetPort does not match the port the container listens on",
+    "root_cause": "Service pricing-api sends port 80 to targetPort 8080, but the nginx container listens on port 80, so connections are refused",
     "affects": [],
     "evidence": [
      "ds-service-pricing-api",
      "rs-service-pricing-api"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "set the pricing-api Service targetPort to 80",
     "resize": {
      "cpu_request": "",
      "memory_request": ""
@@ -741,7 +741,7 @@
     "namespace": "finance",
     "kind": "LimitRange",
     "name": "defaults",
-    "root_cause": "a namespace policy (LimitRange or ResourceQuota) constrains the workload",
+    "root_cause": "LimitRange defaults injects a 32Mi default memory limit into statement-builder, which is then OOM-killed",
     "affects": [
      {
       "kind": "Deployment",
@@ -753,7 +753,7 @@
      "ds-limitrange-defaults",
      "rs-limitrange-defaults"
     ],
-    "fix": "see root cause; change this object's spec or config",
+    "fix": "raise the LimitRange default memory limit, or give statement-builder an explicit limit",
     "resize": {
      "cpu_request": "",
      "memory_request": ""

@@ -40,7 +40,19 @@
     {
       "kind": "Deployment",
       "name": "checkout-web",
-      "affects": []
+      "affects": [],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "the trusted CA is wrong",
+            "re": "\\bca\\b|trust|bundle|issuer"
+          }
+        ],
+        "example": {
+          "root_cause": "checkout-web verifies payments-api with a CA bundle that did not issue its certificate, so TLS verification fails",
+          "fix": "mount the CA that issued the payments-api certificate"
+        }
+      }
     }
   ],
   "evidence": [

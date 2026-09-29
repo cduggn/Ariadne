@@ -1,0 +1,674 @@
+{
+ "dx-cascade-db": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "inventory"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "inventory",
+    "name": "stock-db"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "inventory",
+    "object_name": "stock-db",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-config-missing": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "billing"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "billing",
+    "object_name": "billing",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-crashloop": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "orders"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "orders",
+    "pod": "orders-api-54b7775f96-6wmnn",
+    "container": "",
+    "previous": false,
+    "tail": 80
+   }
+  ]
+ ],
+ "dx-dns-misconfig": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "notifications"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "notifications",
+    "pod": "mailer-6878b79994-qj99g",
+    "container": "",
+    "previous": false,
+    "tail": 80
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "notifications",
+    "name": "mailer"
+   }
+  ]
+ ],
+ "dx-eviction": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "media"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "media",
+    "object_name": "thumbnailer",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-healthy": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "status"
+   }
+  ]
+ ],
+ "dx-imagepull": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "storefront"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "storefront",
+    "object_name": "frontend",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-init-wait": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "accounts"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "accounts",
+    "pod": "accounts-api-5dfb88bf5d-z55wg",
+    "container": "wait-for-db",
+    "previous": false,
+    "tail": 80
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "services",
+    "namespace": "accounts"
+   }
+  ]
+ ],
+ "dx-job-failed": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "exports"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "exports",
+    "pod": "nightly-export-lhlrb",
+    "container": "",
+    "previous": false,
+    "tail": 80
+   }
+  ]
+ ],
+ "dx-limitrange-oom": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "finance"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "limitrange",
+    "namespace": "finance",
+    "name": "defaults"
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "limitranges",
+    "namespace": "finance"
+   }
+  ]
+ ],
+ "dx-mixed": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "ledger"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "ledger",
+    "pod": "ledger-5c968c7fbb-wbjl8",
+    "container": "",
+    "previous": false,
+    "tail": 80
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "ledger",
+    "name": "ledger"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "service",
+    "namespace": "ledger",
+    "name": "ledger-api"
+   }
+  ]
+ ],
+ "dx-no-endpoints": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "checkout"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "service",
+    "namespace": "checkout",
+    "name": "checkout"
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "services",
+    "namespace": "checkout"
+   }
+  ]
+ ],
+ "dx-oom": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "reports"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "reports",
+    "name": "report-worker"
+   }
+  ]
+ ],
+ "dx-pending-constraints": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "cache"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "cache",
+    "object_name": "cache",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-pending-resources": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "ml"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "ml",
+    "object_name": "ml-trainer",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-port-mismatch": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "pricing"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "service",
+    "namespace": "pricing",
+    "name": "pricing-api"
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "services",
+    "namespace": "pricing"
+   }
+  ]
+ ],
+ "dx-probe": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "web"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "web",
+    "object_name": "web",
+    "limit": 20
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "web",
+    "name": "web"
+   }
+  ]
+ ],
+ "dx-quota-exhausted": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "batch"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "batch",
+    "object_name": "renderer",
+    "limit": 20
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "resourcequota",
+    "namespace": "batch",
+    "name": "team-quota"
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "resourcequotas",
+    "namespace": "batch"
+   }
+  ]
+ ],
+ "dx-rightsizing": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "analytics"
+   }
+  ],
+  [
+   "rightsizing",
+   {
+    "namespace": "analytics"
+   }
+  ]
+ ],
+ "dx-rollout": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "catalog"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "catalog",
+    "name": "catalog"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "catalog",
+    "object_name": "catalog",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-throttled-liveness": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "search"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "search",
+    "object_name": "search-web",
+    "limit": 20
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "search",
+    "name": "search-web"
+   }
+  ]
+ ],
+ "dx-tls-expired": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "identity"
+   }
+  ],
+  [
+   "inspect_certificate",
+   {
+    "namespace": "identity",
+    "configmap": "auth-api-cert",
+    "key": "tls.crt"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "identity",
+    "pod": "session-svc-58477fd99d-lp825",
+    "container": "",
+    "previous": false,
+    "tail": 80
+   }
+  ]
+ ],
+ "dx-tls-truststore": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "payments"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "payments",
+    "pod": "checkout-web-6447595cb4-4bn7r",
+    "container": "",
+    "previous": false,
+    "tail": 80
+   }
+  ],
+  [
+   "inspect_certificate",
+   {
+    "namespace": "payments",
+    "configmap": "legacy-ca",
+    "key": "ca.crt"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "payments",
+    "name": "checkout-web"
+   }
+  ]
+ ],
+ "dx-audit-1": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "orders"
+   }
+  ],
+  [
+   "list_problem_pods",
+   {
+    "namespace": "status"
+   }
+  ],
+  [
+   "list_problem_pods",
+   {
+    "namespace": "checkout"
+   }
+  ],
+  [
+   "pod_logs",
+   {
+    "namespace": "orders",
+    "pod": "orders-api-54b7775f96-6wmnn",
+    "container": "",
+    "previous": false,
+    "tail": 80
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "service",
+    "namespace": "checkout",
+    "name": "checkout"
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "services",
+    "namespace": "checkout"
+   }
+  ]
+ ],
+ "dx-audit-2": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "reports"
+   }
+  ],
+  [
+   "list_problem_pods",
+   {
+    "namespace": "ml"
+   }
+  ],
+  [
+   "list_problem_pods",
+   {
+    "namespace": "web"
+   }
+  ],
+  [
+   "list_problem_pods",
+   {
+    "namespace": "billing"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "reports",
+    "name": "report-worker"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "ml",
+    "object_name": "ml-trainer",
+    "limit": 20
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "web",
+    "object_name": "web",
+    "limit": 20
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "web",
+    "name": "web"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "billing",
+    "object_name": "billing",
+    "limit": 20
+   }
+  ]
+ ],
+ "dx-audit-3": [
+  [
+   "list_problem_pods",
+   {
+    "namespace": "inventory"
+   }
+  ],
+  [
+   "list_problem_pods",
+   {
+    "namespace": "pricing"
+   }
+  ],
+  [
+   "list_problem_pods",
+   {
+    "namespace": "finance"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "deployment",
+    "namespace": "inventory",
+    "name": "stock-db"
+   }
+  ],
+  [
+   "get_events",
+   {
+    "namespace": "inventory",
+    "object_name": "stock-db",
+    "limit": 20
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "service",
+    "namespace": "pricing",
+    "name": "pricing-api"
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "services",
+    "namespace": "pricing"
+   }
+  ],
+  [
+   "describe",
+   {
+    "kind": "limitrange",
+    "namespace": "finance",
+    "name": "defaults"
+   }
+  ],
+  [
+   "list_resources",
+   {
+    "kind": "limitranges",
+    "namespace": "finance"
+   }
+  ]
+ ]
+}

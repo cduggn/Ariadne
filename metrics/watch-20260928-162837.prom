@@ -1,0 +1,12 @@
+# HELP doctor_last_scan_timestamp_seconds Unix time of the last completed scan.
+# TYPE doctor_last_scan_timestamp_seconds gauge
+doctor_last_scan_timestamp_seconds 1.79061e+09
+# HELP doctor_scan_seconds Duration of the last scan.
+# TYPE doctor_scan_seconds gauge
+doctor_scan_seconds 0.515
+# HELP doctor_scans_total Scan cycles completed.
+# TYPE doctor_scans_total counter
+doctor_scans_total 17
+# HELP doctor_watched_namespaces Namespaces being watched.
+# TYPE doctor_watched_namespaces gauge
+doctor_watched_namespaces 0

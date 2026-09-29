@@ -1,0 +1,12 @@
+{
+  "name": "qwen3-8b-awq",
+  "plan": "baseline",
+  "summary": "Current model (D-16): dense, standard attention, official AWQ 4-bit, hermes tool format",
+  "hf": {"repo": "Qwen/Qwen3-8B-AWQ", "revision": "4da05a8edb55c6046cce958586c33b61da07bb79", "license": "apache-2.0", "quant": "AWQ 4-bit (official)"},
+  "arch": {"layers": 36, "attn_layers": 36, "kv_heads": 8, "head_dim": 128, "hidden": 4096, "intermediate": 12288,
+           "params_b": 8.19, "active_params_b": 8.19, "weights_gib": 5.68},
+  "serve": {"served_name": "Qwen/Qwen3-8B-AWQ", "args": ["--tool-call-parser=hermes"]},
+  "client": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "chat_template_kwargs": {"enable_thinking": false}},
+  "evidence": "Served on Lambda 2026-09-27 (sliced): 79,056 KV tokens per slice, 95 % prefix-cache hits, D-38 sampling A/B.",
+  "caveats": []
+}

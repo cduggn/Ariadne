@@ -6,6 +6,8 @@ Read [`SPEC.md`](SPEC.md) first — it is the source of truth. Why each choice w
 ## Commands
 - `uv sync` once; `make lint test` — must pass before any commit; `make preflight` before any GPU session. The product surface is `python -m doctor watch` (autonomous, D-37) plus the one-shot CLI (D-36); keep exit codes, JSON-line fields and metric names stable. Only CamelCase reasons and counts may enter a report built from cluster data. `make golden-build` after changing tools, schemas, faults, fixtures or the checker.
 - `make lab-up lab-record` re-records fixtures on the local kind cluster only.
+- Models and topologies are data in `deploy/models/*.json` and `deploy/serving.json` (D-40). Never hand-edit `deploy/k8s/vllm.yaml`, which is rendered, or `design/model-matrix.md`, which `make matrix` writes. Every model shares the engine settings, and a profile may not override them (INV-15).
+- Keep the v1 score unchanged for continuity, and put changes to what counts as correct into v2 (D-41). A citation must be in the observation ledger.
 - GPU work goes through the Makefile and the `lam` CLI. Launching costs money: never run `make up` without the user's say-so; always end with `make down`.
 - AWS scripts in `deploy/aws/` are dry runs unless `APPLY=1`; never apply without the user's say-so.
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "diagnosis.schema.json",
   "title": "Diagnosis",
-  "description": "What submit_diagnosis must produce: one finding per root cause, grounded in evidence refs that exist in the tool results for that namespace (checked).",
+  "description": "What submit_diagnosis must produce: one finding per root cause, grounded in evidence refs that tools returned to the model in this run (checked against the observation ledger, D-41).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,8 +15,10 @@
       "type": "string",
       "enum": [
         "issue",
-        "healthy"
-      ]
+        "healthy",
+        "inconclusive"
+      ],
+      "description": "issue: at least one grounded finding \u00b7 healthy: checked (list_problem_pods for every namespace) and nothing is wrong \u00b7 inconclusive: you could not ground a diagnosis; no findings, and say in summary what you could not check"
     },
     "findings": {
       "type": "array",

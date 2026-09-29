@@ -40,7 +40,19 @@
           "kind": "Deployment",
           "name": "stock-api"
         }
-      ]
+      ],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "stock-db runs out of memory",
+            "re": "oom|memory"
+          }
+        ],
+        "example": {
+          "root_cause": "stock-db is OOM-killed at its 24Mi memory limit, so stock-api cannot connect and crash-loops",
+          "fix": "raise the stock-db memory limit"
+        }
+      }
     }
   ],
   "evidence": [

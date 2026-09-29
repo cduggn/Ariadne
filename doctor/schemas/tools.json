@@ -307,7 +307,7 @@
     "type": "function",
     "function": {
       "name": "submit_diagnosis",
-      "description": "Submit once. One finding per ROOT CAUSE: name the object to change, its category, the causal chain, the victims in `affects`, evidence refs copied from tool results, and a fix you do not apply. Do not file separate findings for victims. If nothing is wrong: status healthy, no findings. If it returns accepted:false, fix the listed problems and submit again.",
+      "description": "Submit once. One finding per ROOT CAUSE: name the object to change, its category, the causal chain, the victims in `affects`, evidence refs copied from tool results, and a fix you do not apply. Do not file separate findings for victims. If nothing is wrong (after list_problem_pods for every namespace): status healthy, no findings. If you cannot ground a diagnosis: status inconclusive, no findings, and say in summary what you could not check. If it returns accepted:false, fix the listed problems and submit again.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -316,8 +316,10 @@
             "type": "string",
             "enum": [
               "issue",
-              "healthy"
-            ]
+              "healthy",
+              "inconclusive"
+            ],
+            "description": "issue: at least one grounded finding \u00b7 healthy: checked (list_problem_pods for every namespace) and nothing is wrong \u00b7 inconclusive: you could not ground a diagnosis; no findings, and say in summary what you could not check"
           },
           "findings": {
             "type": "array",

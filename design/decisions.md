@@ -182,3 +182,111 @@ right-sizing 0/1. Pass 2 (24 tasks before the crash): 9/24. Failures by kind (pa
 **Open (the user decides):** accept `config_missing` for crashloop and `service_misconfig` for no-endpoints; make
 `must_call` advisory. Model-side levers, measured one at a time: ruleset wording for the category boundaries, a
 larger model (Qwen3-14B-AWQ fits a 20 GiB slice with a smaller KV pool), the reviewer role.
+
+### D-40 — Model profiles, two topologies, a fit calculator and a model matrix (2026-09-28)
+**Context:** the first baseline (D-39) raised the question of which model to serve, and a separate review
+(`design/model-and-golden-review-2026-09-28.md`) proposed larger candidates. The course asks for GPU slicing and a KV
+hop, which need small workers, while the best answers may need a model that only fits the whole card. The model was
+hard-coded in four places (manifest, cloud-init, Makefile and agent sampling), so every comparison meant hand edits.
+**Choice:**
+- **Profiles.** Each model has one file in `deploy/models/`. It holds the pinned checkpoint, the architecture from the
+  model's `config.json` (used by the fit), the model-specific vLLM args (tool parser, reasoning parser, load formats) and
+  the sampling from the model card. The engine settings every model shares (context 24,576, 32 sequences, 8,192 batched
+  tokens, prefix caching, 0.9 memory) live once in `deploy/serving.json`, and a profile may not override them. Comparing
+  two profiles therefore compares two models, not two engine configurations.
+- **Topologies.** `sliced` runs N workers on HAMi slices of 20 GiB and 50% of the SMs each. It is where we show slicing,
+  routing, affinity and the KV hop. `full` runs one worker on the whole card. It is where we compare models on quality
+  and where the larger models run. Slicing changes capacity and latency but not the answers, because the weights,
+  sampling and context stay the same. So we compare quality on `full`, then place the chosen model on `sliced` if it fits.
+- **Fit calculator.** `serving/fit.py` (`make fit`, `make fit-all`) computes the KV pool, KV per token, the recurrent
+  state per sequence for hybrid models, how many sequences fit at 24k and at 12k with the prefix shared, and decode and
+  prefill floors from active parameters and the SM share. On the 8B slice it predicted 79,699 tokens, and vLLM measured
+  79,056 (0.8% lower).
+- **Gate.** `make deploy` refuses a pair where one 24k request doesn't fit, because vLLM wouldn't start. A pair that
+  fits fewer than two such requests is marked tight.
+- **Rendering.** `make deploy MODEL=… TOPO=…` renders the manifest and a weight-prefetch script for the pair. The
+  committed `deploy/k8s/vllm.yaml` is the rendered default pair, and a test keeps it and the cloud-init pins equal to
+  the default profile.
+- **Matrix.** `serving/matrix.py` (`make matrix`) writes `design/model-matrix.md`, and CI fails if it is stale. It is
+  generated from the profiles, the `make kv` logs and the golden summaries, never typed in. It has four parts: where
+  each model fits, the newest full-set result per model and topology with a 95% interval, a ranking, and every run on
+  file. The headline efficiency number is correct diagnoses per GPU-hour, which lets two sliced workers and one
+  whole-card worker be compared directly.
+- **Plan.** The baseline is Qwen3-8B-AWQ. Round 1 is Qwen3-14B-AWQ, the only upgrade that still fits a slice, and
+  Qwen3-30B-A3B-Instruct-2507 in 4-bit, which fits only the whole card. Round 2, if time allows, is Qwen3.5-9B. The
+  Qwen3 Coder 30B, Qwen3.6-35B and Ministral 3 14B are paper-only. The matrix lists each with its fit and the reason it
+  isn't scheduled.
+**Paper fit (24k context, 16-bit KV):**
+
+| Model | Slice | Full card |
+|---|---|---|
+| 8B | 79.7k tokens (3.2 requests at 24k) | 8.6 |
+| 14B | 46.6k (1.9, tight) | 6.7 |
+| 30B-A3B | does not start | 8.0; with 3.3B active parameters, its MLP compute is about 2.5× lower than the 8B's, or about 1.7× lower for a whole 15k prefill including attention |
+| Qwen3.5-9B, Qwen3.6-35B, Ministral | do not fit | 21, 23, 2.3 (the hybrid state per sequence is an estimate) |
+
+**Because:** the grader should be able to see what we considered, what fits where, what we measured and why we chose
+the final pair. Switching models should change one variable, not require four edits.
+**Revisit when:**
+- a measured pool differs from the paper figure by more than about 5% (recalibrate the activation or CUDA-context estimate);
+- we serve a hybrid model (replace the state estimate with vLLM's own report);
+- the gateway lands (golden runs through it should record `WORKERS` and the routing policy in the summary).
+
+**Update 2026-09-28, after the first matrix runs:**
+- The 30B-A3B pool measured 185,136 tokens against 197,563 on paper, 6.3% lower. That passes the recalibration trigger
+  above. The calculator underestimates MoE overhead (fused-MoE workspace, CUDA graphs) by about 1.1 GiB.
+- The hybrid state estimate now stores the recurrent state in fp32 and counts (kernel − 1) conv positions, following the
+  vLLM v0.29 Qwen3.5 layout. That makes about 49 MiB per sequence for Qwen3.5-9B, up from 25.
+- The architecture analysis behind the plan is in `design/model-architecture-guide.md`.
+
+### D-41 — The v2 score and the observation ledger; legacy score kept (2026-09-28)
+**Context:** the review reproduced three scoring faults:
+- A wrong explanation passed. The port-mismatch answer had the ports reversed and blamed a "Service readiness probe",
+  which doesn't exist.
+- A defensible reading failed. The crashloop answer said `config_missing`, and the log does say `DATABASE_URL is not set`.
+- A cited ref only had to exist. An unrelated Deployment's ref supported a pricing finding, so the README's claim that
+  "evidence the tools never returned is rejected" wasn't true.
+The step-cap nudge also pushed uncertain runs toward "healthy". Choosing a model on that score would have rewarded the
+wrong behaviour.
+**Choice (runtime):**
+- **Observation ledger.** The agent records every tool result the model receives, per namespace: the refs, and which
+  tools succeeded. A cited ref must be in the ledger; existing in the cluster is no longer enough. This also removes the
+  validator's re-read of every log at submission, which added unmetered API calls in live mode.
+- **Full schema validation.** A small generic validator checks `diagnosis.schema.json` completely: types, enums,
+  patterns, lengths and unknown keys. `findings: [null]` now produces a repair message instead of a TypeError.
+- **One finding per root.** The validator rejects two findings on the same object, counting a pod or ReplicaSet as
+  its owner.
+- **`inconclusive` is a valid answer.** It takes no findings and needs a summary of what the model couldn't check.
+  `healthy` requires a successful `list_problem_pods` in every namespace. The step-cap nudge now offers `inconclusive`,
+  and the ruleset says that running out of steps is never evidence of health.
+- **Stops.** A model that chooses `inconclusive` stops as `abstained`, which is kept apart from a fail-closed
+  `inconclusive`. Both exit with code 2.
+**Choice (scoring):**
+- **Both scores on every row.** `pass` is v1, with its rules unchanged, for continuity. `pass_v2` differs in four ways:
+  - it judges evidence against the run's ledger;
+  - it also accepts a root's `also_accept` categories, and the answer key records why. Only two exist: crashloop
+    accepts `config_missing` and no-endpoints accepts `service_misconfig`. Confusing the probe with the port stays wrong;
+  - it checks mechanism facts and contradictions, as regexes over `root_cause` and `fix`, for 11 scenarios where a
+    wrong explanation is plausible and checkable. For example, a port-mismatch answer must name `targetPort` and 8080,
+    and must not move targetPort to 8080 or blame a Service probe;
+  - it reports `must_call` and the step count as advisory, so a different valid path doesn't fail but efficiency stays
+    visible.
+- **Reported with the scores.** Each row carries sub-scores (`parts`: submitted, grounded, status, root, category,
+  mechanism, chain, no false positive), abstentions and replayable call records. The summary adds a 95% Wilson interval.
+- **Reference trajectories.** Each reference diagnosis records the tool calls that return every ref it cites. The
+  build replays that trajectory through the same dispatch and ledger, within the step cap, and the reference must pass
+  both scores (INV-8). This proves the answer key is consistent and reachable. It doesn't prove a model could find the
+  path unaided.
+**Deferred from the review:**
+- rebuilding the crashloop and job-failed fixtures so their stated fix would really work (they still `echo` their
+  error, which goes against the intent of INV-12);
+- requiring evidence for each link of a causal chain;
+- held-out variants;
+- a separate, larger output budget for the final submission (768 tokens can clip audits);
+- evaluations of watch mode.
+The v2 mechanism checks are regexes. They are transparent and deterministic but narrow, so a correct explanation in
+unusual words can fail. When that happens, widen the regex rather than adding a model as judge.
+**Because:** the matrix should rank models on what an operator needs: the right object, a true explanation and a safe
+fix, grounded in what the model actually saw. It shouldn't penalise a different route to the same answer.
+**Revisit when:** a v2 failure on a live run turns out to be a false negative (widen the regex), or a run shows many
+abstentions on faults the tools can observe (tighten the nudge).

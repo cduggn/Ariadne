@@ -39,7 +39,19 @@
           "kind": "Deployment",
           "name": "renderer"
         }
-      ]
+      ],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "the quota is exhausted",
+            "re": "quota"
+          }
+        ],
+        "example": {
+          "root_cause": "ResourceQuota team-quota is used up, so the renderer ReplicaSet cannot create replicas 3-5",
+          "fix": "raise team-quota or lower renderer's requests"
+        }
+      }
     }
   ],
   "evidence": [

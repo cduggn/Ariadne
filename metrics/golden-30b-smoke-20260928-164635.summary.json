@@ -1,0 +1,149 @@
+{
+  "tag": "30b-smoke",
+  "profile": "qwen3-30b-a3b-2507-awq",
+  "model": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+  "topology": "full",
+  "workers": 1,
+  "gpu_share": 1.0,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 1,
+  "repeat": 2,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "8c0ebec",
+  "wall_s": 386.8,
+  "timestamp": "20260928-164635",
+  "tasks": 52,
+  "unique_tasks": 26,
+  "passed": 34,
+  "pass_rate": 0.654,
+  "pass_rate_by_type": {
+    "audit": 0.167,
+    "investigate": 0.727,
+    "rightsize": 0.5
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.75,
+    "multi_hop": 0.429,
+    "red_herring": 0.75,
+    "rightsizing": 0.5
+  },
+  "passed_v2": 35,
+  "pass_rate_v2": 0.673,
+  "pass_rate_v2_ci95": [
+    0.538,
+    0.785
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.167,
+    "investigate": 0.75,
+    "rightsize": 0.5
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.75,
+    "multi_hop": 0.5,
+    "red_herring": 0.75,
+    "rightsizing": 0.5
+  },
+  "parts_v2": {
+    "submitted": 0.962,
+    "grounded": 0.962,
+    "status": 0.962,
+    "root": 0.769,
+    "category": 0.731,
+    "mechanism": 0.769,
+    "chain": 0.769,
+    "no_false_positive": 0.885
+  },
+  "top_failed_rules_v2": [
+    [
+      "found",
+      12
+    ],
+    [
+      "no-false-positive",
+      4
+    ],
+    [
+      "category",
+      3
+    ],
+    [
+      "evidence-type",
+      2
+    ],
+    [
+      "chain",
+      2
+    ],
+    [
+      "inconclusive",
+      1
+    ],
+    [
+      "no-diagnosis",
+      1
+    ]
+  ],
+  "advisory_v2": [
+    [
+      "tools-called",
+      5
+    ]
+  ],
+  "stop_reasons": {
+    "submitted": 50,
+    "inconclusive": 1,
+    "step_cap": 1
+  },
+  "inconclusive": 1,
+  "abstained": 0,
+  "http_refusals": {},
+  "top_failed_rules": [
+    [
+      "found",
+      12
+    ],
+    [
+      "category",
+      7
+    ],
+    [
+      "no-false-positive",
+      4
+    ],
+    [
+      "evidence-type",
+      2
+    ],
+    [
+      "chain",
+      2
+    ],
+    [
+      "inconclusive",
+      1
+    ],
+    [
+      "no-diagnosis",
+      1
+    ],
+    [
+      "tools-called",
+      1
+    ]
+  ],
+  "repairs": 6,
+  "tool_errors": 116,
+  "steps_per_task_mean": 9.73,
+  "prompt_tokens_last_step_p50": 7663,
+  "prompt_tokens_last_step_max": 14809,
+  "completion_tokens_per_step_p50": 35,
+  "cached_share_of_prompt": 0.969,
+  "step_latency_s_p50": 0.444,
+  "step_latency_s_p95": 2.502
+}

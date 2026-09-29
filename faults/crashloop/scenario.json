@@ -12,7 +12,25 @@
     {
       "kind": "Deployment",
       "name": "orders-api",
-      "affects": []
+      "affects": [],
+      "also_accept": {
+        "categories": [
+          "config_missing"
+        ],
+        "why": "the only visible cause is the log line 'FATAL: DATABASE_URL is not set'; a missing setting is an equally supported reading"
+      },
+      "mechanism": {
+        "facts": [
+          {
+            "id": "names the missing DATABASE_URL",
+            "re": "DATABASE_URL"
+          }
+        ],
+        "example": {
+          "root_cause": "orders-api exits at start-up with 'FATAL: DATABASE_URL is not set', so its pod crash-loops",
+          "fix": "set DATABASE_URL in the orders-api Deployment's environment"
+        }
+      }
     }
   ],
   "evidence": [

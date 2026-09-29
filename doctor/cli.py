@@ -26,7 +26,7 @@ import sys
 import time
 from pathlib import Path
 
-from .agent import build_llm, run_task
+from .agent import build_llm, resolve_model, run_task
 from .backends import KubectlBackend, SnapshotBackend, check_name
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -39,6 +39,7 @@ MODES = {   # task_type: (default report, max model calls)
 }
 STOPS = {
     "inconclusive": "the model's answer failed the grounding checks after 2 repairs; escalate to a human",
+    "abstained": "the model could not ground a diagnosis and said so (see its summary); escalate to a human",
     "step_cap": "ran out of model calls before submitting",
     "context_budget": "the conversation reached the context budget before submitting",
     "transport_error": "could not reach the model endpoint (is `make tunnel` running?)",
@@ -104,6 +105,8 @@ def render(run: dict, st: Style, wall_s: float, model: str) -> str:
     out: list[str] = []
     if d is None or d.get("status") == "inconclusive":
         out.append(st("NO GROUNDED DIAGNOSIS", "1;31") + f" — {STOPS.get(stop, stop)}")
+        if stop == "abstained":
+            out.append(f"  {d['summary']}")
         for e in (d or {}).get("validation_errors", []):
             out.append(f"  · {e}")
     elif d["status"] == "healthy":
@@ -154,7 +157,9 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     src.add_argument("--snapshot", help=f"diagnose a recorded fault from {FIXTURES.name}/snapshots instead (e.g. crashloop)")
     ap.add_argument("--kubeconfig", help="kubeconfig file for the live cluster")
     ap.add_argument("--base-url", default=os.environ.get("DOCTOR_BASE_URL", "http://127.0.0.1:8000/v1"))
-    ap.add_argument("--model", default=os.environ.get("DOCTOR_MODEL", "Qwen/Qwen3-8B-AWQ"))
+    ap.add_argument("--profile", default=os.environ.get("DOCTOR_PROFILE"),
+                    help="model profile (deploy/models/<name>.json or its name): served model name and sampling (D-40)")
+    ap.add_argument("--model", help="served model name (default: the profile's, DOCTOR_MODEL, or Qwen/Qwen3-8B-AWQ)")
     ap.add_argument("--tenant", default="platform", help="X-Tenant header for the gateway")
     ap.add_argument("--max-steps", type=int, help="model-call cap (default: 16 investigate, 30 audit, 12 rightsize)")
     ap.add_argument("--json", action="store_true", help="print the full run record as JSON instead of the report")
@@ -215,6 +220,10 @@ def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -
         return fail(EXIT_USAGE, str(e))
     if not namespaces:
         return fail(EXIT_USAGE, "give at least one namespace with -n")
+    try:
+        a.model, client = resolve_model(a.model, a.profile)
+    except (OSError, ValueError, KeyError) as e:
+        return fail(EXIT_USAGE, f"cannot read model profile {a.profile!r}: {e}")
 
     try:
         backend, available, cluster, where = open_source(a.context, a.snapshot, a.kubeconfig)
@@ -231,7 +240,7 @@ def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -
         print(st_err(f"cluster-doctor · {a.mode} · {', '.join(namespaces)} · {where} · {a.model} at {a.base_url}", "1"), file=err)
     t0 = time.perf_counter()
     try:
-        run = run_task(task, backend, llm or build_llm(a.base_url, a.model), cluster=cluster,
+        run = run_task(task, backend, llm or build_llm(a.base_url, a.model, client=client), cluster=cluster,
                        on_update=None if a.quiet else progress_printer(err, st_err))
     except (LookupError, OSError, subprocess.TimeoutExpired) as e:                 # the cluster card could not be read
         return fail(EXIT_NO_DIAGNOSIS, f"cannot read the cluster: {e}")

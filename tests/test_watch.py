@@ -6,7 +6,7 @@ from pathlib import Path
 
 from doctor import cli, watch
 from doctor.cli import open_source
-from tests.mockllm import Server, llm_for
+from tests.mockllm import Server, llm_for, reference_script
 
 ROOT = Path(__file__).resolve().parents[1]
 FAULTS = "crashloop,cascade-db,healthy,quota-exhausted,job-failed,tls-truststore,pending-resources"
@@ -79,10 +79,11 @@ def test_plan_dedups_cools_down_forgets_resolved_and_schedules():
 def test_cycle_diagnoses_emits_and_counts(refs):
     b, *_ = backend()
     recs = []
-    w = watch.Watcher(b, llm_for(Server(("submit_diagnosis", refs["dx-crashloop"]))), namespaces=["orders"], emit=recs.append,
+    script = reference_script("dx-crashloop", refs["dx-crashloop"])
+    w = watch.Watcher(b, llm_for(Server(*script)), namespaces=["orders"], emit=recs.append,
                       audit_every_s=0, rightsize_every_s=0, max_parallel=1)
     assert [r["status"] for r in w.cycle()] == ["issue"] and recs[0]["trigger"] == ["orders|Deployment/orders-api"]
-    assert recs[0]["diagnosis"]["findings"][0]["name"] == "orders-api" and recs[0]["cached_tokens"] == 3800
+    assert recs[0]["diagnosis"]["findings"][0]["name"] == "orders-api" and recs[0]["cached_tokens"] == 3800 * len(script)
     assert w.cycle() == []                                                      # same fingerprints → no second model run
     text = w.metrics.render()
     assert 'doctor_diagnoses_total{mode="investigate",status="issue",stop="submitted"} 1' in text
@@ -114,7 +115,7 @@ def test_watch_entry_point_once(refs, tmp_path):
     out, err = io.StringIO(), io.StringIO()
     path = tmp_path / "w.jsonl"
     code = cli.main(["watch", "--snapshot", "crashloop", "--once", "--metrics-addr", "", "--out", str(path)],
-                    llm=llm_for(Server(("submit_diagnosis", refs["dx-crashloop"]))), stdout=out, stderr=err)
+                    llm=llm_for(Server(*reference_script("dx-crashloop", refs["dx-crashloop"]))), stdout=out, stderr=err)
     rec = json.loads(out.getvalue())
     assert code == 0 and rec["status"] == "issue" and json.loads(path.read_text()) == rec
     assert "watching snapshot crashloop · 1 namespaces" in err.getvalue() and "investigate orders → ISSUE" in err.getvalue()

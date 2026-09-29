@@ -42,7 +42,23 @@
           "kind": "Deployment",
           "name": "statement-builder"
         }
-      ]
+      ],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "the LimitRange default",
+            "re": "limit\\s*range|default"
+          },
+          {
+            "id": "memory",
+            "re": "memory|oom"
+          }
+        ],
+        "example": {
+          "root_cause": "LimitRange defaults injects a 32Mi default memory limit into statement-builder, which is then OOM-killed",
+          "fix": "raise the LimitRange default memory limit, or give statement-builder an explicit limit"
+        }
+      }
     }
   ],
   "evidence": [

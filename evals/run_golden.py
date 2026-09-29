@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """Run the golden set through the doctor against a model endpoint and score every diagnosis.
 
-    python3 -m evals.run_golden --base-url http://127.0.0.1:8080/v1 --model Qwen/Qwen3-8B-AWQ --tag gw-baseline
+    python3 -m evals.run_golden --profile qwen3-8b-awq --topology sliced --tag baseline --repeat 3
+    python3 -m evals.run_golden --base-url http://127.0.0.1:8080/v1 --profile qwen3-8b-awq --tag gw-baseline
     python3 -m evals.run_golden ... --only dx-oom,dx-audit-1 --concurrency 8 --no-harness
 
 The cluster data comes from the recorded snapshots (deterministic); only the model is live. Writes
-metrics/golden-<tag>-<ts>.jsonl (one row per task) and .summary.json (pass rate overall and by task
-type, failed rules, stop reasons, inconclusive count, tokens, cached share, latency, refusals by HTTP
-status). With --concurrency > 1 the same harness is the app-shaped load generator for the gateway.
+metrics/golden-<tag>-<ts>.jsonl (one row per task) and .summary.json. Every row is scored twice (D-41):
+`pass` is the legacy v1 score (kept for continuity), `pass_v2` the corrected one (observed evidence,
+accepted equivalent categories, mechanism facts, advisory tool rules). The summary carries both, a 95 %
+interval on the v2 rate, per-tier rates, sub-scores, stop reasons, tokens, cached share, latency, refusals
+by HTTP status, and the model profile, topology and workers the run used — `make matrix` reads it (D-40).
+With --concurrency > 1 the same harness is the app-shaped load generator for the gateway.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import statistics
+import subprocess
 import sys
 import threading
 import time
@@ -23,9 +29,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from doctor.agent import build_llm, run_task  # noqa: E402
+from doctor.agent import build_llm, load_profile, run_task  # noqa: E402
 from evals.build_golden import backend_for  # noqa: E402
-from evals.checker import check  # noqa: E402
+from evals.checker import PARTS, check, check_v2  # noqa: E402
+from serving.profiles import load_serving  # noqa: E402
 
 TASKS = ROOT / "evals" / "golden" / "tasks.jsonl"
 
@@ -39,21 +46,29 @@ def score(task: dict, run: dict) -> dict:
     b = backend_for(task["snapshots"])
     v = check(task, run["diagnosis"], run["trace"], b)
     steps = run["steps"]
-    return {"id": task["id"], "task_type": task["task_type"], "tier": task.get("tier", "easy"), "pass": v["pass"], "failed": v["failed"], "stop": run["stop"],
+    v2 = check_v2(task, run["diagnosis"], b, observed=run.get("observed"), calls=[c for s in steps for c in s.get("calls", [])])
+    return {"id": task["id"], "task_type": task["task_type"], "tier": task.get("tier", "easy"), "pass": v["pass"], "failed": v["failed"],
+            "pass_v2": v2["pass"], "failed_v2": v2["failed"], "advisory": v2["advisory"], "parts": v2["parts"],
+            "observed_refs": run.get("observed_refs"), "stop": run["stop"],
             "n_steps": len(steps), "trace": run["trace"], "repairs": run["repairs"], "harness": run["harness"],
             "http_status": [s.get("http_status") for s in steps if s.get("http_status")],
             "tool_errors": sum(1 for s in steps for c in s.get("calls", []) if c.get("error")),
             "prompt_tokens": [s.get("prompt_tokens") for s in steps], "completion_tokens": [s.get("completion_tokens") for s in steps],
             "cached_tokens": [s.get("cached_tokens") for s in steps], "latency_s": [s.get("latency_s") for s in steps],
-            "headers": run["headers"], "diagnosis": run["diagnosis"]}
+            "headers": run["headers"], "diagnosis": run["diagnosis"],
+            "finish_reasons": [s.get("finish_reason") for s in steps],
+            "calls": [{k: c[k] for k in ("step", "name", "args", "error", "validation_errors") if k in c}      # replayable: the snapshot
+                      for s in steps for c in s.get("calls", [])]}                                          # backend is deterministic
 
 
 def error_row(task: dict, e: Exception) -> dict:
     """One task crashed: record it as a failure with the reason, keep the run going."""
-    return {"id": task["id"], "task_type": task["task_type"], "tier": task.get("tier", "easy"), "pass": False,
-            "failed": [f"exception: {type(e).__name__}: {str(e)[:200]}"], "stop": f"error_{type(e).__name__}", "n_steps": 0,
+    why = [f"exception: {type(e).__name__}: {str(e)[:200]}"]
+    return {"id": task["id"], "task_type": task["task_type"], "tier": task.get("tier", "easy"), "pass": False, "failed": why,
+            "pass_v2": False, "failed_v2": why, "advisory": [], "parts": dict.fromkeys(PARTS, False), "observed_refs": 0,
+            "stop": f"error_{type(e).__name__}", "n_steps": 0,
             "trace": [], "repairs": 0, "harness": True, "http_status": [], "tool_errors": 0, "prompt_tokens": [],
-            "completion_tokens": [], "cached_tokens": [], "latency_s": [], "headers": {}, "diagnosis": None}
+            "completion_tokens": [], "cached_tokens": [], "latency_s": [], "headers": {}, "diagnosis": None, "finish_reasons": [], "calls": []}
 
 
 def _pct(xs, p):
@@ -61,19 +76,39 @@ def _pct(xs, p):
     return round(xs[min(len(xs) - 1, int(p * len(xs)))], 3) if xs else None
 
 
+def wilson(k: int, n: int, z: float = 1.96) -> list[float] | None:
+    """95 % Wilson interval for k passes out of n — honest at small n (26 tasks × a few repeats)."""
+    if not n:
+        return None
+    p = k / n
+    mid, half = (p + z * z / (2 * n)) / (1 + z * z / n), z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return [round(max(0.0, mid - half), 3), round(min(1.0, mid + half), 3)]
+
+
+def _rates(rows: list[dict], key: str, field: str) -> dict:
+    groups: dict[str, list[bool]] = {}
+    for r in rows:
+        groups.setdefault(r[key], []).append(r[field])
+    return {k: round(sum(v) / len(v), 3) for k, v in sorted(groups.items())}
+
+
 def summarise(rows: list[dict], meta: dict) -> dict:
     flat = lambda k: [x for r in rows for x in r[k] if x is not None]  # noqa: E731
-    by: dict[str, list[bool]] = {}
-    tiers: dict[str, list[bool]] = {}
-    for r in rows:
-        by.setdefault(r["task_type"], []).append(r["pass"])
-        tiers.setdefault(r["tier"], []).append(r["pass"])
-    return {**meta, "tasks": len(rows), "passed": sum(r["pass"] for r in rows),
-            "pass_rate": round(sum(r["pass"] for r in rows) / max(1, len(rows)), 3),
-            "pass_rate_by_type": {k: round(sum(v) / len(v), 3) for k, v in sorted(by.items())},
-            "pass_rate_by_tier": {k: round(sum(v) / len(v), 3) for k, v in sorted(tiers.items())},
+    n, k2 = len(rows), sum(r.get("pass_v2", False) for r in rows)
+    parts = {p: round(sum(r.get("parts", {}).get(p, False) for r in rows) / max(1, n), 3) for p in PARTS}
+    return {**meta, "tasks": n, "unique_tasks": len({r["id"] for r in rows}), "passed": sum(r["pass"] for r in rows),
+            "pass_rate": round(sum(r["pass"] for r in rows) / max(1, n), 3),
+            "pass_rate_by_type": _rates(rows, "task_type", "pass"),
+            "pass_rate_by_tier": _rates(rows, "tier", "pass"),
+            "passed_v2": k2, "pass_rate_v2": round(k2 / max(1, n), 3), "pass_rate_v2_ci95": wilson(k2, n),
+            "pass_rate_by_type_v2": _rates(rows, "task_type", "pass_v2"),
+            "pass_rate_by_tier_v2": _rates(rows, "tier", "pass_v2"),
+            "parts_v2": parts,
+            "top_failed_rules_v2": Counter(f.split(":")[0] for r in rows for f in r.get("failed_v2", [])).most_common(10),
+            "advisory_v2": Counter(f.split(":")[0] for r in rows for f in r.get("advisory", [])).most_common(5),
             "stop_reasons": dict(Counter(r["stop"] for r in rows)),
             "inconclusive": sum(r["stop"] == "inconclusive" for r in rows),
+            "abstained": sum(r["stop"] == "abstained" for r in rows),
             "http_refusals": dict(Counter(c for r in rows for c in r["http_status"])),
             "top_failed_rules": Counter(f.split(":")[0] for r in rows for f in r["failed"]).most_common(10),
             "repairs": sum(r["repairs"] for r in rows), "tool_errors": sum(r["tool_errors"] for r in rows),
@@ -89,7 +124,10 @@ def summarise(rows: list[dict], meta: dict) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base-url", default="http://127.0.0.1:8000/v1")
-    ap.add_argument("--model", default="Qwen/Qwen3-8B-AWQ")
+    ap.add_argument("--profile", default="qwen3-8b-awq", help="model profile in deploy/models/ (served name + sampling)")
+    ap.add_argument("--model", help="served model name override (default: the profile's)")
+    ap.add_argument("--topology", default="sliced", help="how the GPU was carved for this run (deploy/serving.json)")
+    ap.add_argument("--workers", type=int, default=1, help="vLLM replicas serving during the run")
     ap.add_argument("--only")
     ap.add_argument("--concurrency", type=int, default=1)
     ap.add_argument("--repeat", type=int, default=1, help="run the task list N times (load generation)")
@@ -99,7 +137,10 @@ def main() -> int:
     a = ap.parse_args()
 
     tasks = load_tasks(a.only) * max(1, a.repeat)
-    llm = build_llm(a.base_url, a.model)
+    served, client = load_profile(a.profile)
+    a.model = a.model or served
+    topo = load_serving()["topologies"][a.topology]
+    llm = build_llm(a.base_url, a.model, client=client)
     t0 = time.time()
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out = Path(a.out)
@@ -115,17 +156,23 @@ def main() -> int:
         with lock:                                  # written as each task finishes: an interrupted run keeps its rows
             with base.with_suffix(".jsonl").open("a") as f:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
-            print(f"{row['id']:22} {row['tier']:11} {'PASS' if row['pass'] else 'FAIL'} steps={row['n_steps']:2} "
-                  f"stop={row['stop']:13} {'; '.join(row['failed'])[:110]}", flush=True)
+            print(f"{row['id']:22} {row['tier']:11} v1 {'PASS' if row['pass'] else 'FAIL'} v2 {'PASS' if row['pass_v2'] else 'FAIL'} "
+                  f"steps={row['n_steps']:2} stop={row['stop']:13} {'; '.join(row['failed_v2'])[:100]}", flush=True)
         return row
 
     with ThreadPoolExecutor(max_workers=max(1, a.concurrency)) as ex:
         rows = list(ex.map(one, tasks))
-    summary = summarise(rows, {"tag": a.tag, "model": a.model, "base_url": a.base_url, "concurrency": a.concurrency,
-                               "repeat": a.repeat, "harness": not a.no_harness, "wall_s": round(time.time() - t0, 1), "timestamp": stamp})
+    try:
+        commit = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        commit = None
+    summary = summarise(rows, {"tag": a.tag, "profile": a.profile, "model": a.model, "topology": a.topology, "workers": a.workers,
+                               "gpu_share": round(a.workers * topo["gpucores"] / 100, 2), "base_url": a.base_url,
+                               "concurrency": a.concurrency, "repeat": a.repeat, "harness": not a.no_harness, "scorers": ["v1", "v2"],
+                               "only": a.only, "git_commit": commit, "wall_s": round(time.time() - t0, 1), "timestamp": stamp})
     Path(f"{base}.summary.json").write_text(json.dumps(summary, indent=2))
-    print(json.dumps({k: summary[k] for k in ("pass_rate", "pass_rate_by_type", "pass_rate_by_tier", "stop_reasons", "inconclusive",
-                                              "http_refusals", "top_failed_rules")}, indent=2))
+    print(json.dumps({k: summary[k] for k in ("pass_rate", "pass_rate_v2", "pass_rate_v2_ci95", "pass_rate_by_tier_v2", "parts_v2",
+                                              "stop_reasons", "inconclusive", "abstained", "http_refusals", "top_failed_rules_v2")}, indent=2))
     print(f"wrote {base}.jsonl and .summary.json")
     return 0
 

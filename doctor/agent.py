@@ -1,14 +1,14 @@
 """The investigation agent as a LangGraph state graph over LangChain tools (D-22, D-33).
 
-    llm = build_llm(base_url, model)                 # ChatOpenAI bound to tools.json, forced tool calls
+    llm = build_llm(base_url, model, client=load_profile("qwen3-8b-awq")[1])   # ChatOpenAI bound to tools.json
     run = run_task(task, backend, llm)               # -> {"diagnosis", "trace", "stop", "steps", "repairs", …}
 
 Graph (state = messages + counters + diagnosis; backend, task and model travel in the run config):
 
-      START ──► agent ──(model error)──────────────────────────────► END   stop = http_<code> | transport_error
+      START ──► agent ──(model error)──────────────────────────────► END   stop = http_<code> | transport_error | bad_response
                   │
                   ▼
-                 act ──(diagnosis accepted / failed closed)────────► END   stop = submitted | inconclusive
+                 act ──(diagnosis accepted / failed closed)────────► END   stop = submitted | abstained | inconclusive
                   │ ──(step cap or context budget)─────────────────► END   stop = step_cap | context_budget
                   └──────────────► agent
 
@@ -16,8 +16,9 @@ Graph (state = messages + counters + diagnosis; backend, task and model travel i
          system = triage ruleset (+ tool schemas rendered by the chat template) · user = cluster card ·
          user = task · then assistant tool calls and tool results.
   act    executes every tool call through LangChain StructuredTools, behind the harness guards (exact-repeat
-         refusal, per-tool budgets × namespaces, submit-now nudge). `submit_diagnosis` is validated here
-         (expect-blind, doctor/validate.py): up to 2 repairs, then FAIL CLOSED to `inconclusive` (D-24).
+         refusal, per-tool budgets × namespaces, submit-now nudge). Every result the model receives is recorded in the
+         observation ledger; `submit_diagnosis` is validated against it (expect-blind, doctor/validate.py, D-41): up to
+         2 repairs, then FAIL CLOSED to `inconclusive` (D-24). A model that submits `inconclusive` itself has abstained.
 
 Every request carries X-Request-Id (task-run-step), X-Tenant, X-App, X-Priority and X-Data-Class, set per
 step through an httpx hook, so the gateway can admit, place and refuse without parsing bodies (D-25).
@@ -45,7 +46,7 @@ from langgraph.graph.message import add_messages
 from .backends import Backend
 from .card import cluster_card
 from .lc_tools import make_tools
-from .validate import validate
+from .validate import ledger_size, new_ledger, observe, validate
 
 # Cluster data must never leave self-hosted infrastructure (D-19, INV-13): LangChain's hosted tracing
 # (LangSmith) is forced off regardless of the caller's environment. Use OpenTelemetry/self-hosted tracing instead.
@@ -112,22 +113,45 @@ class _ToolSafeChatOpenAI(ChatOpenAI):
         return super()._create_chat_result(data, generation_info)
 
 
-# Qwen3 non-thinking sampling as its model card recommends (greedy decoding causes endless repetition).
+# Qwen3 non-thinking sampling as its model card recommends (greedy decoding causes endless repetition). Used when no
+# model profile is given; a profile's `client` block replaces it whole, so each family keeps its own card's settings (D-40).
 SAMPLING = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0}
+DEFAULT_CLIENT = {**SAMPLING, "chat_template_kwargs": {"enable_thinking": False}}      # Qwen3 thinks by default
+_EXTRA_SAMPLING = ("top_k", "min_p", "repetition_penalty", "presence_penalty")          # vLLM extensions, sent in the body
+PROFILES = HERE.parent / "deploy" / "models"
 
 
-def build_llm(base_url: str, model: str, *, http_client: httpx.Client | None = None, sampling: dict | None = None):
+def load_profile(ref: str) -> tuple[str, dict]:
+    """(served model name, client settings) from a model profile: a path, or a name in deploy/models/ (D-40)."""
+    path = Path(ref) if ref.endswith(".json") else PROFILES / f"{ref}.json"
+    p = json.loads(path.read_text())
+    return p["serve"]["served_name"], p["client"]
+
+
+def resolve_model(model: str | None, profile: str | None) -> tuple[str, dict | None]:
+    """--model and --profile: a profile supplies the served name and its sampling; --model overrides only the name
+    (e.g. a gateway alias). Without a profile: --model, DOCTOR_MODEL, or the baseline, with Qwen3 sampling."""
+    if profile:
+        served, client = load_profile(profile)
+        return model or served, client
+    return model or os.environ.get("DOCTOR_MODEL") or "Qwen/Qwen3-8B-AWQ", None
+
+
+def build_llm(base_url: str, model: str, *, http_client: httpx.Client | None = None, client: dict | None = None):
     """ChatOpenAI against any OpenAI-compatible endpoint (vLLM or the gateway), bound to tools.json verbatim.
     tool_choice is "auto" (D-38): "required" made vLLM constrain decoding with a grammar that collapsed into
     whitespace until max_tokens on Qwen3-8B-AWQ; a reply without a tool call is nudged by the act node instead.
+    `client` is a profile's sampling block (temperature, top_p, top_k, …, chat_template_kwargs); default Qwen3.
     The API key comes only from VLLM_API_KEY. Retries are off: a gateway 429/503 must surface, not be hidden."""
-    s = {**SAMPLING, **(sampling or {})}
-    client = http_client or httpx.Client(timeout=HTTP_TIMEOUT_S)
-    client.event_hooks.setdefault("request", []).append(_add_headers)
+    c = DEFAULT_CLIENT if client is None else client
+    extra = {k: c[k] for k in _EXTRA_SAMPLING if k in c}
+    if c.get("chat_template_kwargs"):
+        extra["chat_template_kwargs"] = c["chat_template_kwargs"]
+    http = http_client or httpx.Client(timeout=HTTP_TIMEOUT_S)
+    http.event_hooks.setdefault("request", []).append(_add_headers)
     llm = _ToolSafeChatOpenAI(model=model, base_url=base_url, api_key=os.environ.get("VLLM_API_KEY") or "EMPTY",
-                     temperature=s["temperature"], top_p=s["top_p"], max_tokens=MAX_TOKENS_PER_STEP, max_retries=0,
-                     http_client=client, extra_body={"chat_template_kwargs": {"enable_thinking": False},   # Qwen3 thinks by default
-                                                     "top_k": s["top_k"], "min_p": s["min_p"]})
+                              temperature=c.get("temperature"), top_p=c.get("top_p"), max_tokens=MAX_TOKENS_PER_STEP,
+                              max_retries=0, http_client=http, extra_body=extra or None)
     return llm.bind_tools(TOOLS, tool_choice="auto")
 
 
@@ -145,6 +169,7 @@ class State(TypedDict):
     diagnosis: dict | None
     stop: str
     last_tokens: int
+    observed: dict                                # the observation ledger: refs and tools per namespace (D-41)
 
 
 def inconclusive(rejected: dict, errors: list[str]) -> dict:
@@ -203,6 +228,7 @@ def act_node(state: State, config) -> dict:
     task, backend, harness, tools = c["task"], c["backend"], c["harness"], c["tools"]
     msg = state["messages"][-1]
     seen, used, repairs, diagnosis = list(state["seen"]), dict(state["used"]), state["repairs"], None
+    ledger = state["observed"]
     out: list[AnyMessage] = []
     trace: list[str] = []
     calls: list[dict] = []
@@ -217,14 +243,14 @@ def act_node(state: State, config) -> dict:
     for tc in msg.tool_calls:
         name, args = tc["name"], tc["args"]
         if name == "submit_diagnosis":
-            verdict = validate(args, backend, task["namespaces"]) if harness else {"pass": True, "failed": []}
+            verdict = validate(args, backend, task["namespaces"], observed=ledger) if harness else {"pass": True, "failed": []}
             if verdict["pass"]:
                 diagnosis, result = args, {"accepted": True, "findings": len(args.get("findings", []))}
             elif repairs < MAX_REPAIRS:
                 repairs += 1
                 result = {"accepted": False, "errors": verdict["failed"][:8],
-                          "fix": "Fix exactly these problems — copy refs exactly from tool results, name only objects that exist — "
-                                 "then submit the whole diagnosis again."}
+                          "fix": "Fix exactly these problems — cite only refs that tool results in this conversation returned, name "
+                                 "only objects that exist — then submit the whole diagnosis again."}
             else:
                 diagnosis = inconclusive(args, verdict["failed"])            # fail closed (D-24)
                 result = {"accepted": False, "final": "inconclusive"}
@@ -232,6 +258,7 @@ def act_node(state: State, config) -> dict:
             result = {"error": f"unknown tool {name}"}
         else:
             result = (harness and _guard(name, args, seen, used, len(task["namespaces"]))) or tools[name].invoke(args)
+            ledger = observe(ledger, name, result)
         out.append(ToolMessage(content=json.dumps(result, ensure_ascii=False), tool_call_id=tc["id"], name=name))
         trace.append(name)
         rec = {"step": state["n"], "name": name, "error": result.get("error") if isinstance(result, dict) else None,
@@ -243,11 +270,14 @@ def act_node(state: State, config) -> dict:
         calls.append(rec)
     if diagnosis is None and harness and task.get("max_steps", 16) - state["n"] == WARN_STEPS_LEFT:
         out.append(HumanMessage(f"Only {WARN_STEPS_LEFT} model calls left. Call submit_diagnosis now with the findings "
-                                "you can ground in evidence; status healthy if none."))
-    update: dict[str, Any] = {"messages": out, "trace": trace, "calls": calls, "seen": seen, "used": used, "repairs": repairs}
+                                "you can ground in evidence. If you cannot ground any, submit status inconclusive and say in "
+                                "summary what you could not check; healthy only if you checked and found nothing wrong."))
+    update: dict[str, Any] = {"messages": out, "trace": trace, "calls": calls, "seen": seen, "used": used, "repairs": repairs,
+                              "observed": ledger}
     if diagnosis is not None:
         update["diagnosis"] = diagnosis
-        update["stop"] = "inconclusive" if diagnosis.get("status") == "inconclusive" else "submitted"
+        update["stop"] = ("submitted" if diagnosis.get("status") != "inconclusive" else
+                          "inconclusive" if "rejected_submission" in diagnosis else "abstained")
     return update
 
 
@@ -288,7 +318,7 @@ def run_task(task: dict, backend: Backend, llm: BaseChatModel, *, cluster: str =
     (the CLI prints progress from it); the returned record is the same with or without it."""
     run_id = f"{task['id']}-{uuid.uuid4().hex[:8]}"
     state: State = {"messages": initial_messages(task, backend, cluster), "n": 0, "trace": [], "steps": [], "calls": [],
-                    "repairs": 0, "seen": [], "used": {}, "diagnosis": None, "stop": "", "last_tokens": 0}
+                    "repairs": 0, "seen": [], "used": {}, "diagnosis": None, "stop": "", "last_tokens": 0, "observed": new_ledger()}
     config = {"configurable": {"task": task, "backend": backend, "llm": llm, "harness": harness, "run_id": run_id,
                                "tools": make_tools(backend), "thread_id": run_id},
               "recursion_limit": 3 * task.get("max_steps", 16) + 10}
@@ -302,4 +332,4 @@ def run_task(task: dict, backend: Backend, llm: BaseChatModel, *, cluster: str =
     steps = [dict(s, calls=[c for c in final["calls"] if c["step"] == s["step"]]) for s in final["steps"]]
     return {"task_id": task["id"], "run_id": run_id, "diagnosis": final["diagnosis"], "trace": final["trace"],
             "stop": final["stop"] or "step_cap", "steps": steps, "repairs": final["repairs"], "harness": harness,
-            "headers": request_headers(task)}
+            "headers": request_headers(task), "observed": final["observed"], "observed_refs": ledger_size(final["observed"])}

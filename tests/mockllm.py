@@ -1,9 +1,12 @@
 """A scripted OpenAI-compatible server for tests (httpx MockTransport) and a real LangChain client bound to it."""
 import json
+from pathlib import Path
 
 import httpx
 
 from doctor import agent
+
+TRAJECTORIES = json.loads((Path(__file__).resolve().parents[1] / "evals/golden/reference_trajectories.json").read_text())
 
 
 class Server:
@@ -29,3 +32,9 @@ class Server:
 
 def llm_for(server: Server):
     return agent.build_llm("http://gateway.test/v1", "Qwen/Qwen3-8B-AWQ", http_client=httpx.Client(transport=httpx.MockTransport(server)))
+
+
+def reference_script(task_id: str, submit: dict) -> list:
+    """The reference trajectory (the tool calls that return every ref the reference cites), then submit_diagnosis:
+    a scripted model run whose citations are all in the observation ledger (D-41)."""
+    return [(name, args) for name, args in TRAJECTORIES[task_id]] + [("submit_diagnosis", submit)]

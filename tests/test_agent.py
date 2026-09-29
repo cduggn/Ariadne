@@ -4,8 +4,8 @@ import json
 
 from doctor import agent
 from evals.build_golden import backend_for
-from evals.checker import check
-from tests.mockllm import Server, llm_for
+from evals.checker import check, check_v2
+from tests.mockllm import Server, llm_for, reference_script
 
 
 def test_reference_run_passes_the_checker(tasks, refs):
@@ -78,12 +78,11 @@ def test_multi_hop_reference_run_and_harness_off(tasks, refs):
     t = tasks["dx-cascade-db"]
     b = backend_for(t["snapshots"])
     api = next(p["metadata"]["name"] for p in b.objects("pods", "inventory") if p["metadata"]["name"].startswith("stock-api"))
-    s = Server(("list_problem_pods", {"namespace": "inventory"}),
-               ("pod_logs", {"namespace": "inventory", "pod": api, "container": "", "previous": False, "tail": 40}),
-               ("describe", {"kind": "deployment", "namespace": "inventory", "name": "stock-db"}),
-               ("submit_diagnosis", refs["dx-cascade-db"]))
+    script = reference_script("dx-cascade-db", refs["dx-cascade-db"])
+    s = Server(script[0], ("pod_logs", {"namespace": "inventory", "pod": api, "container": "", "previous": False, "tail": 40}), *script[1:])
     run = agent.run_task(t, b, llm_for(s))
     assert run["stop"] == "submitted" and check(t, run["diagnosis"], run["trace"], b)["pass"]
+    assert check_v2(t, run["diagnosis"], b, observed=run["observed"], calls=[c for st in run["steps"] for c in st["calls"]])["pass"]
     off = agent.run_task({**t, "max_steps": 3}, b, llm_for(Server(("list_problem_pods", {"namespace": "inventory"}))), harness=False)
     assert all(not c["error"] for st in off["steps"] for c in st["calls"])
 
@@ -98,7 +97,7 @@ def test_tool_call_arguments_that_are_not_an_object_do_not_crash(tasks, refs):
     t = tasks["dx-oom"]
     b = backend_for(t["snapshots"])
     s = Server(("describe", json.dumps("{'kind': 'service', 'namespace': 'reports', 'name': 'x'}")),
-               ("submit_diagnosis", refs["dx-oom"]))
+               *reference_script("dx-oom", refs["dx-oom"]))
     run = agent.run_task(t, b, llm_for(s))
     assert run["stop"] == "submitted" and "not valid JSON" in run["steps"][0]["calls"][0]["error"]
     assert "send exactly one JSON object" in json.dumps(s.requests[1]["body"]["messages"][-1])

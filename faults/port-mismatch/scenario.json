@@ -30,7 +30,42 @@
     {
       "kind": "Service",
       "name": "pricing-api",
-      "affects": []
+      "affects": [],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "names the targetPort",
+            "re": "target\\s*port"
+          },
+          {
+            "id": "names the Service's wrong port 8080",
+            "re": "\\b8080\\b"
+          }
+        ],
+        "contradictions": [
+          {
+            "id": "moves targetPort to 8080 (ports reversed)",
+            "re": "target\\s*port\\s*(?:to|=|:)\\s*8080",
+            "in": "fix"
+          },
+          {
+            "id": "says the container listens on 8080 (ports reversed)",
+            "re": "container\\W{0,3}(?:port\\W*|listens\\W+on\\W+(?:port\\W*)?|exposes\\W+(?:port\\W*)?)?\\(?8080"
+          },
+          {
+            "id": "says targetPort is 80 (ports reversed)",
+            "re": "target\\s*port\\s+(?:is\\s+)?80\\b"
+          },
+          {
+            "id": "blames a Service probe (Services have no probes)",
+            "re": "(?:service|svc)(?:'s)?\\s+(?:readiness\\s+|liveness\\s+)?probe"
+          }
+        ],
+        "example": {
+          "root_cause": "Service pricing-api sends port 80 to targetPort 8080, but the nginx container listens on port 80, so connections are refused",
+          "fix": "set the pricing-api Service targetPort to 80"
+        }
+      }
     }
   ],
   "evidence": [

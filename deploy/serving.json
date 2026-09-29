@@ -1,0 +1,27 @@
+{
+  "about": "The GPU, the engine settings every model shares, and the two ways the card is carved (D-40). Models are in deploy/models/.",
+  "gpu": {"name": "A100 40 GB (Lambda gpu_1x_a100)", "mib": 40960, "bandwidth_gbs": 1555, "tflops_bf16": 312},
+  "engine": {
+    "image": "docker.io/vllm/vllm-openai:v0.29.0-cu129@sha256:7ef5a35d1ef8ce2cf9d671dd91eec6e367c5849262e0362b4d3d4a26be0d87d2",
+    "gpu_memory_utilization": 0.9,
+    "max_model_len": 24576,
+    "max_num_seqs": 32,
+    "max_num_batched_tokens": 8192,
+    "kv_cache_bytes": 2
+  },
+  "estimates": {
+    "cuda_context_gib": 0.75,
+    "mfu": 0.4,
+    "app_len": 12000,
+    "shared_prefix": 3787,
+    "note": "activation peak = max_num_batched_tokens × 2 B × (4·hidden + 2·intermediate); CUDA context and MFU are assumptions. On the 8B slice this predicted 79,701 KV tokens; vLLM measured 79,056 (−0.8 %)."
+  },
+  "gate": {"min_full_length_sequences": 1, "comfortable_full_length_sequences": 2,
+           "why": "vLLM refuses to start unless one max-length request fits, so below 1 a deploy only wastes a boot; below 2 the worker serves one long audit at a time (tight)"},
+  "topologies": {
+    "sliced": {"max_replicas": 2, "gpumem_mib": 20480, "gpucores": 50,
+               "purpose": "N workers on HAMi slices of 20 GiB and half the SMs each: GPU slicing, routing, affinity and the KV hop between workers"},
+    "full":   {"max_replicas": 1, "gpumem_mib": 40960, "gpucores": 100,
+               "purpose": "one worker with the whole card: the model-quality benchmark, and the larger models that do not fit a slice"}
+  }
+}

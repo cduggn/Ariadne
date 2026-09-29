@@ -13,7 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      - run: uvx -q ruff@0.13.2 check doctor evals lab tests
+      - run: uvx -q ruff@0.13.2 check doctor evals lab serving tests
       - run: uv sync --locked --python 3.12
-      - run: uv run python -m evals.build_golden && git diff --exit-code evals/golden    # references still pass and are up to date
+      - run: uv run python -m evals.build_golden && git diff --exit-code evals/golden    # references pass v1 and v2 and are up to date
+      - run: uv run python -m serving.matrix && git diff --exit-code design/model-matrix.md   # the matrix matches deploy/ and metrics/
       - run: uv run python -m pytest

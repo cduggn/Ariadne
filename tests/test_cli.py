@@ -7,7 +7,7 @@ import sys
 
 from doctor import agent, cli
 from evals.build_golden import backend_for
-from tests.mockllm import Server, llm_for
+from tests.mockllm import Server, llm_for, reference_script
 
 
 def run(argv, server):
@@ -36,7 +36,7 @@ def test_snapshot_investigation_reports_the_root_cause_and_shows_each_step(refs)
 
 
 def test_json_and_out_file_healthy_exit_zero(refs, tmp_path):
-    s = Server(("submit_diagnosis", refs["dx-healthy"]))
+    s = Server(*reference_script("dx-healthy", refs["dx-healthy"]))       # list_problem_pods first: healthy needs coverage
     path = tmp_path / "run.json"
     code, out, err = run(["audit", "-n", "status", "--snapshot", "healthy", "--json", "--out", str(path), "-q"], s)
     record = json.loads(out)

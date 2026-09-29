@@ -17,12 +17,12 @@ run yet: the laptop talks to vLLM through an SSH tunnel.
 ## Steps
 | # | Command | What it proves |
 |---|---|---|
-| 0 | `make preflight` | lint, 47 tests, golden references committed, lam has an API key |
+| 0 | `make preflight` | lint, 67 tests, golden references committed, fit gate for MODEL/TOPO, lam has an API key |
 | 1 | `make up` (~15 min) | the node bootstraps k3s, HAMi, Prometheus, Grafana, DCGM, OpenCost and the weights (`ready.json`) |
 | 2 | `make deploy && make kv` | **KV pool per worker**: `GPU KV cache size` compared with the paper's 79,700 tokens |
 | 3 | `make dashboards`, then terminals 2 and 3 | the dashboard "vLLM · engine and GPU" is live |
 | 4 | `make golden TAG=baseline ONLY=dx-crashloop` | smoke test: agent, hermes parser, tools end to end |
-| 5 | `make golden TAG=baseline` | **pass rate per tier**, prompt tokens per step, **cached share** (`metrics/golden-baseline-*.summary.json`) |
+| 5 | `make golden TAG=baseline` | **pass rate per tier** (v1 and v2, D-41), prompt tokens per step, **cached share** (`metrics/golden-baseline-*.summary.json`) |
 | 6 | `make sweep REPEAT=2` | concurrency 1/4/8/16/32: TTFT, KV usage, waiting, preemptions — **does KV bind before 32?** |
 | 7 | terminals 4–5, then `make inject STAGGER=60` | **autonomous detection**: time from injection to detection to diagnosis, and whether the root cause is correct |
 | 8 | `make inject FAULTS=all-easy` with `WATCH_ARGS="--max-parallel 12"` | **incident storm**: about 12 investigations at once, so KV and queue go under stress |
@@ -67,3 +67,48 @@ Record results in `metrics/` (commit them), in the capacity file's measured rows
 - a cached share well below the shared fraction;
 - multi-hop or red-herring pass rates near zero, which moves the reviewer role (C17) up the list;
 - detection-to-diagnosis latency over ~2 minutes in a storm, which makes gateway admission and priority urgent.
+
+## Session 2: model selection (D-40, D-41)
+This session produces a model matrix a grader can follow. Each model runs the same 26 golden tasks on the same engine
+settings, and the matrix reports v1 and v2 scores with 95% intervals. Pass rates can be compared across topologies,
+because slicing changes speed but not answers. Latencies can't be compared across topologies. Run `make fit-all` before
+paying to see the paper numbers, and read `design/model-matrix.md` for the plan. Allow about 2 hours of A100 time.
+
+Keep `make tunnel` running in terminal 2. Each `make deploy` restarts vllm-0, which ends the port-forward, so restart
+the tunnel after every deploy. Pass the deployed `MODEL` and `TOPO` to every `make kv` and `make golden`, because both
+record them. A `make kv` without them files the log under the default 8B name.
+
+| # | Command | What it produces |
+|---|---|---|
+| 0 | `make preflight` | 67 tests pass, the references pass v1 and v2, and the default pair passes the fit gate |
+| 1 | `make up`, or reuse a running node | A node with the 8B weights prefetched and served on one slice |
+| 2 | `make kv MODEL=qwen3-8b-awq TOPO=sliced` | The 8B's measured pool (79,056 tokens on 2026-09-28) |
+| 3 | `make golden MODEL=qwen3-8b-awq TOPO=sliced TAG=8b REPEAT=3 CONC=4` | The 8B baseline: 26 tasks × 3, both scores, 95% interval |
+| 4 | `make deploy MODEL=qwen3-30b-a3b-2507-awq TOPO=full && make kv MODEL=qwen3-30b-a3b-2507-awq TOPO=full` | Fetches about 17 GiB and reports the measured pool (185,136 tokens on 2026-09-28) |
+| 5 | `make golden MODEL=qwen3-30b-a3b-2507-awq TOPO=full TAG=30b-smoke ONLY=dx-crashloop,dx-port-mismatch REPEAT=1` | Confirms the community quantization and the hermes parser work: tool calls parse and `finish_reason` isn't `length` |
+| 6 | `make golden MODEL=qwen3-30b-a3b-2507-awq TOPO=full TAG=30b REPEAT=3 CONC=4` | The 30B-A3B row |
+| 7 | `make deploy MODEL=qwen3-14b-awq TOPO=sliced`, `make kv MODEL=qwen3-14b-awq TOPO=sliced`, then `make golden MODEL=qwen3-14b-awq TOPO=sliced TAG=14b REPEAT=3 CONC=4` | The 14B row. It shows whether a bigger dense model closes the gap to the 30B-A3B |
+| 8 | If time allows, a smoke run and then a full run of `qwen3.5-9b` on `TOPO=full` | The hybrid row. `make kv` shows vLLM's own hybrid pool; check that prefix caching gets hits |
+| 9 | `make matrix` | The ranking. Overlapping intervals mean a difference isn't established yet |
+| 10 | `make metrics TAG=models` and `make matrix`, commit `metrics/` and the matrix, then `make down` | Billing stops |
+
+Two workers only become useful once the gateway spreads traffic across them. Until then the tunnel reaches vllm-0 only,
+so `make scale N=2` would pay for a second slice that sits idle.
+
+For each model, look at these values:
+- the v2 pass rate and its interval;
+- `parts_v2`, to see whether the root was found and, if it was, whether the category or the mechanism was wrong;
+- `abstained`, which should be about 0 on these faults because the tools can observe all of them;
+- `finish_reasons`, where `length` means the 768-token cap cut off a submission;
+- `cached_share_of_prompt` and step latency p50 and p95;
+- vLLM's `kv_cache_usage_perc` in Grafana at CONC=4.
+
+Use this rule to choose:
+- A model wins if its v2 interval sits clearly above the 8B's, unless it produces fewer correct diagnoses per GPU-hour
+  and the quality gap is small.
+- If the best model doesn't fit a slice, report two models: the best whole-card model for answer quality, and the best
+  model that fits a slice for the slicing, routing and KV-hop demo.
+- Record the choice as a decisions entry.
+
+Results from 2026-09-28, at REPEAT=2 and CONC=1: the 8B on one slice scored 52% on v2 (interval 39–65%) and the
+30B-A3B on the whole card scored 67% (54–78%). `design/model-architecture-guide.md` §8 interprets them.

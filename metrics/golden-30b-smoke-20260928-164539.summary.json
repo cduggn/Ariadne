@@ -1,0 +1,91 @@
+{
+  "tag": "30b-smoke",
+  "profile": "qwen3-30b-a3b-2507-awq",
+  "model": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+  "topology": "full",
+  "workers": 1,
+  "gpu_share": 1.0,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 1,
+  "repeat": 1,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": "dx-crashloop,dx-port-mismatch",
+  "git_commit": "8c0ebec",
+  "wall_s": 16.5,
+  "timestamp": "20260928-164539",
+  "tasks": 2,
+  "unique_tasks": 2,
+  "passed": 1,
+  "pass_rate": 0.5,
+  "pass_rate_by_type": {
+    "investigate": 0.5
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.0,
+    "red_herring": 1.0
+  },
+  "passed_v2": 1,
+  "pass_rate_v2": 0.5,
+  "pass_rate_v2_ci95": [
+    0.095,
+    0.905
+  ],
+  "pass_rate_by_type_v2": {
+    "investigate": 0.5
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.0,
+    "red_herring": 1.0
+  },
+  "parts_v2": {
+    "submitted": 1.0,
+    "grounded": 1.0,
+    "status": 1.0,
+    "root": 1.0,
+    "category": 1.0,
+    "mechanism": 1.0,
+    "chain": 1.0,
+    "no_false_positive": 1.0
+  },
+  "top_failed_rules_v2": [
+    [
+      "evidence-type",
+      1
+    ]
+  ],
+  "advisory_v2": [
+    [
+      "tools-called",
+      1
+    ]
+  ],
+  "stop_reasons": {
+    "submitted": 2
+  },
+  "inconclusive": 0,
+  "abstained": 0,
+  "http_refusals": {},
+  "top_failed_rules": [
+    [
+      "category",
+      1
+    ],
+    [
+      "evidence-type",
+      1
+    ]
+  ],
+  "repairs": 0,
+  "tool_errors": 5,
+  "steps_per_task_mean": 11.5,
+  "prompt_tokens_last_step_p50": 8825,
+  "prompt_tokens_last_step_max": 8825,
+  "completion_tokens_per_step_p50": 35,
+  "cached_share_of_prompt": 0.929,
+  "step_latency_s_p50": 0.427,
+  "step_latency_s_p95": 1.953
+}

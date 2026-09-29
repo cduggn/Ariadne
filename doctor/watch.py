@@ -34,7 +34,7 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import tools as T
-from .agent import build_llm, run_task
+from .agent import build_llm, resolve_model, run_task
 from .backends import Backend, check_name
 
 SYSTEM_NAMESPACES = {"kube-system", "kube-public", "kube-node-lease", "local-path-storage"}
@@ -356,7 +356,8 @@ def main(argv: list[str], *, llm=None, stdout=None, stderr=None, open_source=Non
     ap.add_argument("--rightsize-every", type=int, default=604_800)
     ap.add_argument("--max-parallel", type=int, default=4)
     ap.add_argument("--base-url", default=os.environ.get("DOCTOR_BASE_URL", "http://127.0.0.1:8000/v1"))
-    ap.add_argument("--model", default=os.environ.get("DOCTOR_MODEL", "Qwen/Qwen3-8B-AWQ"))
+    ap.add_argument("--profile", default=os.environ.get("DOCTOR_PROFILE"), help="model profile: served name and sampling (D-40)")
+    ap.add_argument("--model", help="served model name (default: the profile's, DOCTOR_MODEL, or Qwen/Qwen3-8B-AWQ)")
     ap.add_argument("--tenant", default="platform")
     ap.add_argument("--out", help="append one JSON line per diagnosis to this file")
     ap.add_argument("--metrics-addr", default="127.0.0.1:9109", help="host:port for /metrics; empty to disable")
@@ -370,6 +371,10 @@ def main(argv: list[str], *, llm=None, stdout=None, stderr=None, open_source=Non
         print(f"cluster-doctor watch: {msg}", file=err)
         return code
 
+    try:
+        a.model, client = resolve_model(a.model, a.profile)
+    except (OSError, ValueError, KeyError) as e:
+        return fail(EXIT_USAGE, f"cannot read model profile {a.profile!r}: {e}")
     try:
         check_name(a.tenant, "tenant")
         fixed = [check_name(x.strip(), "namespace") for x in (a.namespaces or "").split(",") if x.strip()] or None
@@ -397,7 +402,7 @@ def main(argv: list[str], *, llm=None, stdout=None, stderr=None, open_source=Non
         print(f"{time.strftime('%H:%M:%S')} {msg}", file=err, flush=True)
 
     snapshot_ns = available if a.snapshot else None
-    w = Watcher(backend, llm or build_llm(a.base_url, a.model), namespaces=fixed, exclude=exclude, cluster=cluster, log_scan=not a.no_log_scan,
+    w = Watcher(backend, llm or build_llm(a.base_url, a.model, client=client), namespaces=fixed, exclude=exclude, cluster=cluster, log_scan=not a.no_log_scan,
                 tenant=a.tenant, cooldown_s=a.cooldown, event_window_s=a.event_window, audit_every_s=a.audit_every,
                 rightsize_every_s=a.rightsize_every, max_parallel=a.max_parallel, emit=emit, log=log,
                 available=(lambda: snapshot_ns) if snapshot_ns else None)

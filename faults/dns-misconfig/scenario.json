@@ -34,7 +34,19 @@
     {
       "kind": "Deployment",
       "name": "mailer",
-      "affects": []
+      "affects": [],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "the pod's DNS config",
+            "re": "dns|nameserver|resolv"
+          }
+        ],
+        "example": {
+          "root_cause": "mailer's dnsConfig points at nameserver 10.96.0.99, which does not answer, so smtp-relay does not resolve",
+          "fix": "remove mailer's custom dnsConfig and use dnsPolicy ClusterFirst"
+        }
+      }
     }
   ],
   "evidence": [

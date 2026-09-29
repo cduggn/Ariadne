@@ -51,7 +51,19 @@
           "kind": "ConfigMap",
           "name": "auth-api-cert"
         }
-      ]
+      ],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "the certificate expired",
+            "re": "expir"
+          }
+        ],
+        "example": {
+          "root_cause": "the upstream serving certificate has expired, so auth-api fails TLS verification",
+          "fix": "renew the expired serving certificate"
+        }
+      }
     }
   ],
   "evidence": [

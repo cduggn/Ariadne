@@ -1,0 +1,16 @@
+{
+  "name": "qwen3.5-9b",
+  "plan": "round-2",
+  "summary": "Hybrid: 8 attention layers + 24 recurrent (Gated DeltaNet) layers; BF16 so quantization does not confound the comparison",
+  "hf": {"repo": "Qwen/Qwen3.5-9B", "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a", "license": "apache-2.0",
+         "quant": "none (BF16); the weights include a vision encoder"},
+  "arch": {"layers": 32, "attn_layers": 8, "kv_heads": 4, "head_dim": 256, "hidden": 4096, "intermediate": 12288,
+           "params_b": 9.65, "active_params_b": 9.65, "weights_gib": 17.98,
+           "linear": {"layers": 24, "key_heads": 16, "key_head_dim": 128, "value_heads": 32, "value_head_dim": 128, "conv_kernel": 4}},
+  "serve": {"served_name": "Qwen/Qwen3.5-9B", "args": ["--tool-call-parser=qwen3_coder", "--reasoning-parser=qwen3", "--language-model-only"]},
+  "client": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "chat_template_kwargs": {"enable_thinking": false}},
+  "evidence": "Not served. Publisher reports BFCL-V4 66.1 and TAU2 79.1; shortlist signals only.",
+  "caveats": ["Recurrent state per sequence is an estimate; prefix caching for hybrid models is experimental in vLLM",
+              "KV-hop connectors are unverified for recurrent state: keep it out of the hop demo",
+              "Check --language-model-only and the sampling recommendation against the model card and the pinned image"]
+}

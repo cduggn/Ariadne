@@ -49,10 +49,26 @@ Exit codes are 0 healthy, 1 issue, 2 no grounded diagnosis. The model is at `DOC
 ## Offline (no GPU)
 ```
 make tools && uv sync          # pinned kind + kubectl; pinned LangGraph/LangChain (uv.lock)
-make lint test                 # 47 tests over recorded fault snapshots
-make golden-build              # 26 golden tasks (easy, multi-hop, red-herring, right-sizing); references must pass
+make lint test                 # 67 tests over recorded fault snapshots
+make golden-build              # 26 golden tasks (easy, multi-hop, red-herring, right-sizing); references must pass both scores
 make lab-up lab-record lab-down   # re-record the fault lab on kind (~25 min)
 ```
+
+## Models and topologies
+Two independent settings choose which model serves and how the A100 is split (D-40).
+```
+make models                                    # 7 profiles in deploy/models/ (pinned checkpoint, vLLM args, sampling)
+make fit-all                                   # every model × {sliced: 2 × 20 GiB HAMi slices, full: whole card}
+make fit MODEL=qwen3-30b-a3b-2507-awq TOPO=full   # KV pool, sequences at 24k, prefill/decode floors, gate
+make deploy MODEL=qwen3-14b-awq TOPO=sliced    # render, fetch weights, serve (refuses pairs that cannot start)
+make golden MODEL=qwen3-14b-awq TOPO=sliced TAG=14b REPEAT=3 CONC=4
+make matrix                                    # design/model-matrix.md: fit, results with 95 % intervals, ranking
+```
+Every golden row is scored twice (D-41). v1 is the original score. v2 differs in four ways:
+- a cited ref must have been shown to the model in that run;
+- a category that the evidence supports equally well also counts;
+- the explanation must state the real mechanism, so a port-mismatch answer that reverses the ports fails;
+- a missing required tool call is reported as a warning instead of failing the task.
 
 ## On the Lambda GPU
 The full test plan is in [`design/lambda-test-plan.md`](design/lambda-test-plan.md). The node is billed
@@ -74,8 +90,9 @@ make heal && make down
 | `faults/` | 27 injected faults in tiers (easy, multi-hop, red-herring, right-sizing, live-only) with answer keys |
 | `lab/` | kind config, pinned tool fetcher, snapshot recorder, fault injector |
 | `fixtures/` | recorded, redacted cluster snapshots |
-| `evals/` | golden-set builder with reference solver, checker, runner (also the load generator) |
-| `deploy/` | Lambda bootstrap (k3s, HAMi, Prometheus, Grafana, DCGM, OpenCost), vLLM manifest, doctor RBAC, AWS lab scripts |
+| `evals/` | golden-set builder with reference solver and trajectories, v1 + v2 checker, runner (also the load generator) |
+| `serving/` | model profiles → manifests, fit calculator, model matrix |
+| `deploy/` | Lambda bootstrap (k3s, HAMi, Prometheus, Grafana, DCGM, OpenCost), model profiles, serving settings, vLLM manifest, doctor RBAC, AWS lab scripts |
 | `design/` | decisions, architecture, capacity, test plan, course mapping |
 
 ## Safety
@@ -84,5 +101,7 @@ make heal && make down
   clusters.
 - **Secrets.** Secrets are redacted before anything is stored or shown to a model.
 - **Prompt injection.** Log lines that try to instruct the model are flagged, not obeyed.
-- **Grounding.** A diagnosis that cites evidence the tools never returned is rejected. After two repairs
-  the answer is `inconclusive`, never a guess.
+- **Grounding.** Every tool result the model receives goes into an observation ledger. A diagnosis that cites a ref
+  the model was never shown is rejected, even if the object exists. After two repairs the answer is `inconclusive`,
+  never a guess. A model that cannot ground a diagnosis may also say so (`inconclusive`), and "healthy" requires
+  having checked every namespace.

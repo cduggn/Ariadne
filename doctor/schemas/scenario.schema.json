@@ -135,6 +135,109 @@
                 "type": "array"
               }
             }
+          },
+          "also_accept": {
+            "type": "object",
+            "required": [
+              "categories",
+              "why"
+            ],
+            "additionalProperties": false,
+            "description": "v2 score only (D-41): categories the visible evidence supports as well as the injected one",
+            "properties": {
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "why": {
+                "type": "string"
+              }
+            }
+          },
+          "mechanism": {
+            "type": "object",
+            "required": [
+              "facts",
+              "example"
+            ],
+            "additionalProperties": false,
+            "description": "v2 score only (D-41): what a correct explanation must state and must not state; the example is the reference solver's text and must pass",
+            "properties": {
+              "facts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "re"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "re": {
+                      "type": "string",
+                      "description": "case-insensitive regex"
+                    },
+                    "in": {
+                      "enum": [
+                        "text",
+                        "fix"
+                      ],
+                      "description": "text = root_cause + fix (default); fix = fix only"
+                    }
+                  }
+                }
+              },
+              "contradictions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "re"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "re": {
+                      "type": "string",
+                      "description": "case-insensitive regex"
+                    },
+                    "in": {
+                      "enum": [
+                        "text",
+                        "fix"
+                      ],
+                      "description": "text = root_cause + fix (default); fix = fix only"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "type": "object",
+                "required": [
+                  "root_cause",
+                  "fix"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "root_cause": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "fix": {
+                    "type": "string",
+                    "maxLength": 240
+                  }
+                }
+              }
+            }
           }
         }
       }

@@ -1,0 +1,12 @@
+{
+  "name": "qwen3-14b-awq",
+  "plan": "round-1",
+  "summary": "Same family and tool format as the baseline, 1.8× the parameters; the only upgrade that still fits a 20 GiB slice",
+  "hf": {"repo": "Qwen/Qwen3-14B-AWQ", "revision": "31c69efc29464b6bb0aee1398b5a7b50a99340c3", "license": "apache-2.0", "quant": "AWQ 4-bit (official)"},
+  "arch": {"layers": 40, "attn_layers": 40, "kv_heads": 8, "head_dim": 128, "hidden": 5120, "intermediate": 17408,
+           "params_b": 14.77, "active_params_b": 14.77, "weights_gib": 9.29},
+  "serve": {"served_name": "Qwen/Qwen3-14B-AWQ", "args": ["--tool-call-parser=hermes"]},
+  "client": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "chat_template_kwargs": {"enable_thinking": false}},
+  "evidence": "Not yet served.",
+  "caveats": ["On a slice it holds under two 24k-token requests; good for the slicing demo only if quality justifies it"]
+}

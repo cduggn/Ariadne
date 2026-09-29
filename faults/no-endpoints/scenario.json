@@ -12,7 +12,25 @@
     {
       "kind": "Service",
       "name": "checkout",
-      "affects": []
+      "affects": [],
+      "also_accept": {
+        "categories": [
+          "service_misconfig"
+        ],
+        "why": "the selector is part of the Service spec; the ruleset glosses service_misconfig as 'ports or other service spec wrong'"
+      },
+      "mechanism": {
+        "facts": [
+          {
+            "id": "the selector matches no pods",
+            "re": "selector|label"
+          }
+        ],
+        "example": {
+          "root_cause": "Service checkout selects app=checkout-v2 but its pods are labelled app=checkout, so it has no endpoints",
+          "fix": "change the checkout Service selector to app: checkout"
+        }
+      }
     }
   ],
   "evidence": [

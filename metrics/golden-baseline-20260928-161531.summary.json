@@ -1,0 +1,150 @@
+{
+  "tag": "baseline",
+  "profile": "qwen3-8b-awq",
+  "model": "Qwen/Qwen3-8B-AWQ",
+  "topology": "sliced",
+  "workers": 1,
+  "gpu_share": 0.5,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 1,
+  "repeat": 2,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "8c0ebec",
+  "wall_s": 726.9,
+  "timestamp": "20260928-161531",
+  "tasks": 52,
+  "unique_tasks": 26,
+  "passed": 23,
+  "pass_rate": 0.442,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.523,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.607,
+    "multi_hop": 0.143,
+    "red_herring": 0.5,
+    "rightsizing": 0.0
+  },
+  "passed_v2": 27,
+  "pass_rate_v2": 0.519,
+  "pass_rate_v2_ci95": [
+    0.387,
+    0.649
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.0,
+    "investigate": 0.614,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.679,
+    "multi_hop": 0.429,
+    "red_herring": 0.25,
+    "rightsizing": 0.0
+  },
+  "parts_v2": {
+    "submitted": 0.827,
+    "grounded": 0.827,
+    "status": 0.827,
+    "root": 0.615,
+    "category": 0.615,
+    "mechanism": 0.577,
+    "chain": 0.577,
+    "no_false_positive": 0.692
+  },
+  "top_failed_rules_v2": [
+    [
+      "found",
+      11
+    ],
+    [
+      "no-false-positive",
+      7
+    ],
+    [
+      "no-diagnosis",
+      5
+    ],
+    [
+      "inconclusive",
+      4
+    ],
+    [
+      "chain",
+      2
+    ],
+    [
+      "mechanism",
+      2
+    ],
+    [
+      "resize",
+      1
+    ]
+  ],
+  "advisory_v2": [
+    [
+      "tools-called",
+      14
+    ]
+  ],
+  "stop_reasons": {
+    "submitted": 43,
+    "inconclusive": 4,
+    "context_budget": 4,
+    "step_cap": 1
+  },
+  "inconclusive": 4,
+  "abstained": 0,
+  "http_refusals": {},
+  "top_failed_rules": [
+    [
+      "found",
+      11
+    ],
+    [
+      "no-false-positive",
+      7
+    ],
+    [
+      "tools-called",
+      6
+    ],
+    [
+      "no-diagnosis",
+      5
+    ],
+    [
+      "inconclusive",
+      4
+    ],
+    [
+      "category",
+      3
+    ],
+    [
+      "chain",
+      2
+    ],
+    [
+      "resize",
+      1
+    ]
+  ],
+  "repairs": 22,
+  "tool_errors": 238,
+  "steps_per_task_mean": 10.98,
+  "prompt_tokens_last_step_p50": 6788,
+  "prompt_tokens_last_step_max": 22640,
+  "completion_tokens_per_step_p50": 34,
+  "cached_share_of_prompt": 0.949,
+  "step_latency_s_p50": 0.436,
+  "step_latency_s_p95": 6.481
+}

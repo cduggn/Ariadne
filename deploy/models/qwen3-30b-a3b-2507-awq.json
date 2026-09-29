@@ -1,0 +1,14 @@
+{
+  "name": "qwen3-30b-a3b-2507-awq",
+  "plan": "round-1",
+  "summary": "Mixture of experts, 30.5B resident / 3.3B active per token, non-thinking Instruct-2507; standard attention",
+  "hf": {"repo": "cyankiwi/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit", "revision": "84455dc68ee6574b9f43659e32588d0bf0ca3a21", "license": "apache-2.0",
+         "quant": "AWQ 4-bit, community (compressed-tensors format; vLLM picks the loader from config.json)"},
+  "arch": {"layers": 48, "attn_layers": 48, "kv_heads": 4, "head_dim": 128, "hidden": 2048, "intermediate": 6144,
+           "params_b": 30.5, "active_params_b": 3.3, "weights_gib": 16.85, "experts": 128, "experts_per_token": 8},
+  "serve": {"served_name": "Qwen/Qwen3-30B-A3B-Instruct-2507", "args": ["--tool-call-parser=hermes"]},
+  "client": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0},
+  "evidence": "Not yet served. Publisher reports improved tool use over the original 30B-A3B (BFCL-v3 65.1); not a Cluster Doctor score.",
+  "caveats": ["Community quantization: check the smoke run's tool calls before the full set",
+              "Only 3.3B parameters are active, so prefill should cost about 2.5× less compute than the 8B; measure it"]
+}

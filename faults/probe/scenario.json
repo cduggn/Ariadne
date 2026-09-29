@@ -12,7 +12,19 @@
     {
       "kind": "Deployment",
       "name": "web",
-      "affects": []
+      "affects": [],
+      "mechanism": {
+        "facts": [
+          {
+            "id": "the probe checks the wrong port",
+            "re": "8081|port"
+          }
+        ],
+        "example": {
+          "root_cause": "web's readiness probe checks port 8081 but nginx listens on 80, so the pod never becomes ready",
+          "fix": "point the web readiness probe at port 80"
+        }
+      }
     }
   ],
   "evidence": [

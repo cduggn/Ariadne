@@ -5,7 +5,10 @@
 #   make lab-up / lab-record / lab-down   kind cluster, inject faults, record fixtures/  (lab only mutates kind)
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda A100 via the `lam` CLI (see SPEC §7)
-#   make golden TAG=… [BASE=…]      run the golden set against a model endpoint (vLLM or the gateway)
+#   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits sliced | full (D-40)
+#   make deploy MODEL=… TOPO=…      render, fetch weights, serve that model on that topology (fit gate first)
+#   make golden TAG=… [BASE=…]      run the golden set against a model endpoint (vLLM or the gateway); v1 + v2 scores
+#   make matrix                     design/model-matrix.md: fit + results + ranking from deploy/ and metrics/
 #   make sweep [LEVELS="1 4 8 16 32"] REPEAT=2   golden set at each concurrency + a vLLM /metrics scrape per level
 #   make preflight                  everything that must be true before paying for a GPU
 #   make kubeconfig / k8s-tunnel / record-live ONLY=gpu-unavailable   live-only faults on the Lambda k3s cluster
@@ -17,7 +20,9 @@ NAME   ?= cluster-doctor
 TAG    ?= baseline
 N      ?= 2
 PORT   ?= 8000
-MODEL  ?= Qwen/Qwen3-8B-AWQ
+MODEL  ?= qwen3-8b-awq
+TOPO   ?= sliced
+WORKERS ?= 1
 BASE   ?= http://127.0.0.1:$(PORT)/v1
 CONC   ?= 1
 LEVELS ?= 1 4 8 16 32
@@ -31,10 +36,13 @@ STAMP  := $(shell date +%Y%m%d-%H%M%S)
 KUBECTL := $(CURDIR)/.bin/kubectl
 KIND    := $(CURDIR)/.bin/kind
 REMOTE  = lam ssh $(NAME) --
+PROFILE = deploy/models/$(MODEL).json
+RENDER  = .cache/deploy/$(MODEL)-$(TOPO)
+PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 
-.PHONY: tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 tools:
 	bash lab/get-tools.sh
@@ -43,7 +51,22 @@ test:
 	uv run -q python -m pytest
 
 lint:
-	$(RUFF) check doctor evals lab tests
+	$(RUFF) check doctor evals lab serving tests
+
+models:
+	$(PY) -m serving.profiles list
+
+fit:
+	$(PY) -m serving.fit $(MODEL) $(TOPO)
+
+fit-all:
+	$(PY) -m serving.fit all
+
+render:
+	$(PY) -m serving.profiles render $(MODEL) $(TOPO) --out $(RENDER)
+
+matrix:
+	$(PY) -m serving.matrix
 
 golden-build:
 	uv run -q python -m evals.build_golden
@@ -68,12 +91,19 @@ status:
 	lam ls --uptime
 	$(REMOTE) kubectl get pods -A -o wide
 
-deploy:
-	lam push deploy/k8s/ '~/k8s/' --delete
-	$(REMOTE) kubectl apply -f '~/k8s/'
-	$(REMOTE) kubectl rollout status statefulset/vllm --timeout=15m
+gate:
+	$(PY) -m serving.fit $(MODEL) $(TOPO) --gate
+
+prefetch: gate render
+	lam push $(RENDER)/ '~/deploy/' --delete
+	$(REMOTE) sudo bash '~/deploy/prefetch.sh'
+
+deploy: prefetch
+	$(REMOTE) kubectl apply -f '~/deploy/k8s/'
+	$(REMOTE) kubectl rollout status statefulset/vllm --timeout=20m
 
 scale:
+	@$(PY) -c "import json,sys; t=json.load(open('deploy/serving.json'))['topologies']['$(TOPO)']; 	  sys.exit(0 if $(N) <= t['max_replicas'] else f'TOPO=$(TOPO) allows at most {t[\"max_replicas\"]} replicas')"
 	$(REMOTE) kubectl scale statefulset/vllm --replicas=$(N)
 	$(REMOTE) kubectl rollout status statefulset/vllm --timeout=15m
 
@@ -81,7 +111,9 @@ logs:
 	$(REMOTE) kubectl logs vllm-0 --tail=100
 
 kv:
-	$(REMOTE) "kubectl logs vllm-0 | grep -E 'GPU KV cache size|Maximum concurrency|Available KV cache memory'"
+	@mkdir -p metrics
+	$(REMOTE) "kubectl logs vllm-0 | grep -E 'GPU KV cache size|Maximum concurrency|Available KV cache memory'" \
+	  | tee metrics/kv-$(MODEL)-$(TOPO)-$(STAMP).log
 
 tunnel:
 	@eval "$$(lam env $(NAME))" && echo "localhost:$(PORT) → vllm-0 via $$LAMBDA (Ctrl-C to close)" && \
@@ -103,8 +135,8 @@ grafana:
 	    kubectl -n monitoring port-forward svc/grafana 3000:80
 
 golden:
-	uv run -q python -m evals.run_golden --base-url $(BASE) --model $(MODEL) --tag $(TAG) --concurrency $(CONC) \
-	  $(if $(ONLY),--only $(ONLY)) $(if $(REPEAT),--repeat $(REPEAT)) $(if $(NOHARNESS),--no-harness)
+	uv run -q python -m evals.run_golden --base-url $(BASE) --profile $(MODEL) --topology $(TOPO) --workers $(WORKERS) \
+	  --tag $(TAG) --concurrency $(CONC) $(if $(ONLY),--only $(ONLY)) $(if $(REPEAT),--repeat $(REPEAT)) $(if $(NOHARNESS),--no-harness)
 
 metrics:
 	@mkdir -p metrics
@@ -115,16 +147,18 @@ down:
 	lam ls
 
 preflight:
-	$(RUFF) check doctor evals lab tests
+	$(RUFF) check doctor evals lab serving tests
 	uv run -q python -m pytest
 	uv run -q python -m evals.build_golden && git diff --quiet evals/golden || (echo "golden set changed — commit it"; exit 1)
+	$(PY) -m serving.fit $(MODEL) $(TOPO) --gate
 	@lam config | grep -q "LAMBDA_API_KEY: *set (" || (echo "lam has no LAMBDA_API_KEY: run lam config init"; exit 1)
 	@grep -q "max-model-len=24576" deploy/k8s/vllm.yaml && echo "preflight ok — next: make up && make deploy && make kv"
 
 sweep:
 	@mkdir -p metrics
 	for c in $(LEVELS); do \
-	  uv run -q python -m evals.run_golden --base-url $(BASE) --model $(MODEL) --tag sweep-c$$c --concurrency $$c --repeat $(REPEAT) || true; \
+	  uv run -q python -m evals.run_golden --base-url $(BASE) --profile $(MODEL) --topology $(TOPO) --workers $(WORKERS) \
+	    --tag sweep-$(MODEL)-c$$c --concurrency $$c --repeat $(REPEAT) || true; \
 	  curl -sf http://127.0.0.1:$(PORT)/metrics > metrics/vllm-sweep-c$$c-$(STAMP).prom || echo "no /metrics at level $$c"; \
 	done
 
@@ -144,7 +178,7 @@ record-live:
 
 watch:
 	@mkdir -p metrics
-	$(KENV) DOCTOR_KUBECTL=$(KUBECTL) uv run -q python -m doctor watch --context $(CTX) --base-url $(BASE) --model $(MODEL) \
+	$(KENV) DOCTOR_KUBECTL=$(KUBECTL) uv run -q python -m doctor watch --context $(CTX) --base-url $(BASE) --profile $(MODEL) \
 	  --exclude $(WATCH_EXCLUDE) --out metrics/watch-$(STAMP).jsonl $(WATCH_ARGS)
 
 watch-metrics:
