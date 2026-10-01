@@ -5,7 +5,8 @@ import re
 import httpx
 
 from doctor import agent
-from serving import fit, matrix, profiles
+from evals.build_golden import backend_for
+from serving import fit, matrix, profiles, warmup
 from tests.mockllm import Server
 
 ROOT = profiles.ROOT
@@ -104,3 +105,15 @@ def test_matrix_ranks_full_runs_and_lists_what_was_not_run(tmp_path):
     assert "80 correct diagnoses per GPU-hour" in ranking and "52 correct diagnoses per GPU-hour" in ranking     # 40 / 0.5 h / 1.0
     assert "Not run: **qwen3.6-35b-a3b-awq**" in ranking and "79,056 (-0.8%)" in text
     assert "partial: subset; profile/topology assumed (pre D-40)" in text
+
+
+def test_warmup_body_is_the_doctors_first_request_with_one_output_token():
+    task = json.loads(warmup.TASKS.read_text().splitlines()[0])
+    s = Server(("submit_diagnosis", {}))
+    served, client = agent.load_profile("qwen3-8b-awq")
+    llm = agent.build_llm("http://gw.test/v1", served, client=client, http_client=httpx.Client(transport=httpx.MockTransport(s)))
+    agent.run_task(task, backend_for(task["snapshots"]), llm)
+    live = s.requests[0]["body"]
+    warm = json.loads(warmup.warm_body("qwen3-8b-awq"))
+    assert warm["max_completion_tokens"] == 1 and live["max_completion_tokens"] == 768
+    assert {**warm, "max_completion_tokens": 768} == live

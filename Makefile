@@ -5,6 +5,9 @@
 #   make lab-up / lab-record / lab-down   kind cluster, inject faults, record fixtures/  (lab only mutates kind)
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda A100 via the `lam` CLI (see SPEC §7)
+#   make gateway [POLICY=least_loaded]   build the Go gateway, install it on the node and roll it out (D-42)
+#   make tunnel [TUNNEL=pod/vllm-0]      localhost:8000 → the gateway (default) or one vLLM pod directly
+#   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
 #   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits sliced | full (D-40)
 #   make deploy MODEL=… TOPO=…      render, fetch weights, serve that model on that topology (fit gate first)
 #   make golden TAG=… [BASE=…]      run the golden set against a model endpoint (vLLM or the gateway); v1 + v2 scores
@@ -28,6 +31,8 @@ CONC   ?= 1
 LEVELS ?= 1 4 8 16 32
 REPEAT ?= 2
 CTX    ?= lambda
+TUNNEL ?= svc/gateway
+POLICY ?= prefix_then_load
 FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
 STAGGER ?= 0
 WATCH_EXCLUDE ?= monitoring,opencost,doctor,default
@@ -41,8 +46,11 @@ RENDER  = .cache/deploy/$(MODEL)-$(TOPO)
 PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
+GWBUILD = .cache/gateway
+SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
+PODS    = vllm-0 vllm-1
 
-.PHONY: demo models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: demo gateway models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 tools:
 	bash lab/get-tools.sh
@@ -115,11 +123,23 @@ kv:
 	$(REMOTE) "kubectl logs vllm-0 | grep -E 'GPU KV cache size|Maximum concurrency|Available KV cache memory'" \
 	  | tee metrics/kv-$(MODEL)-$(TOPO)-$(STAMP).log
 
+gateway:
+	@mkdir -p $(GWBUILD)
+	cd gateway && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ../$(GWBUILD)/gateway ./cmd/gateway
+	$(PY) -m serving.warmup $(MODEL) > $(GWBUILD)/warm.json
+	cp deploy/k8s/gateway.yaml $(GWBUILD)/
+	lam push $(GWBUILD)/ '~/gateway/' --delete
+	$(REMOTE) "sudo install -D -m 0755 \$$HOME/gateway/gateway /opt/gateway/gateway && \
+	  kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
+	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
+	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) && \
+	  kubectl rollout restart deployment/gateway && kubectl rollout status deployment/gateway --timeout=5m"
+
 tunnel:
-	@eval "$$(lam env $(NAME))" && echo "localhost:$(PORT) → vllm-0 via $$LAMBDA (Ctrl-C to close)" && \
+	@eval "$$(lam env $(NAME))" && echo "localhost:$(PORT) → $(TUNNEL) via $$LAMBDA (Ctrl-C to close)" && \
 	  ssh -i "$$LAMBDA_SSH_KEY" "$$LAMBDA" "fuser -k -n tcp $(PORT) >/dev/null 2>&1 ; true" && \
 	  ssh -tt -i "$$LAMBDA_SSH_KEY" -o ExitOnForwardFailure=yes -L $(PORT):127.0.0.1:$(PORT) "$$LAMBDA" \
-	  kubectl port-forward pod/vllm-0 $(PORT):8000
+	  kubectl port-forward $(TUNNEL) $(PORT):8000
 
 dashboards:
 	lam push deploy/observability/dashboards/ '~/dashboards/' --delete
@@ -143,7 +163,10 @@ golden:
 
 metrics:
 	@mkdir -p metrics
-	curl -sf http://127.0.0.1:$(PORT)/metrics > metrics/vllm-$(TAG)-$(STAMP).prom
+	curl -sf http://127.0.0.1:$(PORT)/metrics > metrics/$(SCRAPE)-$(TAG)-$(STAMP).prom
+	@if [ $(SCRAPE) = gateway ]; then for p in $(PODS); do \
+	  curl -sf http://127.0.0.1:$(PORT)/debug/workers/$$p/metrics > metrics/$$p-$(TAG)-$(STAMP).prom || rm -f metrics/$$p-$(TAG)-$(STAMP).prom; \
+	done; fi
 
 down:
 	lam rm $(NAME)
@@ -162,7 +185,10 @@ sweep:
 	for c in $(LEVELS); do \
 	  uv run -q python -m evals.run_golden --base-url $(BASE) --profile $(MODEL) --topology $(TOPO) --workers $(WORKERS) \
 	    --tag sweep-$(MODEL)-c$$c --concurrency $$c --repeat $(REPEAT) || true; \
-	  curl -sf http://127.0.0.1:$(PORT)/metrics > metrics/vllm-sweep-c$$c-$(STAMP).prom || echo "no /metrics at level $$c"; \
+	  curl -sf http://127.0.0.1:$(PORT)/metrics > metrics/$(SCRAPE)-sweep-c$$c-$(STAMP).prom || echo "no /metrics at level $$c"; \
+	  if [ $(SCRAPE) = gateway ]; then for p in $(PODS); do \
+	    curl -sf http://127.0.0.1:$(PORT)/debug/workers/$$p/metrics > metrics/$$p-sweep-c$$c-$(STAMP).prom || rm -f metrics/$$p-sweep-c$$c-$(STAMP).prom; \
+	  done; fi; \
 	done
 
 kubeconfig:
