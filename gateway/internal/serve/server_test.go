@@ -346,8 +346,8 @@ func TestTenantExhaustedIs429(t *testing.T) {
 		t.Errorf("X-Gateway-Reason = %q, want tenant_tokens", got)
 	}
 	ev := h.event("audit-3-s1")
-	if ev.Status != 429 || ev.Reason != "tenant_tokens" || ev.Pod != "" {
-		t.Errorf("event = %+v, want 429 tenant_tokens with no pod", ev)
+	if ev.Status != 429 || ev.Reason != "tenant_tokens" || ev.Pod != "" || ev.Overflow != "" {
+		t.Errorf("event = %+v, want 429 tenant_tokens with no pod and no overflow decision", ev)
 	}
 }
 
@@ -376,6 +376,9 @@ func TestKVFullOnEveryWorkerIs503(t *testing.T) {
 	}
 	if got := resp.header.Get("X-Gateway-Reason"); got != "kv_free" {
 		t.Errorf("X-Gateway-Reason = %q, want kv_free", got)
+	}
+	if ev := h.event("audit-4-s1"); ev.Overflow != decide.OverflowBlocked {
+		t.Errorf("restricted 503 overflow = %q, want %q", ev.Overflow, decide.OverflowBlocked)
 	}
 }
 

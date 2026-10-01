@@ -109,7 +109,7 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 		completionTokens: counter("orch_completion_tokens_total",
 			"Completion tokens generated per pod.", "pod"),
 		overflow: counter("orch_overflow_total",
-			"Overflow decisions for 503s that may leave the box, by result.", "result"),
+			"Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it.", "result"),
 		restrictedOffbox: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "orch_restricted_offbox_total",
 			Help: "Restricted requests routed off the box. Must stay 0.",
@@ -123,7 +123,8 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 	for _, s := range preregisteredSheds {
 		m.shed.WithLabelValues(s[0], s[1])
 	}
-	m.overflow.WithLabelValues("blocked_invariant")
+	m.overflow.WithLabelValues(decide.OverflowBlocked)
+	m.overflow.WithLabelValues(decide.OverflowNoBackend)
 	m.registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
@@ -141,13 +142,6 @@ func counter(name, help string, labels ...string) *prometheus.CounterVec {
 // Handler serves the registry in the Prometheus text format.
 func (m *Metrics) Handler() http.Handler {
 	return promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{})
-}
-
-// Overflow counts one overflow decision by result. Step 4's overflow rule
-// calls it on the 503 path. Nothing calls it yet, so blocked_invariant
-// stays at 0.
-func (m *Metrics) Overflow(result string) {
-	m.overflow.WithLabelValues(result).Inc()
 }
 
 // outcome is how a request ended, as the counters see it.
@@ -198,6 +192,10 @@ func (m *Metrics) Observe(ev serve.Event) {
 		if ev.Unknown {
 			m.pickUnknown.WithLabelValues(ev.Pod).Inc()
 		}
+	}
+
+	if ev.Overflow != "" {
+		m.overflow.WithLabelValues(ev.Overflow).Inc()
 	}
 
 	status := strconv.Itoa(ev.Status)

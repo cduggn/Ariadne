@@ -42,7 +42,7 @@ PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 
-.PHONY: models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: demo models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 tools:
 	bash lab/get-tools.sh
@@ -133,6 +133,9 @@ grafana:
 	  ssh -i "$$LAMBDA_SSH_KEY" "$$LAMBDA" "fuser -k -n tcp 3000 >/dev/null 2>&1 ; true" && \
 	  ssh -tt -i "$$LAMBDA_SSH_KEY" -o ExitOnForwardFailure=yes -L 3000:127.0.0.1:3000 "$$LAMBDA" \
 	    kubectl -n monitoring port-forward svc/grafana 3000:80
+
+demo:
+	CONC=$(if $(filter 1,$(CONC)),8,$(CONC)) REPEAT=$(or $(REPEAT),1) lab/demo.sh
 
 golden:
 	uv run -q python -m evals.run_golden --base-url $(BASE) --profile $(MODEL) --topology $(TOPO) --workers $(WORKERS) \

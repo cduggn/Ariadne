@@ -47,7 +47,8 @@ type Options struct {
 // and Est are zero when the guard rejected the request. Status is 0 when
 // the client went away before anything was written. Gateway is the time
 // spent in this process outside the queue and the upstream call. The token
-// fields are set only for a 200 that carried usage.
+// fields are set only for a 200 that carried usage. Overflow is set only for
+// a 503 the gateway refused, and names what the overflow decision did.
 type Event struct {
 	RequestID        string
 	Run              decide.RunID
@@ -70,6 +71,7 @@ type Event struct {
 	CachedTokens     int
 	CompletionTokens int
 	FinishReason     string
+	Overflow         string
 }
 
 // Server is the gateway's handler set over one Gate and one Fleet. urls
@@ -159,8 +161,10 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if t == nil {
-		// The overflow decision for a 503 that may leave the box goes here.
 		ev.Status, ev.Reason = p.Verdict.Code, string(p.Verdict.Reason)
+		if !p.Verdict.Stays() {
+			ev.Overflow = decide.OverflowResult(req, p.Verdict)
+		}
 		writeRefusal(w, p.Verdict)
 		return
 	}
@@ -304,6 +308,7 @@ func (s *Server) finish(ev Event) {
 		"cached_tokens", ev.CachedTokens,
 		"completion_tokens", ev.CompletionTokens,
 		"finish_reason", ev.FinishReason,
+		"overflow", ev.Overflow,
 	)
 	if s.opt.OnRequest != nil {
 		s.opt.OnRequest(ev)

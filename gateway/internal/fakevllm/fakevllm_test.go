@@ -81,12 +81,31 @@ func TestChatUsageCountsBodyBytes(t *testing.T) {
 	}
 	c := out.Choices[0]
 	if c.FinishReason != "tool_calls" || c.Message.ToolCalls[0].Function.Name != "submit_diagnosis" ||
-		c.Message.ToolCalls[0].Function.Arguments != "{}" {
+		!strings.Contains(c.Message.ToolCalls[0].Function.Arguments, `"status":"inconclusive"`) {
 		t.Fatalf("choice = %+v, want a submit_diagnosis tool call", c)
 	}
 	recorded := w.Requests()
 	if len(recorded) != 1 || len(recorded[0].Body) != 70 || recorded[0].Header.Get("X-Request-Id") != "run-a-s1" {
 		t.Fatalf("recorded = %+v, want one 70-byte request with its id", recorded)
+	}
+}
+
+func TestStepsCallReadToolsBeforeSubmitting(t *testing.T) {
+	w := New()
+	w.Set(func(s *Settings) { s.Steps = 2 })
+	srv := httptest.NewServer(w.Handler())
+	defer srv.Close()
+
+	tool := `{"role":"tool","tool_call_id":"c","content":"x"}`
+	var got []string
+	for done := 0; done <= 2; done++ {
+		msgs := `{"role":"user","content":"go"}` + strings.Repeat(","+tool, done)
+		_, out := postChat(t, srv.URL, "run-a-s1", []byte(`{"model":"m","messages":[`+msgs+`]}`))
+		got = append(got, out.Choices[0].Message.ToolCalls[0].Function.Name)
+	}
+	want := []string{"list_problem_pods", "list_resources", "submit_diagnosis"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("calls = %v, want %v", got, want)
 	}
 }
 

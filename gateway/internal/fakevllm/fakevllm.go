@@ -18,7 +18,9 @@ import (
 // Settings are the knobs a test or a demo turns. KVUsage, PoolBlocks and
 // Waiting shape /metrics. Latency delays every chat answer. A Status other
 // than 200 makes chat answer that status with an OpenAI error body, and
-// MetricsDown makes /metrics answer 503.
+// MetricsDown makes /metrics answer 503. Steps is how many read-tool calls
+// a run makes before it submits, so a demo run has the doctor's chained
+// shape. At 0 every answer submits.
 type Settings struct {
 	KVUsage     float64
 	PoolBlocks  int
@@ -26,6 +28,7 @@ type Settings struct {
 	Latency     time.Duration
 	Status      int
 	MetricsDown bool
+	Steps       int
 }
 
 // Recorded is one chat request as the worker saw it, and the bytes it
@@ -137,7 +140,7 @@ func (w *Worker) chat(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := completion(body, cached)
+	resp := completion(body, cached, s.Steps)
 	if s.Status != http.StatusOK {
 		resp = errorBody(s.Status)
 	}
@@ -193,15 +196,42 @@ type usageDetails struct {
 	CachedTokens int `json:"cached_tokens"`
 }
 
+// script is the read-tool calls a run makes, in order, before it submits.
+var script = []function{
+	{Name: "list_problem_pods", Arguments: `{"namespace":"default"}`},
+	{Name: "list_resources", Arguments: `{"kind":"pod","namespace":"default"}`},
+	{Name: "get_events", Arguments: `{"namespace":"default","object_name":"","limit":20}`},
+}
+
+// submit ends a run as inconclusive, the one answer that cites nothing.
+var submit = function{
+	Name:      "submit_diagnosis",
+	Arguments: `{"status":"inconclusive","findings":[],"summary":"fake worker: no model behind this answer"}`,
+}
+
 // completion builds the answer every successful chat gets. The one
-// assistant message calls submit_diagnosis with empty arguments, so the
-// doctor's tool loop ends on the first step. The prompt count is the body's
-// bytes divided by 3.5, the gateway's own estimate, so the two agree.
-func completion(body []byte, cached int) []byte {
+// assistant message calls the next tool in script until the request
+// carries steps tool results, then submit_diagnosis. The prompt count is
+// the body's bytes divided by 3.5, the gateway's own estimate, so the two
+// agree.
+func completion(body []byte, cached, steps int) []byte {
 	var req struct {
-		Model string `json:"model"`
+		Model    string `json:"model"`
+		Messages []struct {
+			Role string `json:"role"`
+		} `json:"messages"`
 	}
 	json.Unmarshal(body, &req)
+	done := 0
+	for _, m := range req.Messages {
+		if m.Role == "tool" {
+			done++
+		}
+	}
+	call := submit
+	if done < min(steps, len(script)) {
+		call = script[done]
+	}
 	prompt := tokens(len(body))
 	out, _ := json.Marshal(chatCompletion{
 		ID:      "chatcmpl-fake",
@@ -212,9 +242,9 @@ func completion(body []byte, cached int) []byte {
 			Message: message{
 				Role: "assistant",
 				ToolCalls: []toolCall{{
-					ID:       "call_fake_1",
+					ID:       fmt.Sprintf("call_fake_%d", done+1),
 					Type:     "function",
-					Function: function{Name: "submit_diagnosis", Arguments: "{}"},
+					Function: call,
 				}},
 			},
 			FinishReason: "tool_calls",

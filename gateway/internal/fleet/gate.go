@@ -37,10 +37,18 @@ type Config struct {
 	RunTTL       time.Duration
 }
 
+// maxRequestTokens is the largest context plus output, 32768 tokens.
+const maxRequestTokens = 32768
+
 // DefaultConfig is the shipped configuration for pods. The platform tenant
-// gets 3333.33 tokens/s and every other tenant shares 833.33 tokens/s. Both
-// bursts are 32768, the largest context plus output.
+// is the doctor itself, and its bucket is sized so it never binds before
+// the KV and queue gates do. Its burst fills every in-flight slot at the
+// largest request size, and it refills in 4 s. The charge counts cached
+// prompt tokens, so a run of chained steps spends far more than its new
+// tokens. Every other tenant shares one bucket of one largest request
+// refilled at 833.33 tokens/s, which is where the 429 path shows.
 func DefaultConfig(pods []string) Config {
+	platformBurst := float64(len(pods) * 16 * maxRequestTokens)
 	return Config{
 		Pods:        pods,
 		MaxInflight: 16,
@@ -51,8 +59,8 @@ func DefaultConfig(pods []string) Config {
 		StickSlack:  decide.DefaultStickSlack,
 		Budgets:     decide.DefaultBudgets,
 		Tenants: map[string]TenantLimit{
-			"platform": {RatePerS: 3333.33, Burst: 32768},
-			"*":        {RatePerS: 833.33, Burst: 32768},
+			"platform": {RatePerS: platformBurst / 4, Burst: platformBurst},
+			"*":        {RatePerS: 833.33, Burst: maxRequestTokens},
 		},
 		ReserveGrace: time.Second,
 		RunTTL:       10 * time.Minute,
