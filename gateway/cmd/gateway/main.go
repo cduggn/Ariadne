@@ -23,6 +23,7 @@ import (
 
 	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
 	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
+	"github.com/cduggn/cluster-doctor/gateway/internal/metrics"
 	"github.com/cduggn/cluster-doctor/gateway/internal/serve"
 )
 
@@ -36,6 +37,8 @@ func main() {
 	maxInflight := flag.Int("max-inflight", envInt("max-inflight", 16), "in-flight requests per worker")
 	maxQueued := flag.Int("max-queued", envInt("max-queued", 32), "queued requests per worker")
 	warmBody := flag.String("warm-body", env("warm-body", ""), "path to the recorded step-1 request JSON that warm-up probes replay (required)")
+	pool := flag.String("pool", env("pool", "sliced"), "pool label on the replica metrics")
+	sharedPrefix := flag.Int("shared-prefix-tokens", envInt("shared-prefix-tokens", 3899), "tokens every prompt shares, which split cached tokens into shared_hit and run_hit")
 	logLevel := flag.String("log-level", env("log-level", "info"), "log level: debug, info, warn or error")
 	flag.Parse()
 
@@ -71,7 +74,8 @@ func main() {
 	cfg.MaxQueued = *maxQueued
 	gate := fleet.NewGate(cfg, time.Now, rand.IntN)
 	workersLoop := fleet.NewFleet(gate, urls, fleet.DefaultWorkerConfig(warm), nil, time.Now)
-	server := serve.New(gate, workersLoop, urls, serve.Options{Log: log})
+	m := metrics.New(gate, workersLoop, *pool, *sharedPrefix)
+	server := serve.New(gate, workersLoop, urls, serve.Options{Log: log, OnRequest: m.Observe, Metrics: m.Handler()})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -95,7 +99,7 @@ func main() {
 	}()
 
 	log.Info("gateway listening", "addr", *listen, "pods", pods, "policy", string(pick),
-		"max_inflight", *maxInflight, "max_queued", *maxQueued)
+		"max_inflight", *maxInflight, "max_queued", *maxQueued, "pool", *pool, "shared_prefix_tokens", *sharedPrefix)
 	if err := httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		fatal("serve: " + err.Error())
 	}

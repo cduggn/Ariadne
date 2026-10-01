@@ -503,3 +503,16 @@ func TestReadyzAndDebugEndpoints(t *testing.T) {
 		}
 	}
 }
+
+func TestMetricsRouteServesTheHandlerWhenSet(t *testing.T) {
+	exposition := "# TYPE orch_requests_total counter\norch_requests_total{class=\"restricted\",priority=\"batch\"} 0\n"
+	h := start(t, tuning{options: Options{Metrics: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, exposition)
+	})}})
+	if got := h.get("/metrics"); got.status != 200 || string(got.body) != exposition {
+		t.Errorf("/metrics = %d %q, want 200 with the handler's text", got.status, got.body)
+	}
+	if got := start(t, tuning{}).get("/metrics").status; got != 404 {
+		t.Errorf("/metrics without Options.Metrics = %d, want 404", got)
+	}
+}

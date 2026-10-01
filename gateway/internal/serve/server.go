@@ -30,8 +30,8 @@ const maxResponseBytes = 32 << 20
 // Options shape a Server. A zero field takes its default in New, which is
 // decide.DefaultMaxBody, decide.DefaultBudgets, DefaultUpstreamTimeout, a
 // plain http.Client, slog.Default or time.Now. OnRequest, when set, sees
-// one Event per request, including refusals and 400s. Step 8's metrics
-// plug in there.
+// one Event per request, including refusals and 400s. Metrics, when set,
+// serves GET /metrics. The metrics package feeds the one from the other.
 type Options struct {
 	MaxBody         int
 	Budgets         decide.Budgets
@@ -40,6 +40,7 @@ type Options struct {
 	Log             *slog.Logger
 	Now             func() time.Time
 	OnRequest       func(Event)
+	Metrics         http.Handler
 }
 
 // Event is one request as the gateway saw it. Pod, Policy, Sticky, Unknown
@@ -117,6 +118,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /readyz", s.readyz)
 	mux.HandleFunc("GET /debug/workers", s.workers)
 	mux.HandleFunc("GET /debug/workers/{pod}/metrics", s.workerMetrics)
+	if s.opt.Metrics != nil {
+		mux.Handle("GET /metrics", s.opt.Metrics)
+	}
 	return mux
 }
 
