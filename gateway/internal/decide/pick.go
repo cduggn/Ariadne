@@ -6,31 +6,29 @@ import (
 	"time"
 )
 
-// PickPolicy selects how Pick breaks a tie among admitted workers. It is the
-// course's "policy" argument to pick(req, workers, *, policy): which worker
-// wins when more than one clears ShouldShed.
+// PickPolicy selects which admitted worker Pick chooses when more than one
+// passes ShouldShed. It is the policy argument of the course's
+// pick(req, workers, *, policy).
 type PickPolicy string
 
 const (
-	// PolicyPrefixThenLoad keeps a request's bound worker while it is
-	// admitted and not much busier than the alternatives, and falls back to
-	// the least loaded admitted worker otherwise. This is the gateway's
-	// shipped default: it protects the resident KV prefix without pinning a
-	// request to a worker that has fallen far behind.
+	// PolicyPrefixThenLoad keeps a request on its bound worker while that
+	// worker is admitted and not much busier than the others. Otherwise it
+	// takes the least loaded admitted worker. It is the default, because it
+	// keeps the run's cached history without pinning the run to a worker
+	// that has fallen far behind.
 	PolicyPrefixThenLoad PickPolicy = "prefix_then_load"
-	// PolicyLeastLoaded always takes the least loaded admitted worker,
-	// ignoring stickiness. It is the stickiness A/B's control arm.
+	// PolicyLeastLoaded takes the least loaded admitted worker and ignores
+	// stickiness. It is the control arm of the stickiness A/B.
 	PolicyLeastLoaded PickPolicy = "least_loaded"
-	// PolicyP2C is power-of-two-choices: sample two admitted workers at
-	// random and take the less loaded. At two workers it behaves the same
-	// as PolicyLeastLoaded.
+	// PolicyP2C samples two admitted workers at random and takes the less
+	// loaded one. With two workers it behaves like PolicyLeastLoaded.
 	PolicyP2C PickPolicy = "p2c"
 )
 
-// ParsePickPolicy parses a policy flag or header value. Matching is exact
-// after trimming and folding case. An unrecognised value returns ("", false)
-// rather than a silently wrong default: a policy typo should fail startup,
-// not change routing.
+// ParsePickPolicy parses a policy flag value, trimming spaces and ignoring
+// case. An unknown value returns ("", false), so a typo fails startup instead
+// of changing routing.
 func ParsePickPolicy(s string) (PickPolicy, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case string(PolicyPrefixThenLoad):
@@ -44,66 +42,60 @@ func ParsePickPolicy(s string) (PickPolicy, bool) {
 	}
 }
 
-// Sticky is the metric label value for a placement's outcome relative to the
-// request's bound worker, orch_sticky_total{outcome}. Pick always reports
-// one, even when it sheds, so the stickiness A/B can be scored from the
-// metric alone.
+// Sticky is the outcome label on orch_sticky_total{outcome}. It records what
+// happened relative to the request's bound worker. Pick sets it even when it
+// sheds, so the metric alone can score the stickiness A/B.
 type Sticky string
 
 const (
-	// StickyNone is reported when the request carries no run, so
-	// stickiness never applied.
+	// StickyNone means the request has no run, so stickiness did not apply.
 	StickyNone Sticky = "none"
-	// StickyNew is reported when the run exists but has no worker bound to
-	// it yet: this placement, if it succeeds, creates the binding.
+	// StickyNew means the run has no bound worker yet. A successful placement
+	// creates the binding.
 	StickyNew Sticky = "new"
-	// StickyHit is reported when the bound worker was chosen.
+	// StickyHit means Pick chose the bound worker.
 	StickyHit Sticky = "hit"
-	// StickyBrokenLoad is reported when the bound worker was admitted but
-	// too far behind the alternatives to keep, past Fleet.StickSlack.
+	// StickyBrokenLoad means the bound worker passed ShouldShed but was more
+	// than Fleet.StickSlack busier than the best other worker.
 	StickyBrokenLoad Sticky = "broken_load"
-	// StickyBrokenShed is reported when the bound worker was a candidate
-	// but ShouldShed refused it.
+	// StickyBrokenShed means the bound worker was a candidate and ShouldShed
+	// refused it.
 	StickyBrokenShed Sticky = "broken_shed"
-	// StickyBrokenGone is reported when the bound worker was never a
-	// candidate: it is not Ready, it is Down, or the staleness floor
-	// dropped it.
+	// StickyBrokenGone means the bound worker was never a candidate, because
+	// it was not Ready, it was Down, or the staleness floor dropped it.
 	StickyBrokenGone Sticky = "broken_gone"
 )
 
-// WorkerState is one worker as Pick sees it: its scraped view, whether the
-// warm-up gate has let it out of Warming, and how long it has been since its
-// own last successful scrape. Age is tracked per worker, not read from a
-// single fleet-wide clock, because two workers go stale independently.
+// WorkerState is one worker as Pick sees it. It holds the worker's view,
+// whether the warm-up gate has marked it Ready, and the time since its own
+// last successful scrape. Each worker has its own Age, because workers go
+// stale independently.
 type WorkerState struct {
 	View  WorkerView
 	Ready bool
 	Age   time.Duration
 }
 
-// Staleness is the tunable staleness rule: the two age lines that separate
-// fresh, stale and Down, and the fraction of the eligible fleet's total
-// MaxInflight that must stay fresh before any stale worker is dropped rather
-// than kept on its last-known telemetry.
+// Staleness holds the staleness rule. StaleAfter and DownAfter separate
+// fresh, stale and Down workers. CapacityFloor is the share of the eligible
+// fleet's MaxInflight that must stay fresh before Pick drops stale workers.
+// Below it, stale workers stay and Pick uses their last-known telemetry.
 type Staleness struct {
 	StaleAfter    time.Duration
 	DownAfter     time.Duration
 	CapacityFloor float64
 }
 
-// DefaultStaleness is the gateway's shipped staleness rule: stale from 2s to
-// 10s since the last scrape, Down after that, and a floor requiring 0.75 of
-// the eligible fleet's capacity to stay fresh before any stale worker is
-// dropped.
+// DefaultStaleness marks a worker stale 2s after its last scrape and Down
+// after 10s. Stale workers are dropped only while 0.75 of capacity stays
+// fresh.
 var DefaultStaleness = Staleness{StaleAfter: 2 * time.Second, DownAfter: 10 * time.Second, CapacityFloor: 0.75}
 
-// Load is the course's score_load: in-flight plus queued depth as a fraction
-// of the worker's own cap, plus the fraction of its KV pool already in use.
-// The gateway substitutes its own in-flight and queue counts for vLLM's
-// running and waiting, and uses FreeRatio, which is already net of the
-// gateway's own reservations, in place of a raw scraped KV usage figure. A
-// MaxInflight of 0 or less (an unconfigured worker) uses 1 for the first
-// term's denominator instead of dividing by zero.
+// Load is the course's score_load. It adds in-flight plus queued requests as
+// a fraction of the worker's cap to the fraction of KV in use. The gateway's
+// own counts replace vLLM's running and waiting, and KV in use comes from
+// FreeRatio, which includes the gateway's reservations. An unconfigured
+// worker with MaxInflight 0 divides by 1 instead of 0.
 func (w WorkerView) Load() float64 {
 	denom := w.MaxInflight
 	if denom <= 0 {
@@ -112,8 +104,8 @@ func (w WorkerView) Load() float64 {
 	return float64(w.InFlight+w.Queued)/float64(denom) + (1 - w.FreeRatio())
 }
 
-// DefaultStickSlack is the default Fleet.StickSlack: 0.25 load units, four of
-// sixteen in-flight slots at the gateway's default MaxInflight.
+// DefaultStickSlack is 0.25 load units, which is four of the default sixteen
+// in-flight slots.
 const DefaultStickSlack = 0.25
 
 // Fleet is everything Pick reads about a request's candidate workers.
@@ -128,10 +120,10 @@ type Fleet struct {
 	StickSlack float64 // load units the bound worker may exceed the best other
 }
 
-// Placement is Pick's result: the course's pick(req, workers, *, policy) ->
-// Worker | Shed. Pod is "" exactly when the request was shed, in which case
-// Verdict explains why; Verdict is the zero Verdict exactly when Pod is set.
-// Sticky and Unknown are metric labels, meaningful in both cases.
+// Placement is Pick's result, the Worker or Shed of the course's
+// pick(req, workers, *, policy). Pod is "" when Pick shed the request, and
+// Verdict then says why. When Pod is set, Verdict is zero. Sticky and Unknown
+// are metric labels and are set in both cases.
 type Placement struct {
 	Pod     string  // "" when shed
 	Verdict Verdict // zero when placed
@@ -145,9 +137,9 @@ func (p Placement) Placed() bool {
 	return p.Pod != ""
 }
 
-// reasonOrder is ShouldShed's gate order, tenant_tokens first and
-// p99_spread last. When candidate workers refuse for different reasons, the
-// lowest gate wins, so a 429 always outranks a simultaneous 503.
+// reasonOrder is ShouldShed's gate order, from tenant_tokens to p99_spread.
+// When candidates refuse for different reasons, the earliest gate wins, so a
+// 429 outranks a 503.
 var reasonOrder = map[Reason]int{
 	ReasonTenantTokens: 0,
 	ReasonKVFree:       1,
@@ -155,12 +147,12 @@ var reasonOrder = map[Reason]int{
 	ReasonP99Spread:    3,
 }
 
-// Pick is the course's pick(req, workers, *, policy) -> Worker | Shed. It
-// filters to Ready, non-Down workers, applies the staleness floor, admits
-// candidates through ShouldShed exactly as the simulator's H4 check does so
-// routing and admission never disagree, and then breaks the tie among
-// admitted workers per policy. rnd must return a value in [0, n) and is
-// called only by PolicyP2C, and only when more than one worker is admitted.
+// Pick is the course's pick(req, workers, *, policy). It keeps Ready workers
+// that are not Down and applies the staleness floor. It then runs ShouldShed
+// on each candidate, as the simulator's H4 check does, so routing and
+// admission cannot disagree. Last, it chooses among the admitted workers by
+// policy. rnd must return a value in [0, n). Only PolicyP2C calls it, and
+// only when more than one worker is admitted.
 func Pick(r Request, f Fleet, p PickPolicy, rnd func(n int) int) Placement {
 	eligible := eligibleWorkers(f.Workers, f.Staleness.DownAfter)
 	remaining := dropStaleBelowFloor(eligible, f.Staleness)
@@ -198,9 +190,8 @@ func Pick(r Request, f Fleet, p PickPolicy, rnd func(n int) int) Placement {
 	}
 }
 
-// eligibleWorkers keeps Ready workers whose own scrape is recent enough not
-// to be Down. A worker with no scrape for downAfter is excluded regardless
-// of what ShouldShed might otherwise say about it.
+// eligibleWorkers keeps Ready workers whose last scrape is newer than
+// downAfter. A Down worker is excluded before ShouldShed runs.
 func eligibleWorkers(workers []WorkerState, downAfter time.Duration) []WorkerState {
 	out := make([]WorkerState, 0, len(workers))
 	for _, w := range workers {
@@ -211,11 +202,10 @@ func eligibleWorkers(workers []WorkerState, downAfter time.Duration) []WorkerSta
 	return out
 }
 
-// dropStaleBelowFloor applies the staleness floor: a stale worker (age
-// between StaleAfter and DownAfter) is dropped only when the fleet can
-// afford it, that is when the fresh workers left would still hold at least
-// CapacityFloor of the eligible fleet's total MaxInflight. Otherwise every
-// stale worker stays, to be picked on its last-known telemetry.
+// dropStaleBelowFloor applies the staleness floor. It drops stale workers
+// only if the fresh ones hold at least CapacityFloor of the eligible fleet's
+// MaxInflight. Otherwise the stale workers stay, and Pick uses their
+// last-known telemetry.
 func dropStaleBelowFloor(eligible []WorkerState, st Staleness) []WorkerState {
 	var totalCap, freshCap int
 	hasStale := false
@@ -240,10 +230,9 @@ func dropStaleBelowFloor(eligible []WorkerState, st Staleness) []WorkerState {
 	return fresh
 }
 
-// admitCandidates runs ShouldShed against every remaining worker, with the
-// resident exemption applied only to the worker this request's run is
-// already bound to. It returns the admitted workers and, separately, every
-// refusal, so Pick can report the highest-priority gate when nothing admits.
+// admitCandidates runs ShouldShed on every remaining worker. Only the run's
+// bound worker gets the resident exemption. It returns the admitted workers
+// and the refusals, so Pick can report the earliest gate when none admit.
 func admitCandidates(r Request, f Fleet, remaining []WorkerState) (admitted []WorkerState, refusals []Verdict) {
 	for _, w := range remaining {
 		snap := Snap{
@@ -263,9 +252,8 @@ func admitCandidates(r Request, f Fleet, remaining []WorkerState) (admitted []Wo
 	return admitted, refusals
 }
 
-// worstRefusal returns the refusal whose gate comes first in ShouldShed's
-// order, so a 429 always outranks a simultaneous 503 even when different
-// workers refused for different reasons.
+// worstRefusal returns the refusal from the earliest gate in ShouldShed's
+// order, so a 429 outranks a 503 from another worker.
 func worstRefusal(refusals []Verdict) Verdict {
 	best := refusals[0]
 	bestOrder := reasonOrder[best.Reason]
@@ -278,11 +266,10 @@ func worstRefusal(refusals []Verdict) Verdict {
 	return best
 }
 
-// stickyOnRefusal is the Sticky outcome when Pick places nothing, whether
-// because no worker survived filtering or every candidate was refused. A
-// bound worker still present in remaining was a candidate and was refused
-// (broken_shed); one that had already dropped out of remaining was never a
-// candidate (broken_gone).
+// stickyOnRefusal is the Sticky outcome when Pick places nothing. A bound
+// worker in remaining was a candidate that ShouldShed refused, so the
+// outcome is broken_shed. A bound worker missing from remaining was never a
+// candidate, so the outcome is broken_gone.
 func stickyOnRefusal(run RunID, bound string, remaining []WorkerState) Sticky {
 	if bound == "" {
 		if run == "" {
@@ -296,10 +283,9 @@ func stickyOnRefusal(run RunID, bound string, remaining []WorkerState) Sticky {
 	return StickyBrokenGone
 }
 
-// choose breaks the tie among admitted workers per policy. An unrecognised
-// policy value falls back to PolicyPrefixThenLoad, the gateway's shipped
-// default, the same way an unrecognised header value fails safe elsewhere in
-// this package.
+// choose picks among admitted workers by policy. An unknown policy value
+// uses PolicyPrefixThenLoad, the default, as unknown header values fall back
+// to safe defaults elsewhere in this package.
 func choose(p PickPolicy, r Request, f Fleet, remaining, admitted []WorkerState, rnd func(int) int) (WorkerState, Sticky) {
 	switch p {
 	case PolicyLeastLoaded:
@@ -311,19 +297,18 @@ func choose(p PickPolicy, r Request, f Fleet, remaining, admitted []WorkerState,
 	}
 }
 
-// chooseLeastLoaded takes the least loaded admitted worker regardless of
-// Bound. Sticky is reported purely for metrics: hit when the choice happens
-// to equal Bound, otherwise the same classification choosePrefixThenLoad
-// would have used to decide whether to keep the binding.
+// chooseLeastLoaded takes the least loaded admitted worker and ignores
+// Bound. It still reports Sticky for the metric. The outcome is hit when the
+// choice equals Bound, and otherwise says why the binding was not kept.
 func chooseLeastLoaded(r Request, f Fleet, remaining, admitted []WorkerState) (WorkerState, Sticky) {
 	chosen := leastLoadedOf(admitted)
 	return chosen, classifySticky(f.Bound, chosen.View.Pod, r.Run, remaining, admitted)
 }
 
 // chooseP2C samples two distinct admitted workers with rnd and takes the
-// less loaded, tie broken by pod name ascending. With only one admitted
-// worker it is taken directly and rnd is never called. Sticky is reported
-// the same way as chooseLeastLoaded, purely for metrics.
+// less loaded one, breaking ties by pod name. With one admitted worker it
+// takes that worker and never calls rnd. It reports Sticky as
+// chooseLeastLoaded does.
 func chooseP2C(r Request, f Fleet, remaining, admitted []WorkerState, rnd func(int) int) (WorkerState, Sticky) {
 	chosen := admitted[0]
 	if n := len(admitted); n > 1 {
@@ -342,10 +327,9 @@ func chooseP2C(r Request, f Fleet, remaining, admitted []WorkerState, rnd func(i
 }
 
 // choosePrefixThenLoad keeps Bound while it is admitted and within
-// StickSlack load units of the best alternative. Otherwise it falls back to
-// least loaded, and the Sticky outcome says why the binding broke. A Bound
-// over the slack can never be the least loaded, so the fallback always
-// reports broken_load, broken_shed or broken_gone, never hit.
+// StickSlack load units of the best other worker. Otherwise it takes the
+// least loaded worker, and Sticky says why the binding broke. A Bound over
+// the slack cannot be the least loaded, so that fallback never reports hit.
 func choosePrefixThenLoad(r Request, f Fleet, remaining, admitted []WorkerState) (WorkerState, Sticky) {
 	if bound, ok := findByPod(admitted, f.Bound); ok {
 		others := excludePod(admitted, f.Bound)
@@ -356,8 +340,8 @@ func choosePrefixThenLoad(r Request, f Fleet, remaining, admitted []WorkerState)
 	return chooseLeastLoaded(r, f, remaining, admitted)
 }
 
-// classifySticky is the Sticky value for a chosen worker relative to Bound,
-// used by policies whose choice does not depend on stickiness.
+// classifySticky returns the Sticky outcome of a chosen worker relative to
+// Bound, for policies that ignore stickiness.
 func classifySticky(bound, chosenPod string, run RunID, remaining, admitted []WorkerState) Sticky {
 	if bound == "" {
 		if run == "" {
@@ -377,8 +361,8 @@ func classifySticky(bound, chosenPod string, run RunID, remaining, admitted []Wo
 	return StickyBrokenGone
 }
 
-// leastLoadedOf returns the worker with the lowest Load, ties broken by pod
-// name ascending so the choice is deterministic.
+// leastLoadedOf returns the worker with the lowest Load. Ties go to the
+// lower pod name, so the choice is deterministic.
 func leastLoadedOf(ws []WorkerState) WorkerState {
 	best := ws[0]
 	bestLoad := best.View.Load()
@@ -391,9 +375,8 @@ func leastLoadedOf(ws []WorkerState) WorkerState {
 	return best
 }
 
-// minLoad returns the lowest Load in ws. Unlike leastLoadedOf it discards
-// identity: choosePrefixThenLoad only needs the value to compare Bound
-// against.
+// minLoad returns the lowest Load in ws. choosePrefixThenLoad compares Bound
+// against this value and does not need the worker.
 func minLoad(ws []WorkerState) float64 {
 	m := ws[0].View.Load()
 	for _, w := range ws[1:] {
@@ -404,8 +387,8 @@ func minLoad(ws []WorkerState) float64 {
 	return m
 }
 
-// findByPod returns the worker with the given pod name and whether it was
-// found.
+// findByPod returns the worker with the given pod name, and false if there
+// is none.
 func findByPod(ws []WorkerState, pod string) (WorkerState, bool) {
 	for _, w := range ws {
 		if w.View.Pod == pod {

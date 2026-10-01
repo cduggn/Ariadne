@@ -1,7 +1,6 @@
-// Package decide is the gateway's pure domain core. It has no side effects:
-// the clock is passed in rather than read, and it imports only a small
-// stdlib set (see imports_test.go). Purity is enforced by that import graph,
-// not by review.
+// Package decide is the gateway's pure domain core. It has no side effects.
+// Callers pass the clock in, and the package imports only a small stdlib set.
+// imports_test.go enforces that set, so purity does not depend on review.
 package decide
 
 import (
@@ -12,13 +11,13 @@ import (
 	"time"
 )
 
-// RunID is the agent run a request belongs to: the X-Request-Id text before
-// the final "-s<n>" suffix. The zero value means "no run": the request gets
-// no stickiness.
+// RunID is the agent run a request belongs to. It is the X-Request-Id text
+// before the final "-s<n>" suffix. The zero value means the request has no
+// run, so it gets no stickiness.
 type RunID string
 
-// Priority is X-Priority. Anything other than exactly "interactive" is
-// Batch, so a missing or garbled header can never jump the queue.
+// Priority is X-Priority. Any value other than "interactive" is Batch, so a
+// missing or garbled header can never jump the queue.
 type Priority uint8
 
 const (
@@ -35,8 +34,8 @@ func (p Priority) String() string {
 }
 
 // DataClass is X-Data-Class. The zero value is Restricted, and parsing maps
-// every value other than exactly "internal" or "public" to Restricted.
-// Missing header, typo, or new class name all fail safe: they stay on box.
+// every value other than "internal" or "public" to Restricted. A missing
+// header, a typo or a new class name therefore keeps the request on the box.
 type DataClass uint8
 
 const (
@@ -58,9 +57,9 @@ func (c DataClass) String() string {
 	}
 }
 
-// ParsePriority is total: every input maps to a value, and the unknown case
-// is the safe one (Batch). Matching is exact after trimming and folding
-// case, so "Interactive", " interactive " and "interactive" all count.
+// ParsePriority maps every input to a value, and an unknown input to Batch,
+// the safe lane. It trims spaces and ignores case, so "Interactive",
+// " interactive " and "interactive" all count.
 func ParsePriority(s string) Priority {
 	if strings.EqualFold(strings.TrimSpace(s), "interactive") {
 		return Interactive
@@ -68,8 +67,8 @@ func ParsePriority(s string) Priority {
 	return Batch
 }
 
-// ParseDataClass is total: every input maps to a value, and the unknown
-// case, including empty, is the safe one (Restricted).
+// ParseDataClass maps every input to a value, and an unknown or empty input
+// to Restricted, the safe class.
 func ParseDataClass(s string) DataClass {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "internal":
@@ -81,10 +80,10 @@ func ParseDataClass(s string) DataClass {
 	}
 }
 
-// ParseRequestID splits "<run>-s<n>" into (RunID, n) by finding the final
+// ParseRequestID splits "<run>-s<n>" into (RunID, n) at the final
 // "-s<digits>" suffix. It returns ("", 0) when the id has no such suffix, an
-// empty run part, or a non-digit tail. The rule matches the doctor client
-// exactly: run id is the text before the final -s<n>.
+// empty run part, or a non-digit tail. The doctor client builds ids the same
+// way, so the run id is the text before the final -s<n>.
 func ParseRequestID(id string) (RunID, int) {
 	idx := strings.LastIndex(id, "-s")
 	if idx <= 0 {
@@ -120,10 +119,9 @@ const DefaultMaxOut = 768
 // context is roughly 100 KiB, so 1 MiB leaves ample headroom.
 const DefaultMaxBody = 1 << 20
 
-// Request is the validated, domain-typed view of one inbound call. It is
-// built only by Inspect, after which every field is trusted (per
-// boundary-discipline). It carries no body bytes, only their count: the
-// proxy forwards the original bytes untouched.
+// Request is the validated, typed view of one inbound call. Only Inspect
+// builds it, and later steps trust every field. It holds the body's length,
+// not its bytes, because the proxy forwards the original bytes untouched.
 type Request struct {
 	ID        string    // X-Request-Id verbatim, forwarded unchanged
 	Run       RunID     // "" when the id has no -s<n> suffix
@@ -143,20 +141,20 @@ type Budgets struct {
 	Interactive, Batch time.Duration
 }
 
-// DefaultBudgets are the gateway's defaults: 10s interactive, 30s batch,
-// both well under the client's 120s timeout.
+// DefaultBudgets give interactive requests 10s and batch requests 30s, both
+// well under the client's 120s timeout.
 var DefaultBudgets = Budgets{Interactive: 10 * time.Second, Batch: 30 * time.Second}
 
-// Reject is Inspect's verdict when a request is malformed. Code is always
-// 400: the guard step only ever rejects bad input, never capacity.
+// Reject is Inspect's verdict for a malformed request. Code is always 400,
+// because the guard rejects bad input and never judges capacity.
 type Reject struct {
 	Code   int
 	Reason string
 	Detail string
 }
 
-// Guard is Inspect's verdict. Exactly one of Req or Reject is meaningful;
-// OK reports which.
+// Guard is Inspect's verdict. Either Req or Reject is meaningful, and OK
+// reports which.
 type Guard struct {
 	Req    Request
 	Reject *Reject
@@ -166,10 +164,10 @@ type Guard struct {
 func (g Guard) OK() bool { return g.Reject == nil }
 
 // Inspect validates a raw request body and headers, and returns either a
-// typed Request or a 400 Reject. Checks run in this order: body size, JSON
-// object, non-empty messages array, non-empty model string, stream
-// unsupported, then max output token sanity. Headers never cause a 400; a
-// missing X-Request-Id just yields Run == "" and no stickiness.
+// typed Request or a 400 Reject. It checks, in order, the body size, that the
+// body is a JSON object, a non-empty messages array, a non-empty model, that
+// stream is not set, and the max output tokens. Headers never cause a 400. A
+// missing X-Request-Id gives Run == "" and no stickiness.
 func Inspect(body []byte, h Headers, now time.Time, b Budgets, maxBody int) Guard {
 	if len(body) > maxBody {
 		return reject("body_too_large", "body exceeds "+strconv.Itoa(maxBody)+" bytes")

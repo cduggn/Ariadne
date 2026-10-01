@@ -12,28 +12,29 @@ import (
 type Reason string
 
 const (
-	// ReasonTenantTokens is charged when a request would overdraw its
-	// tenant's token bucket.
+	// ReasonTenantTokens means the request would overdraw its tenant's
+	// token bucket.
 	ReasonTenantTokens Reason = "tenant_tokens"
-	// ReasonKVFree is charged when a worker's effective free KV would fall
-	// below the admission line (or, for a resident run, its floor).
+	// ReasonKVFree means the worker's effective free KV would fall below the
+	// admission line, or below the resident floor for a run already there.
 	ReasonKVFree Reason = "kv_free"
-	// ReasonTimeoutQueue is charged when a request's projected wait behind
-	// the worker's queue would carry it past its deadline.
+	// ReasonTimeoutQueue means the request's projected wait in the worker's
+	// queue would take it past its deadline.
 	ReasonTimeoutQueue Reason = "timeout_queue"
-	// ReasonP99Spread is charged when a batch worker's tail latency has
-	// diverged from its median while its queue is still growing.
+	// ReasonP99Spread means the worker's tail latency has moved far from its
+	// median while its queue keeps growing. It applies to batch requests only.
 	ReasonP99Spread Reason = "p99_spread"
-	// ReasonNoEligiblePod is charged by Pick, not ShouldShed, when no
-	// worker survives the Ready and staleness filters. It is declared here
-	// because it shares the Reason type and the metric label space.
+	// ReasonNoEligiblePod means no worker survived Pick's Ready and staleness
+	// filters. Pick uses it, not ShouldShed. It lives here because it shares
+	// the Reason type and the metric label.
 	ReasonNoEligiblePod Reason = "no_eligible_pod"
+	// ReasonQueueFull means the worker's queue was full, or an interactive arrival displaced this batch request.
+	ReasonQueueFull Reason = "queue_full"
 )
 
-// Verdict is ShouldShed's result. The zero value is Admit: Shed is false and
-// every other field is meaningless. A refusal always sets Code to either 429
-// (ReasonTenantTokens) or 503 (every other reason), per the client contract:
-// it understands only those two codes.
+// Verdict is ShouldShed's result. The zero value means admit, and then only
+// Shed is meaningful. A refusal sets Code to 429 for ReasonTenantTokens and to
+// 503 for every other reason, because the client understands only those two.
 type Verdict struct {
 	Shed       bool
 	Code       int
@@ -42,17 +43,16 @@ type Verdict struct {
 	Detail     string
 }
 
-// Stays reports whether a refusal must be answered locally rather than
-// considered for the overflow decision. Only a 503 refusal is eligible to
-// leave the box; admission (Shed false) and the 429 tenant refusal both
-// stay.
+// Stays reports whether a refusal must be answered locally and kept away
+// from the overflow decision. Only a 503 refusal may leave the box. A 429
+// tenant refusal stays.
 func (v Verdict) Stays() bool {
 	return v.Shed && v.Code != 503
 }
 
-// WorkerView is one worker's state as the gate sees it: a scraped snapshot
-// corrected by the gateway's own reservations since that scrape. It carries
-// no clock; staleness is Pick's concern, not ShouldShed's.
+// WorkerView is one worker's state as the gate sees it. It combines the last
+// scrape with the gateway's own reservations since that scrape. It has no
+// clock, because Pick judges staleness and ShouldShed does not.
 type WorkerView struct {
 	Pod            string
 	KVPoolTokens   int
@@ -67,10 +67,9 @@ type WorkerView struct {
 	WaitingRising  bool
 }
 
-// FreeTokens is the worker's effective free KV budget: the scraped free
-// pool, minus tokens the gateway has already reserved against it since the
-// last scrape. It never goes negative, so a burst of reservations can push
-// it to 0 but no further.
+// FreeTokens is the worker's effective free KV. It is the scraped free pool
+// minus the tokens the gateway reserved on this worker since the last
+// scrape. It never goes below 0.
 func (w WorkerView) FreeTokens() int {
 	scrapedFree := int(math.Round(float64(w.KVPoolTokens) * (1 - w.KVUsage)))
 	free := scrapedFree - w.ReservedTokens
@@ -80,8 +79,9 @@ func (w WorkerView) FreeTokens() int {
 	return free
 }
 
-// FreeRatio is FreeTokens as a fraction of the pool. A pool of 0 (an unknown
-// or misconfigured worker) reports 0 rather than dividing by zero.
+// FreeRatio is FreeTokens as a fraction of the pool. An unknown or
+// misconfigured worker with a pool of 0 reports 0 instead of dividing by
+// zero.
 func (w WorkerView) FreeRatio() float64 {
 	if w.KVPoolTokens == 0 {
 		return 0
@@ -89,15 +89,15 @@ func (w WorkerView) FreeRatio() float64 {
 	return float64(w.FreeTokens()) / float64(w.KVPoolTokens)
 }
 
-// TenantState is one tenant's token bucket at decide time: what is left,
-// and the rate it refills at.
+// TenantState is one tenant's token bucket at decision time, with the tokens
+// left and the refill rate.
 type TenantState struct {
 	AvailableTokens float64
 	RatePerS        float64
 }
 
-// Policy is the tunable admission thresholds. The zero value is not safe;
-// callers use DefaultPolicy or a variant built from it.
+// Policy holds the admission thresholds. Its zero value is not safe, so
+// callers start from DefaultPolicy.
 type Policy struct {
 	KVLine        float64 // fraction of the KV pool that must stay free, e.g. 0.80
 	ResidentFloor float64 // lower free-ratio floor granted to a resident run, e.g. 0.05
@@ -107,10 +107,10 @@ type Policy struct {
 // DefaultPolicy holds the gateway's shipped admission thresholds.
 var DefaultPolicy = Policy{KVLine: 0.80, ResidentFloor: 0.05, SpreadRatio: 4}
 
-// Snap is everything ShouldShed reads about one candidate placement: the
-// request's tenant and token estimate, the worker it might land on, whether
-// that worker already holds the run's history, and the policy to gate with.
-// Snap carries Now explicitly; ShouldShed never reads a clock.
+// Snap is everything ShouldShed reads about one candidate placement. It
+// holds the tenant, the token estimate, the candidate worker, whether that
+// worker holds the run's history, and the thresholds. It carries Now, so
+// ShouldShed never reads a clock.
 type Snap struct {
 	Now       time.Time
 	Tenant    TenantState
@@ -120,18 +120,16 @@ type Snap struct {
 	Policy    Policy
 }
 
-// ShouldShed is the course's should_shed(req, snap): a pure admission check
-// against one candidate worker. Gates run in this fixed order, and the first
-// one that refuses wins, so a request can never be shed for two reasons at
-// once:
+// ShouldShed is the course's should_shed(req, snap). It checks one candidate
+// worker without side effects. The gates run in this order, and the first
+// refusal wins, so a request is never shed for two reasons at once.
 //
-//  1. tenant_tokens: the tenant's bucket cannot cover the estimate (429).
-//  2. kv_free: the worker's free KV is below the admission line, or below
-//     the resident floor for a run continuing on this worker (503).
-//  3. timeout_queue: the request's projected wait would carry it past its
-//     deadline (503).
-//  4. p99_spread: for batch only, the worker's tail latency has spread from
-//     its median while its queue is still growing (503).
+//  1. tenant_tokens (429): the tenant's bucket cannot cover the estimate.
+//  2. kv_free (503): the worker's free KV is below the admission line, or
+//     below the resident floor for a run continuing on this worker.
+//  3. timeout_queue (503): the projected wait would pass the deadline.
+//  4. p99_spread (503), batch only: the worker's tail latency has moved far
+//     from its median while its queue keeps growing.
 //
 // A Snap that clears every gate returns Verdict{} (admit).
 func ShouldShed(r Request, s Snap) Verdict {
@@ -164,10 +162,9 @@ func ShouldShed(r Request, s Snap) Verdict {
 	return Verdict{}
 }
 
-// tenantRetryAfter is the RetryAfter for a tenant_tokens refusal: the time
-// until the bucket refills enough to cover the shortfall, clamped to
-// [1s, 60s]. A tenant with no positive refill rate gets the ceiling, since
-// there is nothing else to estimate from.
+// tenantRetryAfter is the time until the tenant's bucket refills enough to
+// cover the shortfall, kept between 1s and 60s. A tenant with no refill rate
+// gets 60s, because there is nothing to estimate from.
 func tenantRetryAfter(estTokens int, tenant TenantState) time.Duration {
 	if tenant.RatePerS <= 0 {
 		return 60 * time.Second
@@ -182,10 +179,9 @@ func tenantRetryAfter(estTokens int, tenant TenantState) time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
-// shouldShedKVFree applies the kv_free gate. A resident run (its history is
-// already on this worker) is exempt down to the policy's resident floor. A
-// new or non-resident run sheds at the ordinary line, and also whenever its
-// own estimate alone would not fit in what is currently free.
+// shouldShedKVFree applies the kv_free gate. A run whose history is on this
+// worker may continue down to the resident floor. Any other request sheds at
+// the admission line, or when its estimate does not fit in the free KV.
 func shouldShedKVFree(s Snap) (Verdict, bool) {
 	free := s.Worker.FreeRatio()
 
@@ -227,10 +223,10 @@ func shouldShedKVFree(s Snap) (Verdict, bool) {
 }
 
 // shouldShedTimeoutQueue applies the timeout_queue gate. The projected wait
-// is 0 while the worker has an open in-flight slot. Once full, it is the
-// queue draining at the worker's own mean service time; an unknown mean (0,
-// no history yet) is treated as no wait, since a guess would be as likely to
-// shed a request that would have finished in time.
+// is 0 while the worker has a free slot. When it is full, the wait is the
+// queue ahead times the worker's mean service time. A worker with no service
+// history counts as no wait, because a guess could shed a request that would
+// have finished in time.
 func shouldShedTimeoutQueue(r Request, s Snap) (Verdict, bool) {
 	var wait time.Duration
 	if s.Worker.InFlight >= s.Worker.MaxInflight && s.Worker.MeanServiceS > 0 {
@@ -252,11 +248,10 @@ func shouldShedTimeoutQueue(r Request, s Snap) (Verdict, bool) {
 	return Verdict{}, false
 }
 
-// shouldShedP99Spread applies the p99_spread gate: a batch-only signal that
-// a worker's tail has decoupled from its median while its queue is still
-// growing, rather than merely being briefly loaded. All three conditions
-// must hold, so a worker with no p50 history (0) or a shrinking queue never
-// sheds on this gate alone.
+// shouldShedP99Spread applies the p99_spread gate. It sheds a batch request
+// when the worker's p99 TTFT exceeds SpreadRatio times its p50 and its queue
+// keeps growing. A worker with no p50 history or a shrinking queue never
+// sheds here.
 func shouldShedP99Spread(w WorkerView, p Policy) (Verdict, bool) {
 	if w.TTFTp50S > 0 && w.TTFTp99S > p.SpreadRatio*w.TTFTp50S && w.WaitingRising {
 		return Verdict{
@@ -271,26 +266,26 @@ func shouldShedP99Spread(w WorkerView, p Policy) (Verdict, bool) {
 	return Verdict{}, false
 }
 
-// formatFloat renders f with no trailing zeros, for Detail strings. This
-// package has no fmt, per the import allowlist.
+// formatFloat renders f with no trailing zeros for Detail strings. The
+// import allowlist excludes fmt.
 func formatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 
-// RunUsage is a run's real token usage as vLLM reported it after some prior
-// step, kept by the gateway's run table and fed back into EstimateTokens for
-// that run's next step.
+// RunUsage is the token usage vLLM reported for a run's previous step. The
+// gateway's run table keeps it and passes it to EstimateTokens for the next
+// step.
 type RunUsage struct {
 	PromptTokens     int
 	CompletionTokens int
 	BodyBytes        int
 }
 
-// EstimateTokens is the tokenizer-free prompt-size estimate: bytes divided
-// by 3.5 on a run's first step, then anchored to vLLM's own usage from the
-// prior step plus an estimate of only the bytes added since. It returns the
-// prompt estimate plus the request's own MaxOut, since that is what must fit
-// in a tenant's budget and a worker's KV pool.
+// EstimateTokens estimates a request's tokens without a tokenizer. A run's
+// first step uses body bytes divided by 3.5. Later steps start from vLLM's
+// usage for the previous step and add the new bytes divided by 3.5. The
+// result includes MaxOut, because the tenant's budget and the worker's KV must
+// cover the output too.
 func EstimateTokens(r Request, prior *RunUsage) int {
 	if prior == nil {
 		return bytesToTokens(r.BodyBytes) + r.MaxOut
@@ -303,7 +298,7 @@ func EstimateTokens(r Request, prior *RunUsage) int {
 	return promptEst + r.MaxOut
 }
 
-// bytesToTokens is the shared bytes-to-tokens rounding: ceil(bytes / 3.5).
+// bytesToTokens returns ceil(bytes / 3.5).
 func bytesToTokens(bytes int) int {
 	return int(math.Ceil(float64(bytes) / 3.5))
 }

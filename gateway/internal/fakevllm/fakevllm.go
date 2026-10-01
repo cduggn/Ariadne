@@ -1,0 +1,256 @@
+// Package fakevllm is a fake vLLM worker for tests and the laptop demo. It
+// serves the two endpoints the gateway touches, /metrics and
+// /v1/chat/completions, and records every chat request it receives.
+package fakevllm
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"math"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+)
+
+// Settings are the knobs a test or a demo turns. KVUsage, PoolBlocks and
+// Waiting shape /metrics. Latency delays every chat answer. A Status other
+// than 200 makes chat answer that status with an OpenAI error body, and
+// MetricsDown makes /metrics answer 503.
+type Settings struct {
+	KVUsage     float64
+	PoolBlocks  int
+	Waiting     float64
+	Latency     time.Duration
+	Status      int
+	MetricsDown bool
+}
+
+// Recorded is one chat request as the worker saw it, and the bytes it
+// answered with. Response is nil while the request is still being answered.
+type Recorded struct {
+	Header   http.Header
+	Body     []byte
+	Response []byte
+}
+
+// Worker is one fake vLLM. Every field is guarded by mu. lastBody keeps the
+// previous chat body per run, so a later step of the same run reports the
+// shared prefix as cached tokens, as vLLM's prefix cache would.
+type Worker struct {
+	mu       sync.Mutex
+	settings Settings
+	requests []Recorded
+	lastBody map[decide.RunID][]byte
+}
+
+// New returns a Worker with an empty KV cache, the 4941-block pool of the
+// reference deployment, no latency and a 200 status.
+func New() *Worker {
+	return &Worker{
+		settings: Settings{PoolBlocks: 4941, Status: http.StatusOK},
+		lastBody: make(map[decide.RunID][]byte),
+	}
+}
+
+// Set edits the settings under the lock.
+func (w *Worker) Set(fn func(*Settings)) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	fn(&w.settings)
+}
+
+// Requests returns a copy of every chat request so far, oldest first.
+func (w *Worker) Requests() []Recorded {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return append([]Recorded(nil), w.requests...)
+}
+
+// Handler serves GET /metrics and POST /v1/chat/completions.
+func (w *Worker) Handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /metrics", w.metrics)
+	mux.HandleFunc("POST /v1/chat/completions", w.chat)
+	return mux
+}
+
+// metricsText is the subset of vLLM's exposition the fleet reads, with the
+// pool size, the waiting count and the KV usage filled in.
+const metricsText = `# HELP vllm:cache_config_info Information of the LLMEngine CacheConfig
+# TYPE vllm:cache_config_info gauge
+vllm:cache_config_info{block_size="16",num_gpu_blocks="%d"} 1
+# HELP vllm:num_requests_waiting Number of requests waiting to be processed.
+# TYPE vllm:num_requests_waiting gauge
+vllm:num_requests_waiting{model_name="fake"} %g
+# HELP vllm:kv_cache_usage_perc KV-cache usage. 1 means 100 percent usage.
+# TYPE vllm:kv_cache_usage_perc gauge
+vllm:kv_cache_usage_perc{model_name="fake"} %g
+# HELP vllm:time_to_first_token_seconds Histogram of time to first token in seconds.
+# TYPE vllm:time_to_first_token_seconds histogram
+vllm:time_to_first_token_seconds_bucket{model_name="fake",le="0.1"} 40
+vllm:time_to_first_token_seconds_bucket{model_name="fake",le="0.5"} 90
+vllm:time_to_first_token_seconds_bucket{model_name="fake",le="1.0"} 99
+vllm:time_to_first_token_seconds_bucket{model_name="fake",le="+Inf"} 100
+vllm:time_to_first_token_seconds_count{model_name="fake"} 100
+vllm:time_to_first_token_seconds_sum{model_name="fake"} 21.5
+`
+
+func (w *Worker) metrics(rw http.ResponseWriter, r *http.Request) {
+	w.mu.Lock()
+	s := w.settings
+	w.mu.Unlock()
+	if s.MetricsDown {
+		http.Error(rw, "metrics unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	rw.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	fmt.Fprintf(rw, metricsText, s.PoolBlocks, s.Waiting, s.KVUsage)
+}
+
+// chat records the request, waits Latency, then answers. A request whose
+// client goes away during the wait gets no answer, as a cancelled upstream
+// call would.
+func (w *Worker) chat(rw http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(rw, "read body", http.StatusBadRequest)
+		return
+	}
+
+	w.mu.Lock()
+	s := w.settings
+	cached := 0
+	if run, _ := decide.ParseRequestID(r.Header.Get("X-Request-Id")); run != "" {
+		cached = tokens(commonPrefix(w.lastBody[run], body))
+		w.lastBody[run] = body
+	}
+	idx := len(w.requests)
+	w.requests = append(w.requests, Recorded{Header: r.Header.Clone(), Body: body})
+	w.mu.Unlock()
+
+	select {
+	case <-time.After(s.Latency):
+	case <-r.Context().Done():
+		return
+	}
+
+	resp := completion(body, cached)
+	if s.Status != http.StatusOK {
+		resp = errorBody(s.Status)
+	}
+	w.mu.Lock()
+	w.requests[idx].Response = resp
+	w.mu.Unlock()
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(s.Status)
+	rw.Write(resp)
+}
+
+type chatCompletion struct {
+	ID      string   `json:"id"`
+	Object  string   `json:"object"`
+	Created int64    `json:"created"`
+	Model   string   `json:"model"`
+	Choices []choice `json:"choices"`
+	Usage   usage    `json:"usage"`
+}
+
+type choice struct {
+	Index        int     `json:"index"`
+	Message      message `json:"message"`
+	FinishReason string  `json:"finish_reason"`
+}
+
+type message struct {
+	Role      string     `json:"role"`
+	Content   *string    `json:"content"`
+	ToolCalls []toolCall `json:"tool_calls"`
+}
+
+type toolCall struct {
+	ID       string   `json:"id"`
+	Type     string   `json:"type"`
+	Function function `json:"function"`
+}
+
+type function struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+type usage struct {
+	PromptTokens     int          `json:"prompt_tokens"`
+	CompletionTokens int          `json:"completion_tokens"`
+	TotalTokens      int          `json:"total_tokens"`
+	Details          usageDetails `json:"prompt_tokens_details"`
+}
+
+type usageDetails struct {
+	CachedTokens int `json:"cached_tokens"`
+}
+
+// completion builds the answer every successful chat gets. The one
+// assistant message calls submit_diagnosis with empty arguments, so the
+// doctor's tool loop ends on the first step. The prompt count is the body's
+// bytes divided by 3.5, the gateway's own estimate, so the two agree.
+func completion(body []byte, cached int) []byte {
+	var req struct {
+		Model string `json:"model"`
+	}
+	json.Unmarshal(body, &req)
+	prompt := tokens(len(body))
+	out, _ := json.Marshal(chatCompletion{
+		ID:      "chatcmpl-fake",
+		Object:  "chat.completion",
+		Created: time.Now().Unix(),
+		Model:   req.Model,
+		Choices: []choice{{
+			Message: message{
+				Role: "assistant",
+				ToolCalls: []toolCall{{
+					ID:       "call_fake_1",
+					Type:     "function",
+					Function: function{Name: "submit_diagnosis", Arguments: "{}"},
+				}},
+			},
+			FinishReason: "tool_calls",
+		}},
+		Usage: usage{
+			PromptTokens:     prompt,
+			CompletionTokens: 35,
+			TotalTokens:      prompt + 35,
+			Details:          usageDetails{CachedTokens: cached},
+		},
+	})
+	return out
+}
+
+// errorBody is the OpenAI error shape vLLM uses for a failed request.
+func errorBody(status int) []byte {
+	out, _ := json.Marshal(map[string]any{"error": map[string]any{
+		"message": fmt.Sprintf("fake worker answered %d", status),
+		"type":    "server_error",
+		"code":    status,
+	}})
+	return out
+}
+
+// tokens returns ceil(n / 3.5), the byte-to-token rule the gateway uses.
+func tokens(n int) int {
+	return int(math.Ceil(float64(n) / 3.5))
+}
+
+// commonPrefix returns the length of the longest byte prefix a and b share.
+func commonPrefix(a, b []byte) int {
+	n := min(len(a), len(b))
+	for i := 0; i < n; i++ {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return n
+}
