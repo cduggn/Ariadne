@@ -130,7 +130,8 @@ def render(metrics: Path | None = None) -> str:
     fits = all_rows(metrics)
     runs = load_runs(metrics, n_tasks)
     best = headline(runs)
-    e, gpu = s["engine"], s["gpu"]
+    e = s["engine"]
+    gpus = ", ".join(f"{g['name']} ({k})" for k, g in s["gpus"].items())
     parts = [
         "# Model matrix",
         "",
@@ -139,13 +140,13 @@ def render(metrics: Path | None = None) -> str:
         "D-40 covers the profiles, topologies and this matrix, and D-41 covers the v2 score. The review behind both is "
         "`design/model-and-golden-review-2026-09-28.md`, and `design/model-architecture-guide.md` explains the architecture.",
         "",
-        f"The GPU is an {gpu['name']}. Every model runs with the same engine settings: `{e['image'].split('@')[0].split('/')[-1]}`, "
+        f"The GPUs are the {gpus}. Every model runs with the same engine settings: `{e['image'].split('@')[0].split('/')[-1]}`, "
         f"context {e['max_model_len']:,}, at most {e['max_num_seqs']} sequences, {e['max_num_batched_tokens']:,} batched tokens, "
         f"prefix caching, {e['gpu_memory_utilization']} of the memory HAMi exposes, and 16-bit KV. Sampling follows each "
         "model's card, as set in the profile's `client` block.",
         "",
-        "The two topologies are:",
-        *[f"- **{k}**, {v['purpose']}." for k, v in s["topologies"].items()],
+        "Each topology names its GPU:",
+        *[f"- **{k}** ({v['gpu']}), {v['purpose']}." for k, v in s["topologies"].items()],
         "",
         "## 1. Where each model can run",
         "",

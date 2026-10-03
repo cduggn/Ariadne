@@ -1,0 +1,51 @@
+{
+  "name": "gemma-4-31b-it-fp8",
+  "plan": "round-2",
+  "summary": "Jul 2026 dense 31B: 50 sliding-window (1,024) + 10 global attention layers, Red Hat FP8-dynamic; plain attention, so prefix caching is mature",
+  "hf": {
+    "repo": "RedHatAI/gemma-4-31B-it-FP8-dynamic",
+    "revision": "d4ab4f579dd3516f97d8a6a4c98d0653480bad15",
+    "license": "apache-2.0",
+    "quant": "FP8 dynamic, compressed-tensors (Red Hat); the vision tower stays BF16"
+  },
+  "arch": {
+    "layers": 60,
+    "attn_layers": 10,
+    "kv_heads": 4,
+    "head_dim": 512,
+    "hidden": 5376,
+    "intermediate": 21504,
+    "params_b": 31.27,
+    "active_params_b": 31.27,
+    "weights_gib": 30.98,
+    "sliding": {
+      "layers": 50,
+      "kv_heads": 16,
+      "head_dim": 256,
+      "window": 1024
+    }
+  },
+  "serve": {
+    "served_name": "google/gemma-4-31B-it",
+    "args": [
+      "--tool-call-parser=gemma4",
+      "--reasoning-parser=gemma4",
+      "--chat-template=/vllm-workspace/examples/tool_chat_template_gemma4.jinja",
+      "--limit-mm-per-prompt={\"image\":0,\"audio\":0}"
+    ]
+  },
+  "client": {
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 64,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "evidence": "Not served. Publisher reports Tau2 76.9 (model card, 2026-10-03); shortlist signals only.",
+  "caveats": [
+    "The global layers set attention_k_eq_v; the fit counts K and V separately, so its KV per token may be up to 2× high",
+    "The gemma4 tool parser was still getting fixes in v0.30 (malformed openers); check finish_reason and parse failures in the smoke run",
+    "The chat template path is inside the vLLM image (examples/ is copied to /vllm-workspace in v0.30.0)"
+  ]
+}

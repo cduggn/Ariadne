@@ -1,0 +1,55 @@
+{
+  "name": "qwen3.8-27b-fp8",
+  "plan": "round-2",
+  "summary": "Aug 2026 dense 27B hybrid: 16 gated attention + 48 Gated DeltaNet layers, official FP8; the newest Qwen that fits one 80 GB card",
+  "hf": {
+    "repo": "Qwen/Qwen3.8-27B-FP8",
+    "revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+    "license": "apache-2.0",
+    "quant": "FP8 E4M3, 128×128 blocks (official); the weights include a vision encoder and an MTP head"
+  },
+  "arch": {
+    "layers": 64,
+    "attn_layers": 16,
+    "kv_heads": 4,
+    "head_dim": 256,
+    "hidden": 5120,
+    "intermediate": 17408,
+    "params_b": 27.78,
+    "active_params_b": 27.78,
+    "weights_gib": 28.75,
+    "linear": {
+      "layers": 48,
+      "key_heads": 16,
+      "key_head_dim": 128,
+      "value_heads": 48,
+      "value_head_dim": 128,
+      "conv_kernel": 4
+    }
+  },
+  "serve": {
+    "served_name": "Qwen/Qwen3.8-27B-FP8",
+    "args": [
+      "--tool-call-parser=qwen3_xml",
+      "--reasoning-parser=qwen3",
+      "--language-model-only"
+    ]
+  },
+  "client": {
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 20,
+    "min_p": 0.0,
+    "presence_penalty": 1.5,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "evidence": "Not served. Publisher reports Terminal-Bench 2.1 73.0 and SWE-Pro 61.7 (model card, 2026-10-03); shortlist signals only.",
+  "caveats": [
+    "vLLM issue #55766 (open on 2026-10-03): hybrid GDN models can emit NaN logits after a prefix-cache hit; the symptom is runs of '!' tokens",
+    "Prefix caching for the recurrent layers uses vLLM's 'align' checkpoints (the default with prefix caching), so hits land on block boundaries",
+    "On the A100 FP8 runs weight-only through Marlin; native FP8 compute needs H100 or GH200",
+    "Sampling is the card's non-thinking set; thinking is off through chat_template_kwargs"
+  ]
+}

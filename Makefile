@@ -1,10 +1,10 @@
 # cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda A100 lifecycle.
 #
 #   make tools                      fetch pinned kind + kubectl into .bin/ (checksums verified)
-#   make test / lint                offline: unit tests over recorded snapshots, ruff
+#   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, ruff
 #   make lab-up / lab-record / lab-down   kind cluster, inject faults, record fixtures/  (lab only mutates kind)
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
-#   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda A100 via the `lam` CLI (see SPEC §7)
+#   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda GPU node via the `lam` CLI: up takes the first of TYPES with capacity (lab/up.sh)
 #   make gateway [POLICY=least_loaded]   build the Go gateway, install it on the node and roll it out (D-42)
 #   make tunnel [TUNNEL=pod/vllm-0]      localhost:8000 → the gateway (default) or one vLLM pod directly
 #   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
@@ -19,12 +19,16 @@
 #   make inject FAULTS=… [STAGGER=60] / heal   break the lab cluster on purpose / remove what inject created
 #   make faults                     list injectable faults by tier
 #   make prom / opencost            port-forward Prometheus (:9090) / the OpenCost API (:9003) from the Lambda node
+# `make up` writes the node it got (GPU, ARCH, MODEL, TOPO) here; anything on the make line still wins.
+-include .cache/node.env
 NAME   ?= cluster-doctor
 TAG    ?= baseline
 N      ?= 2
 PORT   ?= 8000
 MODEL  ?= qwen3-8b-awq
 TOPO   ?= sliced
+ARCH   ?= amd64
+TYPES  ?= gpu_1x_gh200 gpu_1x_h100_pcie gpu_1x_a100_sxm4
 WORKERS ?= 1
 BASE   ?= http://127.0.0.1:$(PORT)/v1
 CONC   ?= 1
@@ -57,6 +61,7 @@ tools:
 
 test:
 	uv run -q python -m pytest
+	cd gateway && go vet ./... && go test ./...
 
 lint:
 	$(RUFF) check doctor evals lab serving tests
@@ -92,8 +97,7 @@ lab-down:
 	$(KIND) delete cluster --name doctor-lab
 
 up:
-	lam launch -c deploy/cloud-init.yaml --name $(NAME) --retry 30m
-	$(REMOTE) cat /var/lib/bootstrap/ready.json
+	NAME=$(NAME) TYPES="$(TYPES)" lab/up.sh
 
 status:
 	lam ls --uptime
@@ -125,7 +129,7 @@ kv:
 
 gateway:
 	@mkdir -p $(GWBUILD)
-	cd gateway && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ../$(GWBUILD)/gateway ./cmd/gateway
+	cd gateway && CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -o ../$(GWBUILD)/gateway ./cmd/gateway
 	$(PY) -m serving.warmup $(MODEL) > $(GWBUILD)/warm.json
 	cp deploy/k8s/gateway.yaml $(GWBUILD)/
 	lam push $(GWBUILD)/ '~/gateway/' --delete
@@ -170,11 +174,11 @@ metrics:
 
 down:
 	lam rm $(NAME)
+	rm -f .cache/node.env .cache/ready.json
 	lam ls
 
-preflight:
-	$(RUFF) check doctor evals lab serving tests
-	uv run -q python -m pytest
+preflight: lint test
+	cd gateway && CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -o /dev/null ./cmd/gateway   # what make gateway ships
 	uv run -q python -m evals.build_golden && git diff --quiet evals/golden || (echo "golden set changed — commit it"; exit 1)
 	$(PY) -m serving.fit $(MODEL) $(TOPO) --gate
 	@lam config | grep -q "LAMBDA_API_KEY: *set (" || (echo "lam has no LAMBDA_API_KEY: run lam config init"; exit 1)

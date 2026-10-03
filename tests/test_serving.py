@@ -30,7 +30,7 @@ def test_profile_validation_catches_mistakes():
     bad["client"]["temprature"] = 0.2
     bad["hf"]["revision"] = "main"                                 # unpinned
     errs = profiles.validate_profile(bad, "qwen3-8b-awq")
-    assert any("--max-model-len" in e for e in errs) and any("arch.linear" in e for e in errs)
+    assert any("--max-model-len" in e for e in errs) and any("linear.layers + sliding.layers" in e for e in errs)
     assert any("temprature" in e for e in errs) and any("revision" in e for e in errs)
 
 
@@ -39,8 +39,17 @@ def test_committed_manifest_is_the_rendered_default_and_cloud_init_agrees():
     p, s = profiles.load_profile(name), profiles.load_serving()
     assert profiles.MANIFEST.read_text() == profiles.render_manifest(p, topo, s)
     boot = (ROOT / "deploy" / "cloud-init.yaml").read_text()
-    pins = dict(re.findall(r'^\s+(VLLM_IMAGE|MODEL|MODEL_REVISION)="([^"]+)"', boot, re.M))
-    assert pins == {"VLLM_IMAGE": s["engine"]["image"], "MODEL": p["hf"]["repo"], "MODEL_REVISION": p["hf"]["revision"]}
+    assert re.search(r'^\s+VLLM_IMAGE="([^"]+)"', boot, re.M).group(1) == s["engine"]["image"]
+    pins = {}
+    for classes, body in re.findall(r"^\s+([a-z0-9|-]+)\) (MODEL=.*) ;;$", boot, re.M):
+        for c in classes.split("|"):
+            pins[c] = dict(re.findall(r'(\w+)="([^"]+)"', body))
+    assert set(pins) == set(s["gpus"])                                   # every GPU class boots with a model
+    for c, g in s["gpus"].items():
+        boot_p, nxt = profiles.load_profile(g["boot"]["model"])["hf"], profiles.load_profile(g["boot"]["next_model"])["hf"]
+        assert pins[c] == {"MODEL": boot_p["repo"], "MODEL_REVISION": boot_p["revision"],
+                           "NEXT_MODEL": nxt["repo"], "NEXT_MODEL_REVISION": nxt["revision"]}, c
+        assert s["topologies"][g["boot"]["topology"]]["gpu"] == c
 
 
 def test_full_topology_gets_the_whole_card_and_model_specific_args():

@@ -1,8 +1,7 @@
 {
-  "about": "The GPU, the engine settings every model shares, and the two ways the card is carved (D-40). Models are in deploy/models/.",
-  "gpu": {"name": "A100 40 GB (Lambda gpu_1x_a100)", "mib": 40960, "bandwidth_gbs": 1555, "tflops_bf16": 312},
+  "about": "The GPUs we rent, the engine settings every model shares, and how each card is carved (D-40). Models are in deploy/models/. A topology names its GPU, so a run's topology also records the hardware.",
   "engine": {
-    "image": "docker.io/vllm/vllm-openai:v0.29.0-cu129@sha256:7ef5a35d1ef8ce2cf9d671dd91eec6e367c5849262e0362b4d3d4a26be0d87d2",
+    "image": "docker.io/vllm/vllm-openai:v0.30.0-cu129@sha256:a67f8f186d4567612ac37a55bd82295006002b18858eb12a8af2f05f86c2ae3f",
     "gpu_memory_utilization": 0.9,
     "max_model_len": 24576,
     "max_num_seqs": 32,
@@ -14,14 +13,105 @@
     "mfu": 0.4,
     "app_len": 12000,
     "shared_prefix": 3787,
-    "note": "activation peak = max_num_batched_tokens × 2 B × (4·hidden + 2·intermediate); CUDA context and MFU are assumptions. On the 8B slice this predicted 79,701 KV tokens; vLLM measured 79,056 (−0.8 %)."
+    "note": "activation peak = max_num_batched_tokens × 2 B × (4·hidden + 2·intermediate); CUDA context and MFU are assumptions. On the 8B slice this predicted 79,701 KV tokens; vLLM measured 79,056 (−0.8 %). GPU mib for H100 and GH200 are the usual nvidia-smi totals; check them on first boot."
   },
-  "gate": {"min_full_length_sequences": 1, "comfortable_full_length_sequences": 2,
-           "why": "vLLM refuses to start unless one max-length request fits, so below 1 a deploy only wastes a boot; below 2 the worker serves one long audit at a time (tight)"},
+  "gate": {
+    "min_full_length_sequences": 1,
+    "comfortable_full_length_sequences": 2,
+    "why": "vLLM refuses to start unless one max-length request fits, so below 1 a deploy only wastes a boot; below 2 the worker serves one long audit at a time (tight)"
+  },
   "topologies": {
-    "sliced": {"max_replicas": 2, "gpumem_mib": 20480, "gpucores": 50,
-               "purpose": "N workers on HAMi slices of 20 GiB and half the SMs each: GPU slicing, routing, affinity and the KV hop between workers"},
-    "full":   {"max_replicas": 1, "gpumem_mib": 40960, "gpucores": 100,
-               "purpose": "one worker with the whole card: the model-quality benchmark, and the larger models that do not fit a slice"}
+    "sliced": {
+      "gpu": "a100-40",
+      "max_replicas": 2,
+      "gpumem_mib": 20480,
+      "gpucores": 50,
+      "purpose": "N workers on A100 HAMi slices of 20 GiB and half the SMs each: GPU slicing, routing, affinity and the KV hop between workers"
+    },
+    "full": {
+      "gpu": "a100-40",
+      "max_replicas": 1,
+      "gpumem_mib": 40960,
+      "gpucores": 100,
+      "purpose": "one worker with the whole A100: the model-quality benchmark, and the larger models that do not fit a slice"
+    },
+    "h100-full": {
+      "gpu": "h100-80",
+      "max_replicas": 1,
+      "gpumem_mib": 79872,
+      "gpucores": 100,
+      "purpose": "one worker with the whole H100 (78 GiB requested, below the card's reported size): the newer FP8 models"
+    },
+    "h100-half": {
+      "gpu": "h100-80",
+      "max_replicas": 2,
+      "gpumem_mib": 39936,
+      "gpucores": 50,
+      "purpose": "two workers on H100 halves of 39 GiB: the gateway demo with a 27B model"
+    },
+    "gh200-full": {
+      "gpu": "gh200-96",
+      "max_replicas": 1,
+      "gpumem_mib": 94208,
+      "gpucores": 100,
+      "purpose": "one worker with the whole GH200 (92 GiB requested): the newer FP8 models"
+    },
+    "gh200-half": {
+      "gpu": "gh200-96",
+      "max_replicas": 2,
+      "gpumem_mib": 47104,
+      "gpucores": 50,
+      "purpose": "two workers on GH200 halves of 46 GiB; HAMi on GH200 is unverified, so this is an experiment"
+    }
+  },
+  "gpus": {
+    "a100-40": {
+      "name": "A100 40 GB SXM4",
+      "lambda_types": [
+        "gpu_1x_a100_sxm4",
+        "gpu_1x_a100"
+      ],
+      "mib": 40960,
+      "bandwidth_gbs": 1555,
+      "tflops_bf16": 312,
+      "fp8": "weight-only (Marlin W8A16), no FP8 compute",
+      "boot": {
+        "model": "qwen3-8b-awq",
+        "topology": "sliced",
+        "next_model": "qwen3.8-27b-fp8"
+      }
+    },
+    "h100-80": {
+      "name": "H100 80 GB PCIe",
+      "lambda_types": [
+        "gpu_1x_h100_pcie",
+        "gpu_1x_h100_sxm5"
+      ],
+      "mib": 81559,
+      "bandwidth_gbs": 2000,
+      "tflops_bf16": 756,
+      "fp8": "native",
+      "note": "PCIe figures; the SXM5 card is faster (3,350 GB/s, 989 TFLOPS), so its floors are conservative",
+      "boot": {
+        "model": "qwen3.8-27b-fp8",
+        "topology": "h100-full",
+        "next_model": "gemma-4-31b-it-fp8"
+      }
+    },
+    "gh200-96": {
+      "name": "GH200 96 GB (arm64 host)",
+      "lambda_types": [
+        "gpu_1x_gh200"
+      ],
+      "mib": 97871,
+      "bandwidth_gbs": 4000,
+      "tflops_bf16": 989,
+      "fp8": "native",
+      "boot": {
+        "model": "qwen3.8-27b-fp8",
+        "topology": "gh200-full",
+        "next_model": "gemma-4-31b-it-fp8"
+      }
+    }
   }
 }

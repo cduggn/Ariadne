@@ -1,9 +1,10 @@
 #cloud-config
-# Node bootstrap for one Lambda A100 (gpu_1x_a100_sxm4): k3s + HAMi, vLLM image pre-pulled,
-# Qwen3-8B-AWQ weights pre-fetched, OpenCost for same-day cluster cost (cluster-doctor D-26). Model choice
-# inherited from the trip-planner project (its D-16). Deploys no workload — `make deploy` applies deploy/k8s/ after this.
+# Node bootstrap for one Lambda GPU node: k3s + HAMi, vLLM image pre-pulled, OpenCost for same-day cluster cost (D-26).
+# One file for every GPU we rent. `make up` (lab/up.sh) picks the first type with capacity; this script then reads the
+# hardware and fetches that GPU's boot model before ready.json and its next model in the background (D-40). Deploys no
+# workload — `make deploy` applies deploy/k8s/ after this.
 #
-# Launch:   lam launch -c deploy/cloud-init.yaml --name final-project --retry 30m
+# Launch:   make up      (tries TYPES in order; see lab/up.sh)
 # Progress: lam logs          Done marker: /var/lib/bootstrap/ready.json
 # Re-run:   sudo bash /opt/bootstrap/bootstrap.sh     (idempotent: every step checks before acting)
 #
@@ -20,18 +21,31 @@ write_files:
       # ---- pins (change here, nowhere else) ----------------------------------------------
       K3S_VERSION="v1.36.4+k3s1"            # stable channel 2026-09-23; install.sh verifies the binary sha256
       HELM_VERSION="v3.22.0"
-      HELM_SHA256="1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb"
       HAMI_CHART_VERSION="2.9.0"            # the version the class stack ran on Lambda
       PROMETHEUS_CHART_VERSION="29.33.0"    # prometheus-community/prometheus, app v3.14.0
       GRAFANA_CHART_VERSION="13.2.5"        # grafana-community/grafana (grafana/grafana chart is deprecated)
       OPENCOST_CHART_VERSION="2.5.32"       # opencost/opencost, app 1.121.3 (2026-09-21)
       DCGM_IMAGE="nvcr.io/nvidia/k8s/dcgm-exporter:4.5.2-4.8.1-ubuntu22.04"
-      # The image and the boot-time model are copies of deploy/serving.json and the default profile
-      # deploy/models/qwen3-8b-awq.json (tests/test_serving.py keeps them equal). Other models: `make prefetch`.
-      VLLM_IMAGE="docker.io/vllm/vllm-openai:v0.29.0-cu129@sha256:7ef5a35d1ef8ce2cf9d671dd91eec6e367c5849262e0362b4d3d4a26be0d87d2"
-      MODEL="Qwen/Qwen3-8B-AWQ"
-      MODEL_REVISION="4da05a8edb55c6046cce958586c33b61da07bb79"
+      VLLM_IMAGE="docker.io/vllm/vllm-openai:v0.30.0-cu129@sha256:a67f8f186d4567612ac37a55bd82295006002b18858eb12a8af2f05f86c2ae3f"
       HF_CACHE="/opt/hf-cache"              # hostPath the vLLM pods mount read-only
+
+      # ---- hardware: the only per-machine part ------------------------------------------------
+      # The GPU class and its models are copies of deploy/serving.json gpus.<class>.boot and the profiles in
+      # deploy/models/ (tests/test_serving.py keeps them equal). MODEL is fetched before ready.json; NEXT_MODEL in the
+      # background after it. Other models: `make prefetch`.
+      GPU_MIB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -1 | tr -d ' ')
+      if   [ "$GPU_MIB" -lt 60000 ]; then GPU=a100-40
+      elif [ "$GPU_MIB" -lt 90000 ]; then GPU=h100-80
+      else GPU=gh200-96; fi
+      case "$GPU" in
+        a100-40) MODEL="Qwen/Qwen3-8B-AWQ" MODEL_REVISION="4da05a8edb55c6046cce958586c33b61da07bb79" NEXT_MODEL="Qwen/Qwen3.8-27B-FP8" NEXT_MODEL_REVISION="017b9c7af6b5689d5dd426a76e0bc077eb5ca20a" ;;
+        h100-80|gh200-96) MODEL="Qwen/Qwen3.8-27B-FP8" MODEL_REVISION="017b9c7af6b5689d5dd426a76e0bc077eb5ca20a" NEXT_MODEL="RedHatAI/gemma-4-31B-it-FP8-dynamic" NEXT_MODEL_REVISION="d4ab4f579dd3516f97d8a6a4c98d0653480bad15" ;;
+      esac
+      case "$(uname -m)" in
+        x86_64)  ARCH=amd64 HELM_SHA256="1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb" ;;
+        aarch64) ARCH=arm64 HELM_SHA256="f14e804dfee240f55525b667488fe9adca349e63e00c9af634c0beb1421ac310" ;;
+        *) echo "no bootstrap for $(uname -m)"; exit 1 ;;
+      esac
       # -------------------------------------------------------------------------------------
 
       export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -61,9 +75,9 @@ write_files:
       step "helm $HELM_VERSION"
       if ! helm version --short 2>/dev/null | grep -qF "$HELM_VERSION"; then
         tmp=$(mktemp -d)
-        curl -sfLo "$tmp/helm.tgz" "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+        curl -sfLo "$tmp/helm.tgz" "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz"
         echo "$HELM_SHA256  $tmp/helm.tgz" | sha256sum -c -
-        tar -xzf "$tmp/helm.tgz" -C "$tmp" && install -m 755 "$tmp/linux-amd64/helm" /usr/local/bin/helm
+        tar -xzf "$tmp/helm.tgz" -C "$tmp" && install -m 755 "$tmp/linux-${ARCH}/helm" /usr/local/bin/helm
         rm -rf "$tmp"
       fi
 
@@ -79,7 +93,13 @@ write_files:
         --set "scheduler.kubeScheduler.imageTag=$K8S_VERSION" \
         --set devicePlugin.deviceSplitCount=4 \
         --wait --timeout 10m
-      until kubectl get node "$NODE" -o jsonpath='{.status.allocatable.nvidia\.com/gpu}' | grep -q '[1-9]'; do sleep 5; done
+      # Bounded: if HAMi cannot register this GPU (untested on GH200), fail now rather than bill a node stuck at boot.
+      for _ in $(seq 60); do
+        kubectl get node "$NODE" -o jsonpath='{.status.allocatable.nvidia\.com/gpu}' | grep -q '[1-9]' && break
+        sleep 5
+      done
+      kubectl get node "$NODE" -o jsonpath='{.status.allocatable.nvidia\.com/gpu}' | grep -q '[1-9]' ||
+        { echo "HAMi registered no GPU on $GPU after 5 min: make down, then make up TYPES=gpu_1x_a100_sxm4"; exit 1; }
 
       step "observability: Prometheus $PROMETHEUS_CHART_VERSION, Grafana $GRAFANA_CHART_VERSION, DCGM exporter"
       helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null
@@ -99,14 +119,17 @@ write_files:
       step "pull $VLLM_IMAGE (~10 GB)"
       k3s ctr -n k8s.io images pull "$VLLM_IMAGE" >/dev/null
 
-      step "fetch $MODEL@$MODEL_REVISION"
-      if [ ! -f "$MARK/model-$MODEL_REVISION" ]; then
+      fetch() {  # repo revision
+        [ -f "$MARK/model-$2" ] && return 0
         k3s ctr -n k8s.io run --rm --net-host \
           --mount "type=bind,src=$HF_CACHE,dst=/root/.cache/huggingface,options=rbind:rw" \
-          "$VLLM_IMAGE" "hf-fetch-$$" \
-          python3 -c "from huggingface_hub import snapshot_download as d; print(d('$MODEL', revision='$MODEL_REVISION'))"
-        touch "$MARK/model-$MODEL_REVISION"
-      fi
+          "$VLLM_IMAGE" "hf-fetch-$2" \
+          python3 -c "from huggingface_hub import snapshot_download as d; print(d('$1', revision='$2'))"
+        touch "$MARK/model-$2"
+      }
+
+      step "fetch $MODEL@$MODEL_REVISION"
+      fetch "$MODEL" "$MODEL_REVISION"
 
       python3 - "$MARK/ready.json" <<EOF
       import json, subprocess, sys
@@ -114,9 +137,16 @@ write_files:
       json.dump({"k3s": "$K3S_VERSION", "helm": "$HELM_VERSION", "hami": "$HAMI_CHART_VERSION", "vllm_image": "$VLLM_IMAGE",
                  "prometheus_chart": "$PROMETHEUS_CHART_VERSION", "grafana_chart": "$GRAFANA_CHART_VERSION", "dcgm_image": "$DCGM_IMAGE",
                  "opencost_chart": "$OPENCOST_CHART_VERSION",
-                 "model": "$MODEL", "revision": "$MODEL_REVISION", "gpu_driver": drv}, open(sys.argv[1], "w"), indent=2)
+                 "gpu": "$GPU", "gpu_mib": $GPU_MIB, "arch": "$ARCH",
+                 "model": "$MODEL", "revision": "$MODEL_REVISION", "next_model": "$NEXT_MODEL", "gpu_driver": drv}, open(sys.argv[1], "w"), indent=2)
       EOF
       step "ready: $(cat "$MARK/ready.json" | tr -d '\n ')"
+
+      # Detached with its own log, so cloud-init (and lam launch) finish now rather than after the download.
+      step "background fetch $NEXT_MODEL@$NEXT_MODEL_REVISION → /var/log/prefetch.log"
+      export -f fetch; export MARK HF_CACHE VLLM_IMAGE
+      setsid nohup bash -c "fetch '$NEXT_MODEL' '$NEXT_MODEL_REVISION' && echo done" \
+        > /var/log/prefetch.log 2>&1 < /dev/null &
 
   # ---- observability config (installed once per node; dashboards come later via `make dashboards`) ----
   - path: /opt/bootstrap/prometheus-values.yaml
@@ -196,7 +226,7 @@ write_files:
           enabled: true
           provider: custom
           costModel:
-            description: Lambda gpu_1x_a100_sxm4 on demand — whole instance priced on the GPU (verify units on first boot)
+            description: Lambda on demand, A100 40 GB price — whole instance priced on the GPU (verify units on first boot; H100/GH200 cost more)
             CPU: 0
             spotCPU: 0
             RAM: 0

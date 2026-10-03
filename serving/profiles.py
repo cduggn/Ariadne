@@ -1,7 +1,7 @@
-"""Model profiles and GPU topologies: what is served, and how the A100 is carved (D-40). Standard library only.
+"""Model profiles and GPU topologies: what is served, and how each card is carved (D-40). Standard library only.
 
     deploy/models/<name>.json   one model: pinned checkpoint, architecture (for the fit), vLLM args, client sampling
-    deploy/serving.json         the GPU, the engine settings every model shares, the two topologies, the fit gate
+    deploy/serving.json         the GPUs, the engine settings every model shares, the topologies per GPU, the fit gate
 
     python -m serving.profiles list
     python -m serving.profiles render qwen3-30b-a3b-2507-awq full --out .cache/deploy   # k8s/vllm.yaml + prefetch.sh
@@ -25,6 +25,7 @@ PLANS = ("baseline", "round-1", "round-2", "paper-only")
 REQUIRED = {"name": str, "plan": str, "summary": str, "hf": dict, "arch": dict, "serve": dict, "client": dict, "evidence": str, "caveats": list}
 ARCH = ("layers", "attn_layers", "kv_heads", "head_dim", "hidden", "intermediate", "params_b", "active_params_b", "weights_gib")
 LINEAR = ("layers", "key_heads", "key_head_dim", "value_heads", "value_head_dim", "conv_kernel")
+SLIDING = ("layers", "kv_heads", "head_dim", "window")
 CLIENT = {"temperature", "top_p", "top_k", "min_p", "repetition_penalty", "presence_penalty", "chat_template_kwargs"}
 # Flags every profile shares come from serving.json; a profile may not override them.
 ENGINE_OWNED = ("--model", "--revision", "--served-model-name", "--host", "--port", "--max-model-len", "--gpu-memory-utilization",
@@ -63,13 +64,13 @@ def validate_profile(p: dict, stem: str) -> list[str]:
     if not (isinstance(p["hf"].get("repo"), str) and len(p["hf"].get("revision", "")) == 40):
         errs.append("hf needs repo and a pinned 40-character revision")
     errs += [f"arch.{k} must be a positive number" for k in ARCH if not (isinstance(p["arch"].get(k), int | float) and p["arch"][k] > 0)]
-    lin = p["arch"].get("linear")
-    if lin is not None:
-        errs += [f"arch.linear.{k} must be a positive integer" for k in LINEAR if not (isinstance(lin.get(k), int) and lin[k] > 0)]
-        if lin.get("layers", 0) + p["arch"].get("attn_layers", 0) != p["arch"].get("layers"):
-            errs.append("arch: attn_layers + linear.layers must equal layers")
-    elif p["arch"].get("attn_layers") != p["arch"].get("layers"):
-        errs.append("arch: attn_layers < layers needs arch.linear (the recurrent layers)")
+    lin, sw = p["arch"].get("linear"), p["arch"].get("sliding")
+    for key, fields, part in (("linear", LINEAR, lin), ("sliding", SLIDING, sw)):
+        if part is not None:
+            errs += [f"arch.{key}.{k} must be a positive integer" for k in fields if not (isinstance(part.get(k), int) and part[k] > 0)]
+    other = (lin or {}).get("layers", 0) + (sw or {}).get("layers", 0)
+    if other + p["arch"].get("attn_layers", 0) != p["arch"].get("layers"):
+        errs.append("arch: attn_layers + linear.layers + sliding.layers must equal layers")
     if not isinstance(p["serve"].get("served_name"), str) or not isinstance(p["serve"].get("args"), list):
         errs.append("serve needs served_name and args")
     else:
@@ -89,7 +90,7 @@ TEMPLATE = """\
 #
 # Model {name}: {summary}.
 # Topology {topo}: {purpose}.
-# Each replica gets {gpumem:,} MiB and {cores} % of the SMs through HAMi; at most {max_replicas} replica(s). Start with 1;
+# Each replica gets {gpumem:,} MiB of the {gpu_name} and {cores} % of its SMs through HAMi; at most {max_replicas} replica(s). Start with 1;
 # `make scale N=...` adds workers. Fit: `make fit MODEL={name} TOPO={topo}`.
 apiVersion: v1
 kind: Service
@@ -150,7 +151,7 @@ spec:
           resources:
             limits:
               nvidia.com/gpu: "1"
-              nvidia.com/gpumem: "{gpumem}"     # MiB of the A100's {gpu_mib}
+              nvidia.com/gpumem: "{gpumem}"     # MiB of the card's {gpu_mib}
               nvidia.com/gpucores: "{cores}"      # percent of SMs
           startupProbe:                      # load + CUDA graph capture can take minutes
             httpGet: {{path: /health, port: 8000}}
@@ -180,7 +181,7 @@ if [ -f "$MARK" ]; then echo "already fetched: {repo}@{revision}"; exit 0; fi
 mkdir -p /opt/hf-cache
 k3s ctr -n k8s.io run --rm --net-host \\
   --mount "type=bind,src=/opt/hf-cache,dst=/root/.cache/huggingface,options=rbind:rw" \\
-  "{image}" "hf-fetch-$$" \\
+  "{image}" "hf-fetch-{revision}" \\
   python3 -c 'from huggingface_hub import snapshot_download as d; print(d("{repo}", revision="{revision}", allow_patterns={patterns}))'
 touch "$MARK"
 """
@@ -192,14 +193,18 @@ def topology(s: dict, topo: str) -> dict:
     return s["topologies"][topo]
 
 
+def gpu(s: dict, topo: str) -> dict:
+    return s["gpus"][topology(s, topo)["gpu"]]
+
+
 def render_manifest(p: dict, topo: str, s: dict | None = None) -> str:
     s = s or load_serving()
-    t, e = topology(s, topo), s["engine"]
+    t, e, g = topology(s, topo), s["engine"], gpu(s, topo)
     return TEMPLATE.format(name=p["name"], topo=topo, summary=p["summary"], purpose=t["purpose"], gpumem=t["gpumem_mib"],
                            cores=t["gpucores"], max_replicas=t["max_replicas"], image=e["image"], repo=p["hf"]["repo"],
                            revision=p["hf"]["revision"], served=p["serve"]["served_name"], max_model_len=e["max_model_len"],
                            util=e["gpu_memory_utilization"], max_num_seqs=e["max_num_seqs"],
-                           max_num_batched_tokens=e["max_num_batched_tokens"], gpu_mib=s["gpu"]["mib"],
+                           max_num_batched_tokens=e["max_num_batched_tokens"], gpu_mib=g["mib"], gpu_name=g["name"],
                            model_args="\n".join(f"            - {a}" for a in p["serve"]["args"]))
 
 

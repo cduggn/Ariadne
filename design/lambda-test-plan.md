@@ -8,7 +8,7 @@ run yet: the laptop talks to vLLM through an SSH tunnel.
 | Terminal | Command | Serves |
 |---|---|---|
 | 1 | commands below | — |
-| 2 | `make tunnel` | vLLM `http://localhost:8000` (`/v1`, `/metrics`, `/health`) |
+| 2 | `make tunnel TUNNEL=pod/vllm-0` (sessions 1–2), `make tunnel` (session 3) | vLLM, or the gateway in session 3, at `http://localhost:8000` (`/v1`, `/metrics`) |
 | 3 | `make grafana` (prints the admin password) | Grafana `http://localhost:3000` |
 | 4 | `make kubeconfig && make k8s-tunnel` | k3s API `https://127.0.0.1:6443` (context `lambda`) |
 | 5 | `make watch` | the doctor, autonomous; its metrics at `http://localhost:9109/metrics` |
@@ -17,7 +17,7 @@ run yet: the laptop talks to vLLM through an SSH tunnel.
 ## Steps
 | # | Command | What it proves |
 |---|---|---|
-| 0 | `make preflight` | lint, 67 tests, golden references committed, fit gate for MODEL/TOPO, lam has an API key |
+| 0 | `make preflight` | lint, Python and gateway tests, the gateway's linux build, golden references committed, fit gate for MODEL/TOPO, lam has an API key |
 | 1 | `make up` (~15 min) | the node bootstraps k3s, HAMi, Prometheus, Grafana, DCGM, OpenCost and the weights (`ready.json`) |
 | 2 | `make deploy && make kv` | **KV pool per worker**: `GPU KV cache size` compared with the paper's 79,700 tokens |
 | 3 | `make dashboards`, then terminals 2 and 3 | the dashboard "vLLM · engine and GPU" is live |
@@ -74,13 +74,13 @@ settings, and the matrix reports v1 and v2 scores with 95% intervals. Pass rates
 because slicing changes speed but not answers. Latencies can't be compared across topologies. Run `make fit-all` before
 paying to see the paper numbers, and read `design/model-matrix.md` for the plan. Allow about 2 hours of A100 time.
 
-Keep `make tunnel` running in terminal 2. Each `make deploy` restarts vllm-0, which ends the port-forward, so restart
-the tunnel after every deploy. Pass the deployed `MODEL` and `TOPO` to every `make kv` and `make golden`, because both
+Keep `make tunnel TUNNEL=pod/vllm-0` running in terminal 2. Each `make deploy` restarts vllm-0, which ends the
+port-forward, so restart the tunnel after every deploy. Pass the deployed `MODEL` and `TOPO` to every `make kv` and `make golden`, because both
 record them. A `make kv` without them files the log under the default 8B name.
 
 | # | Command | What it produces |
 |---|---|---|
-| 0 | `make preflight` | 67 tests pass, the references pass v1 and v2, and the default pair passes the fit gate |
+| 0 | `make preflight` | The tests pass, the references pass v1 and v2, and the default pair passes the fit gate |
 | 1 | `make up`, or reuse a running node | A node with the 8B weights prefetched and served on one slice |
 | 2 | `make kv MODEL=qwen3-8b-awq TOPO=sliced` | The 8B's measured pool (79,056 tokens on 2026-09-28) |
 | 3 | `make golden MODEL=qwen3-8b-awq TOPO=sliced TAG=8b REPEAT=3 CONC=4` | The 8B baseline: 26 tasks × 3, both scores, 95% interval |
@@ -92,8 +92,8 @@ record them. A `make kv` without them files the log under the default 8B name.
 | 9 | `make matrix` | The ranking. Overlapping intervals mean a difference isn't established yet |
 | 10 | `make metrics TAG=models` and `make matrix`, commit `metrics/` and the matrix, then `make down` | Billing stops |
 
-Two workers only become useful once the gateway spreads traffic across them. Until then the tunnel reaches vllm-0 only,
-so `make scale N=2` would pay for a second slice that sits idle.
+Without the gateway the tunnel reaches vllm-0 only, so `make scale N=2` would pay for a second slice that sits idle.
+Session 3 puts the gateway in front of both.
 
 For each model, look at these values:
 - the v2 pass rate and its interval;
@@ -112,3 +112,45 @@ Use this rule to choose:
 
 Results from 2026-09-28, at REPEAT=2 and CONC=1: the 8B on one slice scored 52% on v2 (interval 39–65%) and the
 30B-A3B on the whole card scored 67% (54–78%). `design/model-architecture-guide.md` §8 interprets them.
+
+## Session 3: the gateway (C11, D-42)
+This session runs the doctor through the gateway on two 8B slices and compares the two placement policies. Rehearse it
+on the laptop first with `make demo`, which runs the same pipeline against two fake workers. Allow about 1.5 hours of A100
+time. The cloud-init fetches the 14B in the background after `ready.json` (`/var/log/prefetch.log` on the node), so
+step 9 usually finds its weights already on disk.
+
+The tunnel now ends at `svc/gateway`, so a `make deploy` or `make scale` no longer breaks it. Restart it only after
+`make gateway`, which restarts the gateway pod. Use a different `TAG` per arm, because `make golden` files results by tag.
+
+| # | Command | What it proves |
+|---|---|---|
+| 0 | `make preflight`, then `make demo` | The gateway builds for linux and its tests pass; the laptop demo shows 0 refusals and `orch_restricted_offbox_total 0` |
+| 1 | `make up TYPES=gpu_1x_a100_sxm4`, or reuse a running node | An A100 node with the 8B fetched. A plain `make up` takes the first of GH200, H100 and A100 with capacity and writes `.cache/node.env`; on an H100 or GH200 use `TOPO=h100-half` or `gh200-half` for two workers |
+| 2 | `make deploy && make kv && make scale N=2` | Two 8B workers on 20 GiB slices. The engine is now vLLM v0.30.0, so `make kv` re-measures the pool against 0.29's 79,056 tokens |
+| 2b | `make tunnel TUNNEL=pod/vllm-0` in terminal 2, then `make golden TAG=8b-v030 REPEAT=2 CONC=1` | The 8B on 0.30 without the gateway. Session 2 ran on 0.29, so this is the baseline step 5 is compared with |
+| 3 | `make gateway`, then `make tunnel` in terminal 2 | The binary installs at `/opt/gateway`, the warm-up ConfigMap is created, and the rollout finishes |
+| 4 | `curl -s localhost:8000/debug/workers` | Both pods report `Ready`. A pod stays `Warming` until two warm-up probes pass; check `kubectl logs deploy/gateway` if it stays there |
+| 5 | `make golden TAG=gw-ptl WORKERS=2 CONC=8 REPEAT=2` | Pass rate through the gateway, which should match step 2b, since the gateway changes placement, not answers |
+| 6 | `make sweep WORKERS=2` | The gateway's and both pods' `/metrics` at each concurrency level, under `metrics/gateway-sweep-*` and `metrics/vllm-{0,1}-sweep-*` |
+| 7 | `make gateway POLICY=least_loaded`, restart the tunnel, then repeat 5 and 6 with `TAG=gw-ll` | The control arm of the stickiness A/B |
+| 8 | `make metrics TAG=gw` | A final scrape of the gateway and both pods |
+| 9 | `make deploy MODEL=qwen3-14b-awq && make scale N=2 && make gateway MODEL=qwen3-14b-awq`, restart the tunnel, then `make golden MODEL=qwen3-14b-awq TAG=14b-gw WORKERS=2 CONC=4 REPEAT=3` | The 14B row on two slices. `make gateway` needs the same `MODEL`, because its warm-up body names the served model |
+| 10 | commit `metrics/`, then `make down` | Billing stops |
+
+For each arm, look at these values in `metrics/gateway-*.prom`:
+- `orch_sticky_total{outcome}`, where `hit` should dominate under `prefix_then_load` and fall under `least_loaded`;
+- `orch_prompt_tokens_total{kind}`, the split between `shared_hit`, `run_hit` and `miss`, against
+  `cached_share_of_prompt` in the golden summary;
+- `orch_pick_total{pod}`, to check that both pods take traffic;
+- `orch_shed_total{reason,code}` and `orch_overflow_total{result}`, which should be near 0 at CONC=8;
+- `orch_restricted_offbox_total`, which must be 0;
+- `orch_replica_kv_free_ratio` and `orch_replica_snapshot_age_seconds` in Grafana, to see whether KV or staleness drove a
+  pick;
+- step latency p50 and p95 from the golden summary, compared between the two arms.
+
+If something goes wrong:
+- `make gateway` fails at `sudo install`: check that `~/gateway/gateway` arrived on the node with `lam ssh`.
+- The gateway pod never becomes ready: `/readyz` needs one warm worker, so check that the vLLM pods are `Running` and
+  read `kubectl logs deploy/gateway` for the warm-up probe result.
+- Many 429s: the tenant quota scales with the worker count (`gateway/internal/fleet/gate.go`); `kubectl logs deploy/gateway`
+  prints one line per request with its pod, sticky outcome and refusal reason.

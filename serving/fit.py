@@ -9,7 +9,8 @@ Per worker (topology → HAMi memory and SM share):
     KV pool     = budget − weights − activation peak − CUDA context
     KV / token  = 2 (K,V) × attention layers × KV heads × head dim × bytes            (standard attention)
     state / seq = recurrent layers × (V heads·V dim·K dim × 4 B (fp32) + (conv kernel − 1)·(2·K heads·K dim + V heads·V dim) × bytes)
-                  (hybrid models only: a fixed-size state per sequence instead of KV for those layers; an estimate)
+                  + sliding layers × 2 × KV heads × head dim × bytes × window
+                  (hybrid and sliding-window models only: a fixed size per sequence instead of KV for those layers; an estimate)
     sequences   = KV pool ÷ (KV/token × length + state/seq)
     gate        = at least `gate.min_full_length_sequences` requests of max_model_len fit (vLLM will not start otherwise);
                   under `comfortable_full_length_sequences` the pair is marked tight
@@ -24,7 +25,7 @@ import re
 import sys
 from pathlib import Path
 
-from serving.profiles import ROOT, load_profile, load_serving, profiles, topology
+from serving.profiles import ROOT, gpu, load_profile, load_serving, profiles, topology
 
 GIB, MIB = 1024 ** 3, 1024 ** 2
 KV_LOG = re.compile(r"GPU KV cache size:\s*([\d,]+)\s*tokens")
@@ -35,15 +36,18 @@ def kv_per_token(arch: dict, kv_bytes: int) -> int:
 
 
 def state_per_seq(arch: dict, kv_bytes: int) -> int:
-    """Gated DeltaNet state per sequence: an fp32 SSM state (V heads × V dim × K dim) plus a conv state of
-    (kernel − 1) × channels in the KV dtype, per recurrent layer. Qwen3.5-9B: 2.05 MiB/layer, ~49 MiB over 24 layers."""
-    lin = arch.get("linear")
-    if not lin:
-        return 0
-    v = lin["value_heads"] * lin["value_head_dim"]
-    ssm = v * lin["key_head_dim"] * 4
-    conv = (lin["conv_kernel"] - 1) * (2 * lin["key_heads"] * lin["key_head_dim"] + v) * kv_bytes
-    return lin["layers"] * (ssm + conv)
+    """Fixed memory per sequence. Gated DeltaNet: an fp32 SSM state (V heads × V dim × K dim) plus a conv state of
+    (kernel − 1) × channels in the KV dtype, per recurrent layer; Qwen3.5-9B: 2.05 MiB/layer, ~49 MiB over 24 layers.
+    Sliding-window attention: at most `window` tokens of KV per layer; Gemma-4-31B: 16 MiB/layer, 800 MiB over 50."""
+    total = 0
+    if lin := arch.get("linear"):
+        v = lin["value_heads"] * lin["value_head_dim"]
+        ssm = v * lin["key_head_dim"] * 4
+        conv = (lin["conv_kernel"] - 1) * (2 * lin["key_heads"] * lin["key_head_dim"] + v) * kv_bytes
+        total += lin["layers"] * (ssm + conv)
+    if sw := arch.get("sliding"):
+        total += sw["layers"] * 2 * sw["kv_heads"] * sw["head_dim"] * kv_bytes * sw["window"]
+    return total
 
 
 def measured_kv(name: str, topo: str, metrics: Path | None = None) -> int | None:
@@ -78,10 +82,12 @@ def fit(p: dict, topo: str, s: dict | None = None, *, metrics: Path | None = Non
 
     shared = ((pool_used - prefix * kvt) / (kvt * (app - prefix) + state)) if pool_used > prefix * kvt else 0.0
     active = a["active_params_b"] / a["params_b"]
-    bw, flops = s["gpu"]["bandwidth_gbs"] * 1e9 * share, s["gpu"]["tflops_bf16"] * 1e12 * est["mfu"] * share
+    g = gpu(s, topo)
+    bw, flops = g["bandwidth_gbs"] * 1e9 * share, g["tflops_bf16"] * 1e12 * est["mfu"] * share
     gate_n, comfy = s["gate"]["min_full_length_sequences"], s["gate"]["comfortable_full_length_sequences"]
     return {
-        "model": p["name"], "topology": topo, "plan": p["plan"], "repo": p["hf"]["repo"], "hybrid": bool(a.get("linear")),
+        "model": p["name"], "topology": topo, "gpu": t["gpu"], "plan": p["plan"], "repo": p["hf"]["repo"],
+        "hybrid": bool(a.get("linear") or a.get("sliding")),
         "moe": a["active_params_b"] < a["params_b"], "slice_gib": t["gpumem_mib"] / 1024, "sm_share": share,
         "budget_gib": budget / GIB, "weights_gib": a["weights_gib"], "activation_gib": act / GIB, "cuda_context_gib": ctx / GIB,
         "pool_gib": pool / GIB, "kv_per_token_kib": kvt / 1024, "state_per_seq_mib": state / MIB,
@@ -111,7 +117,7 @@ def explain(r: dict) -> str:
              f"  budget      {r['slice_gib']:.0f} GiB slice × util = {r['budget_gib']:.1f} GiB   (SM share {r['sm_share']:.0%})",
              f"  − weights   {r['weights_gib']:.2f} GiB   − activation peak {r['activation_gib']:.2f} GiB   − CUDA context {r['cuda_context_gib']:.2f} GiB",
              f"  = KV pool   {r['pool_gib']:.2f} GiB  → {r['tokens_paper']:,} tokens at {r['kv_per_token_kib']:.0f} KiB/token"
-             + (f"   + {r['state_per_seq_mib']:.1f} MiB recurrent state per sequence (estimate)" if r["hybrid"] else ""),
+             + (f"   + {r['state_per_seq_mib']:.1f} MiB fixed per sequence (recurrent or sliding-window state, estimate)" if r["hybrid"] else ""),
              (f"  measured    {r['tokens_measured']:,} tokens ({r['measured_vs_paper']:+.1%} vs paper); sequences below use it"
               if r["tokens_measured"] else "  measured    none yet; run `make kv` on this pair"),
              f"  sequences   {r['seqs_at_max_len']:.1f} at {r['max_model_len']:,} · {r['seqs_at_app_len']:.1f} at {r['app_len']:,} · "
@@ -142,7 +148,7 @@ def all_rows(metrics: Path | None = None) -> list[dict]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("model", help="a profile name, or all")
-    ap.add_argument("topology", nargs="?", default="all", help="sliced, full, or all")
+    ap.add_argument("topology", nargs="?", default="all", help="a topology from deploy/serving.json, or all")
     ap.add_argument("--gate", action="store_true", help="exit 1 unless the pair passes the fit gate")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
