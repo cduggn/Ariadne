@@ -126,8 +126,8 @@ The tunnel now ends at `svc/gateway`, so a `make deploy` or `make scale` no long
 |---|---|---|
 | 0 | `make preflight`, then `make demo` | The gateway builds for linux and its tests pass; the laptop demo shows 0 refusals and `orch_restricted_offbox_total 0` |
 | 1 | `make up TYPES=gpu_1x_a100_sxm4`, or reuse a running node | An A100 node with the 8B fetched. A plain `make up` takes the first of GH200, H100 and A100 with capacity and writes `.cache/node.env`; on an H100 or GH200 use `TOPO=h100-half` or `gh200-half` for two workers |
-| 2 | `make deploy && make kv && make scale N=2` | Two 8B workers on 20 GiB slices. The engine is now vLLM v0.30.0, so `make kv` re-measures the pool against 0.29's 79,056 tokens |
-| 2b | `make tunnel TUNNEL=pod/vllm-0` in terminal 2, then `make golden TAG=8b-v030 REPEAT=2 CONC=1` | The 8B on 0.30 without the gateway. Session 2 ran on 0.29, so this is the baseline step 5 is compared with |
+| 2 | `make deploy && make kv && make scale N=2` | Two 8B workers on 20 GiB slices; `make kv` should report about 79,056 tokens, as on 2026-09-28. vLLM stays on v0.29.0: the v0.30.0-cu129 image crashes on start (torch cu130 with a cu129 torchvision, vllm-project/vllm#59157) |
+| 2b | `make tunnel TUNNEL=pod/vllm-0` in terminal 2, then `make golden TAG=8b-direct REPEAT=2 CONC=1` | The 8B without the gateway, on today's node: the baseline step 5 is compared with |
 | 3 | `make gateway`, then `make tunnel` in terminal 2 | The node pulls the pinned gateway image from Docker Hub without credentials, the warm-up ConfigMap is created, and the rollout finishes |
 | 4 | `curl -s localhost:8000/debug/workers` | Both pods report `Ready`. A pod stays `Warming` until two warm-up probes pass; check `kubectl logs deploy/gateway` if it stays there |
 | 5 | `make golden TAG=gw-ptl WORKERS=2 CONC=8 REPEAT=2` | Pass rate through the gateway, which should match step 2b, since the gateway changes placement, not answers |

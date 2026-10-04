@@ -1,7 +1,7 @@
 {
   "about": "The GPUs we rent, the engine settings every model shares, and how each card is carved (D-40). Models are in deploy/models/. A topology names its GPU, so a run's topology also records the hardware.",
   "engine": {
-    "image": "docker.io/vllm/vllm-openai:v0.30.0-cu129@sha256:a67f8f186d4567612ac37a55bd82295006002b18858eb12a8af2f05f86c2ae3f",
+    "image": "docker.io/vllm/vllm-openai:v0.29.0-cu129@sha256:7ef5a35d1ef8ce2cf9d671dd91eec6e367c5849262e0362b4d3d4a26be0d87d2",
     "gpu_memory_utilization": 0.9,
     "max_model_len": 24576,
     "max_num_seqs": 32,

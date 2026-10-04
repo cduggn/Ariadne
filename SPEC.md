@@ -204,7 +204,7 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
 ### C10 — Serving and node ✅ written · 🟡 not yet run for this repo
 - `deploy/cloud-init.yaml`: k3s v1.36.4+k3s1, Helm v3.22.0, HAMi 2.9.0 (split 4), Prometheus chart 29.33.0
   (5 s scrape), Grafana (grafana-community) 13.2.5, DCGM exporter 4.5.2-4.8.1, OpenCost 2.5.32 (GPU $1.99/h),
-  vLLM `v0.30.0-cu129` by digest, `Qwen/Qwen3-8B-AWQ @ 4da05a8…` prefetched; `KUBECONFIG` via `/etc/environment`.
+  vLLM `v0.29.0-cu129` by digest, `Qwen/Qwen3-8B-AWQ @ 4da05a8…` prefetched; `KUBECONFIG` via `/etc/environment`.
 - `deploy/k8s/vllm.yaml`: **generated** by `serving/profiles.py` for the default pair (qwen3-8b-awq, sliced) and kept equal
   by a test; other pairs are rendered to `.cache/deploy/<model>-<topo>/` by `make render|deploy`. StatefulSet vllm-0/1,
   headless Service, `hami-scheduler`, `nvidia.com/gpumem` and `gpucores` from the topology (20480/50 sliced,
@@ -321,7 +321,7 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
 ## 4. Pins and key numbers
 | Item | Value |
 |---|---|
-| Model / engine | Qwen/Qwen3-8B-AWQ @ `4da05a8edb55c6046cce958586c33b61da07bb79` (40,960 positions) · vLLM `v0.30.0-cu129` @ `sha256:a67f8f18…` |
+| Model / engine | Qwen/Qwen3-8B-AWQ @ `4da05a8edb55c6046cce958586c33b61da07bb79` (40,960 positions) · vLLM `v0.29.0-cu129` @ `sha256:7ef5a35d…` |
 | Lab | kind v0.33.0 · kubectl v1.37.1 · node v1.36.4 · metrics-server v0.9.0 · cryptography 50.0.1 (lab only) |
 | Tokens (measured) | prefix 3,787 · card 112 · unique per task median: easy 2,459, multi-hop 3,570, red herring 4,768, rightsize 5,200, audits 7.7k–11.2k · max context 15.1k |
 | KV (paper) | 144 KiB/token · ≈ 79,700 tokens per 20 GiB slice · 0.80 line ≈ 24 easy / 17 multi-hop / 6 audits |

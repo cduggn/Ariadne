@@ -2,7 +2,7 @@
 
 `make matrix` (serving/matrix.py) generates this file from `deploy/models/*.json`, `deploy/serving.json` and `metrics/`, and CI fails if it is stale. Don't edit it by hand. To change a number, rerun whatever produced it. D-40 covers the profiles, topologies and this matrix, and D-41 covers the v2 score. The review behind both is `design/model-and-golden-review-2026-09-28.md`, and `design/model-architecture-guide.md` explains the architecture.
 
-The GPUs are the A100 40 GB SXM4 (a100-40), H100 80 GB PCIe (h100-80), GH200 96 GB (arm64 host) (gh200-96). Every model runs with the same engine settings: `vllm-openai:v0.30.0-cu129`, context 24,576, at most 32 sequences, 8,192 batched tokens, prefix caching, 0.9 of the memory HAMi exposes, and 16-bit KV. Sampling follows each model's card, as set in the profile's `client` block.
+The GPUs are the A100 40 GB SXM4 (a100-40), H100 80 GB PCIe (h100-80), GH200 96 GB (arm64 host) (gh200-96). Every model runs with the same engine settings: `vllm-openai:v0.29.0-cu129`, context 24,576, at most 32 sequences, 8,192 batched tokens, prefix caching, 0.9 of the memory HAMi exposes, and 16-bit KV. Sampling follows each model's card, as set in the profile's `client` block.
 
 Each topology names its GPU:
 - **sliced** (a100-40), N workers on A100 HAMi slices of 20 GiB and half the SMs each: GPU slicing, routing, affinity and the KV hop between workers.
