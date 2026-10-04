@@ -4,8 +4,9 @@
 #   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, ruff
 #   make lab-up / lab-record / lab-down   kind cluster, inject faults, record fixtures/  (lab only mutates kind)
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
+#   make gateway-image              build + push the gateway image (Docker Hub, public), pin its digest
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda GPU node via the `lam` CLI: up takes the first of TYPES with capacity (lab/up.sh)
-#   make gateway [POLICY=least_loaded]   build the Go gateway, install it on the node and roll it out (D-42)
+#   make gateway [POLICY=least_loaded]   apply the pinned gateway image + warm-up body on the node and roll it out (D-42)
 #   make tunnel [TUNNEL=pod/vllm-0]      localhost:8000 → the gateway (default) or one vLLM pod directly
 #   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
 #   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits sliced | full (D-40)
@@ -51,10 +52,12 @@ PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 GWBUILD = .cache/gateway
+GW_IMAGE ?= docker.io/cdugga/cluster-doctor-gateway
+GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- gateway || echo -dirty)
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: demo gateway models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 tools:
 	bash lab/get-tools.sh
@@ -127,14 +130,20 @@ kv:
 	$(REMOTE) "kubectl logs vllm-0 | grep -E 'GPU KV cache size|Maximum concurrency|Available KV cache memory'" \
 	  | tee metrics/kv-$(MODEL)-$(TOPO)-$(STAMP).log
 
-gateway:
+gateway-image:
 	@mkdir -p $(GWBUILD)
-	cd gateway && CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -o ../$(GWBUILD)/gateway ./cmd/gateway
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(GW_IMAGE):$(GW_TAG) --metadata-file $(GWBUILD)/image.json --push gateway
+	@d=$$(python3 -c "import json; print(json.load(open('$(GWBUILD)/image.json'))['containerimage.digest'])") && \
+	  sed -i.bak -E "s|image: .*cluster-doctor-gateway[@:][^ ]*|image: $(GW_IMAGE)@$$d|" deploy/k8s/gateway.yaml && rm -f deploy/k8s/gateway.yaml.bak && \
+	  echo "pinned $(GW_IMAGE)@$$d in deploy/k8s/gateway.yaml ($(GW_TAG)); commit it"
+
+gateway:
+	@grep -q "cluster-doctor-gateway@sha256:[0-9a-f]\{64\}" deploy/k8s/gateway.yaml || (echo "no pinned gateway image: run make gateway-image"; exit 1)
+	@mkdir -p $(GWBUILD)
 	$(PY) -m serving.warmup $(MODEL) > $(GWBUILD)/warm.json
 	cp deploy/k8s/gateway.yaml $(GWBUILD)/
 	lam push $(GWBUILD)/ '~/gateway/' --delete
-	$(REMOTE) "sudo install -D -m 0755 \$$HOME/gateway/gateway /opt/gateway/gateway && \
-	  kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
+	$(REMOTE) "kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
 	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
 	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) && \
 	  kubectl rollout restart deployment/gateway && kubectl rollout status deployment/gateway --timeout=5m"

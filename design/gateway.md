@@ -26,7 +26,8 @@ Code lives in `~/workspace/cluster-doctor/gateway/`, a Go module with its own `g
 `inference-gateway` repo stays as the course-lab reference and is not edited.
 
 ```sh
-make gateway            # static linux build, pushed to /opt/gateway on the node, applied as deploy/k8s/gateway.yaml
+make gateway-image      # gateway/Dockerfile → docker.io/cdugga/cluster-doctor-gateway (amd64+arm64, public), digest pinned in the manifest
+make gateway            # warm-up ConfigMap + deploy/k8s/gateway.yaml applied on the node
 make scale N=2          # vllm-1 appears; orch_replica_warm{pod="vllm-1"} stays 0 until two warm probes pass
 make tunnel             # TUNNEL ?= svc/gateway, so localhost:8000 reaches the gateway; TUNNEL=pod/vllm-0 is the old direct path
 make golden TAG=gw WORKERS=2 CONC=8
@@ -36,8 +37,10 @@ make demo               # laptop only: two fake vLLM processes, the gateway and 
 ```
 
 The doctor doesn't change. It keeps `--base-url http://127.0.0.1:8000/v1`. The gateway runs in the cluster as a
-one-replica Deployment with a ClusterIP Service on port 8000, and its binary is mounted from hostPath into a pinned
-distroless image, the same way the weights are delivered, so no registry is needed. Its `prometheus.io/scrape`
+one-replica Deployment with a ClusterIP Service on port 8000. Its image is a static binary on distroless, built for
+amd64 and arm64 by `gateway/Dockerfile` and pulled by digest from a public Docker Hub repository, so the node needs no
+registry credentials. (It first ran from a hostPath binary; that shortcut is ruled out by Pod Security baseline and by
+read-only nodes, so the image replaced it.) Its `prometheus.io/scrape`
 annotations let the existing Prometheus job scrape it. We rejected running it on the laptop. The scraper would then
 reach the pods over SSH, which makes the 2-second staleness line meaningless, and Prometheus couldn't scrape it.
 
