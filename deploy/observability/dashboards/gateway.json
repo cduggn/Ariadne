@@ -720,6 +720,119 @@
           "legendFormat": "hop p95 (s)"
         }
       ]
+    },
+    {
+      "type": "row",
+      "title": "Output and the 768-token cap",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Responses cut at the output cap",
+      "description": "Responses that stopped at the doctor's max_completion_tokens (768) instead of finishing: finish_reason length. A cut response is usually a broken diagnosis, so the agent repairs or fails the run. Any steady rate here means the cap is too tight, or the model is running on (with Qwen3.8, check for runs of '!').",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pod) (rate(orch_completed_total{finish_reason=\"length\",pod=~\"$pod\"}[5m]))",
+          "legendFormat": "{{pod}} cut"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Share of responses cut / output length p50 and p95",
+      "description": "Left axis: the share of each pod's answers that hit the cap. Right axis: output tokens per request from vLLM's own histogram, so p95 near 768 means the cap binds for ordinary answers, while p95 far below it means only outliers hit it.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*tokens.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pod) (rate(orch_completed_total{finish_reason=\"length\",pod=~\"$pod\"}[5m])) / sum by (pod) (rate(orch_completed_total{pod=~\"$pod\"}[5m]))",
+          "legendFormat": "{{pod}} share cut"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:request_generation_tokens_bucket{pod=~\"$pod\"}[5m])))",
+          "legendFormat": "{{pod}} p50 tokens"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:request_generation_tokens_bucket{pod=~\"$pod\"}[5m])))",
+          "legendFormat": "{{pod}} p95 tokens"
+        }
+      ]
     }
   ],
   "templating": {
