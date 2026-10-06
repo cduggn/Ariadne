@@ -1,4 +1,4 @@
-# cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda A100 lifecycle.
+# cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda GPU lifecycle (A100, H100 or GH200).
 #
 #   make tools                      fetch pinned kind + kubectl into .bin/ (checksums verified)
 #   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, ruff
@@ -8,21 +8,22 @@
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda GPU node via the `lam` CLI: up takes the first of TYPES with capacity (lab/up.sh)
 #   make gateway [POLICY=least_loaded]   apply the pinned gateway image + warm-up body on the node and roll it out (D-42)
 #   make deploy HOP=1 && make gateway HOP=1   workers run vLLM's MooncakeConnector and the gateway copies a moved
-#                                   run's KV instead of recomputing it (gateway/internal/hop; off by default)
+#                                   run's KV instead of recomputing it (gateway/internal/hop). node.env turns it on
+#                                   for an H100 node; HOP=0 on the make line turns it off
 #   make tunnel [TUNNEL=pod/vllm-0]      localhost:8000 → the gateway (default) or one vLLM pod directly
 #   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
-#   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits sliced | full (D-40)
+#   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits each topology (D-40)
 #   make deploy MODEL=… TOPO=…      render, fetch weights, serve that model on that topology (fit gate first)
 #   make golden TAG=… [BASE=…]      run the golden set against a model endpoint (vLLM or the gateway); v1 + v2 scores
 #   make matrix                     design/model-matrix.md: fit + results + ranking from deploy/ and metrics/
-#   make sweep [LEVELS="1 4 8 16 32"] REPEAT=2   golden set at each concurrency + a vLLM /metrics scrape per level
+#   make sweep [LEVELS="1 4 8 16 32"] REPEAT=2   golden set at each concurrency + a /metrics scrape per level (gateway + pods)
 #   make preflight                  everything that must be true before paying for a GPU
 #   make kubeconfig / k8s-tunnel / record-live ONLY=gpu-unavailable   live-only faults on the Lambda k3s cluster
 #   make watch [WATCH_ARGS=…]       the doctor, autonomous, against CTX (default lambda); /metrics on :9109
 #   make inject FAULTS=… [STAGGER=60] / heal   break the lab cluster on purpose / remove what inject created
 #   make faults                     list injectable faults by tier
 #   make prom / opencost            port-forward Prometheus (:9090) / the OpenCost API (:9003) from the Lambda node
-# `make up` writes the node it got (GPU, ARCH, MODEL, TOPO) here; anything on the make line still wins.
+# `make up` writes the node it got (GPU, ARCH, MODEL, TOPO, HOP) here; anything on the make line still wins.
 -include .cache/node.env
 NAME   ?= cluster-doctor
 TAG    ?= baseline

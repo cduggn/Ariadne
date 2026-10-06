@@ -78,7 +78,8 @@
       "boot": {
         "model": "qwen3-8b-awq",
         "topology": "sliced",
-        "next_model": "qwen3.8-27b-fp8"
+        "next_model": "qwen3.8-27b-fp8",
+        "hop": false
       }
     },
     "h100-80": {
@@ -94,9 +95,11 @@
       "note": "PCIe figures; the SXM5 card is faster (3,350 GB/s, 989 TFLOPS), so its floors are conservative",
       "boot": {
         "model": "qwen3.8-27b-fp8",
-        "topology": "h100-full",
-        "next_model": "gemma-4-31b-it-fp8"
-      }
+        "topology": "h100-half",
+        "next_model": "gemma-4-31b-it-fp8",
+        "hop": true
+      },
+      "boot_note": "Boots sliced (2 x 39 GiB halves, Qwen3.8-27B-FP8 fits 2.9 x 24k each) with the KV hop on, so the gateway, slicing and the hop all run on one card. h100-full is the whole-card benchmark."
     },
     "gh200-96": {
       "name": "GH200 96 GB (arm64 host)",
@@ -110,7 +113,8 @@
       "boot": {
         "model": "qwen3.8-27b-fp8",
         "topology": "gh200-full",
-        "next_model": "gemma-4-31b-it-fp8"
+        "next_model": "gemma-4-31b-it-fp8",
+        "hop": false
       }
     }
   },

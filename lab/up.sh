@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Launch one GPU node: the first type in TYPES with capacity in any region, re-checked every minute until RETRY
 # minutes pass. Cloud-init (deploy/cloud-init.yaml) reads the hardware it lands on, so every type uses the same file.
-# Then writes .cache/node.env (GPU, ARCH, MODEL, TOPO) from the node's ready.json; the Makefile includes it, so
-# `make deploy`, `make gateway` and `make golden` follow whichever GPU came up.
+# Then writes .cache/node.env (GPU, ARCH, MODEL, TOPO, HOP) from the node's ready.json and serving.json's boot
+# settings for that GPU; the Makefile includes it, so `make deploy`, `make gateway` and `make golden` follow whichever
+# GPU came up.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -41,7 +42,8 @@ from pathlib import Path
 root = Path(sys.argv[1])
 ready = json.loads((root / ".cache" / "ready.json").read_text())
 boot = json.loads((root / "deploy" / "serving.json").read_text())["gpus"][ready["gpu"]]["boot"]
-env = {"GPU": ready["gpu"], "ARCH": ready["arch"], "MODEL": boot["model"], "TOPO": boot["topology"]}
+env = {"GPU": ready["gpu"], "ARCH": ready["arch"], "MODEL": boot["model"], "TOPO": boot["topology"],
+       "HOP": int(boot.get("hop", False))}
 (root / ".cache" / "node.env").write_text("".join(f"{k} = {v}\n" for k, v in env.items()))
 print("node: " + "  ".join(f"{k}={v}" for k, v in env.items()) + "   (.cache/node.env; override any of them on the make line)")
 EOF
