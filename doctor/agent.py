@@ -6,6 +6,7 @@
 Graph (state = messages + counters + diagnosis; backend, task and model travel in the run config):
 
       START ──► agent ──(model error)──────────────────────────────► END   stop = http_<code> | transport_error | bad_response
+                  │  (a gateway refusal, 429/503, is retried after Retry-After up to REFUSAL_RETRIES times first, D-44)
                   │
                   ▼
                  act ──(diagnosis accepted / failed closed)────────► END   stop = submitted | abstained | inconclusive
@@ -61,12 +62,20 @@ MAX_TOKENS_PER_STEP = 768
 CONTEXT_BUDGET = 23_000          # stop before prompt + max_tokens (768) can pass --max-model-len 24576
 HTTP_TIMEOUT_S = 120
 MAX_REPAIRS = 2
+# Gateway refusals (D-44). A 429 or 503 carries its reason (error.code: kv_free, queue_full, tenant_tokens, …) and a
+# Retry-After. The step waits max(Retry-After, 1, 2, 4, 8 s) and asks again, up to REFUSAL_RETRIES times (about 15 s at
+# most), so a run rides out a load spike instead of failing. Every refusal is recorded on its step, so retries never
+# hide one. DOCTOR_REFUSAL_RETRIES=0 restores failing on the first refusal.
+REFUSAL_STATUSES = (429, 503)
+REFUSAL_RETRIES = int(os.environ.get("DOCTOR_REFUSAL_RETRIES", "4"))
+REFUSAL_WAIT_MAX_S = 8.0
 WARN_STEPS_LEFT = 2
 TOOL_BUDGET = {"list_problem_pods": 2, "get_events": 3, "describe": 5, "pod_logs": 5, "list_resources": 3,
                "resource_usage": 2, "inspect_certificate": 3, "rightsizing": 1, "s3_bucket_stats": 1,
                "cost_report": 2}                                                     # per namespace in the task
 
 _REQUEST_HEADERS: contextvars.ContextVar[dict | None] = contextvars.ContextVar("doctor_request_headers", default=None)
+_sleep = time.sleep                               # tests replace it, so a retried refusal does not wait in real time
 
 
 # ---- prompt and request shape ---------------------------------------------------------------
@@ -142,7 +151,8 @@ def build_llm(base_url: str, model: str, *, http_client: httpx.Client | None = N
     tool_choice is "auto" (D-38): "required" made vLLM constrain decoding with a grammar that collapsed into
     whitespace until max_tokens on Qwen3-8B-AWQ; a reply without a tool call is nudged by the act node instead.
     `client` is a profile's sampling block (temperature, top_p, top_k, …, chat_template_kwargs); default Qwen3.
-    The API key comes only from VLLM_API_KEY. Retries are off: a gateway 429/503 must surface, not be hidden."""
+    The API key comes only from VLLM_API_KEY. The client's own retries are off: agent_node retries a gateway
+    429/503 itself, after its Retry-After, and records every refusal on the step, so none is hidden (D-44)."""
     c = DEFAULT_CLIENT if client is None else client
     extra = {k: c[k] for k in _EXTRA_SAMPLING if k in c}
     if c.get("chat_template_kwargs"):
@@ -181,17 +191,47 @@ def _cfg(config) -> dict:
     return config["configurable"]
 
 
+def refusal_of(e: openai.APIStatusError) -> dict:
+    """A gateway refusal as the step records it: the status, the gateway's reason code, and its Retry-After."""
+    reason = getattr(e, "code", None)
+    if reason is None and isinstance(e.body, dict):
+        reason = (e.body.get("error") or e.body).get("code")
+    try:
+        retry_after = float(e.response.headers.get("retry-after", ""))
+    except ValueError:
+        retry_after = None
+    return {"http_status": e.status_code, "reason": reason, "retry_after_s": retry_after}
+
+
+def refusal_wait(refusal: dict, attempt: int) -> float:
+    """Seconds to wait before retry `attempt` (0-based): the gateway's Retry-After or an exponential floor, capped."""
+    return min(REFUSAL_WAIT_MAX_S, max(refusal["retry_after_s"] or 0.0, float(2 ** attempt)))
+
+
 def agent_node(state: State, config) -> dict:
     c = _cfg(config)
     n = state["n"] + 1
     rid = f"{c['run_id']}-s{n}"
     token = _REQUEST_HEADERS.set({**request_headers(c["task"]), "X-Request-Id": rid})
+    refusals: list[dict] = []
     t0 = time.perf_counter()
     try:
-        msg = c["llm"].invoke(state["messages"])
-    except openai.APIStatusError as e:              # gateway sheds (429/503) end the task with a named reason
-        return {"n": n, "stop": f"http_{e.status_code}",
-                "steps": [{"step": n, "request_id": rid, "http_status": e.status_code, "latency_s": round(time.perf_counter() - t0, 3)}]}
+        while True:
+            t0 = time.perf_counter()
+            try:
+                msg = c["llm"].invoke(state["messages"])
+                break
+            except openai.APIStatusError as e:
+                if e.status_code not in REFUSAL_STATUSES or len(refusals) >= REFUSAL_RETRIES:
+                    if e.status_code in REFUSAL_STATUSES:
+                        refusals.append(refusal_of(e))
+                    return {"n": n, "stop": f"http_{e.status_code}",
+                            "steps": [{"step": n, "request_id": rid, "http_status": e.status_code, "refusals": refusals,
+                                       "latency_s": round(time.perf_counter() - t0, 3)}]}
+                r = refusal_of(e)
+                r["waited_s"] = refusal_wait(r, len(refusals))
+                refusals.append(r)
+                _sleep(r["waited_s"])
     except (openai.APIConnectionError, openai.APITimeoutError, httpx.HTTPError) as e:
         return {"n": n, "stop": "transport_error",
                 "steps": [{"step": n, "request_id": rid, "error": type(e).__name__, "latency_s": round(time.perf_counter() - t0, 3)}]}
@@ -205,7 +245,7 @@ def agent_node(state: State, config) -> dict:
     step = {"step": n, "request_id": rid, "latency_s": round(time.perf_counter() - t0, 3),
             "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"),
             "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens"),
-            "finish_reason": msg.response_metadata.get("finish_reason")}
+            "finish_reason": msg.response_metadata.get("finish_reason"), "refusals": refusals}
     return {"messages": [msg], "n": n, "steps": [step],
             "last_tokens": (usage.get("prompt_tokens") or 0) + (usage.get("completion_tokens") or 0)}
 

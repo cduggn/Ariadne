@@ -82,9 +82,15 @@ def test_hop_adds_the_mooncake_connector_and_its_port_and_nothing_else():
     assert "MooncakeConnector" not in plain and "NetworkPolicy" not in plain
 
 
-def test_hop_env_gives_the_gateway_the_models_kv_size_and_prefill_rate(capsys):
-    assert fit.main(["qwen3-8b-awq", "sliced", "--hop-env"]) == 0
-    assert capsys.readouterr().out.strip() == "GW_HOP_KV_BYTES_PER_TOKEN=147456 GW_HOP_PREFILL_TOKENS_PER_S=3810"
+def test_gateway_env_sizes_admission_to_the_measured_kv_pool(capsys):
+    # The 8B on an A100 slice (79,056 tokens measured) holds 9 typical runs; Qwen3.8 on an H100 half (51,092 measured)
+    # holds 4, where the old constant of 16 let vLLM preempt at 32 concurrent runs (findings F24-F26).
+    assert fit.main(["qwen3-8b-awq", "sliced", "--gateway-env"]) == 0
+    assert capsys.readouterr().out.strip() == "GW_MAX_INFLIGHT=9 GW_HOP_KV_BYTES_PER_TOKEN=147456 GW_HOP_PREFILL_TOKENS_PER_S=3810"
+    assert fit.main(["qwen3.8-27b-fp8", "h100-half", "--gateway-env"]) == 0
+    assert capsys.readouterr().out.strip().startswith("GW_MAX_INFLIGHT=4 ")
+    assert fit.main(["qwen3.8-27b-fp8", "h100-full", "--gateway-env"]) == 0           # a whole card stays at the ceiling
+    assert capsys.readouterr().out.strip().startswith(f"GW_MAX_INFLIGHT={fit.GATEWAY_MAX_INFLIGHT} ")
 
 
 def test_fit_matches_the_measured_8b_slice_and_gates_what_cannot_start():

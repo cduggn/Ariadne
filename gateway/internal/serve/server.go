@@ -188,6 +188,12 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	fwd := s.moveKV(ctx, d, req, t.Pod(), body, &ev)
 	up, err := s.forward(ctx, s.urls[t.Pod()], fwd, r.Header)
 	ev.Upstream = up.took
+	if err != nil && r.Context().Err() != nil {
+		// The client went away and its cancellation stopped the forward. That is not a worker failure, so it is not
+		// counted as one, and there is nobody to answer.
+		ev.Reason = "client_gone"
+		return
+	}
 	if err != nil {
 		ev.Status, ev.Reason = http.StatusBadGateway, "upstream_error"
 		writeError(w, http.StatusBadGateway, "upstream request failed: "+err.Error(), "upstream_error", "upstream_error")

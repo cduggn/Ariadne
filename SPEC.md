@@ -146,7 +146,7 @@ memory → MiB, percentiles as the sorted sample at index round(p × (n − 1)).
   `top_p` as parameters; `top_k`, `min_p`, `repetition_penalty`, `presence_penalty` and `chat_template_kwargs` in `extra_body`,
   each only if the profile sets it. Without a profile: Qwen3 non-thinking (`0.7, 0.8, 20, 0`, `enable_thinking=false`).
   `resolve_model(model, profile)` / `load_profile(name|path)` give the served name and client from `deploy/models/`.
-  `max_tokens 768` → sent as `max_completion_tokens`, `max_retries 0`; `.bind_tools(TOOLS, tool_choice="auto")` —
+  `max_tokens 768` → sent as `max_completion_tokens`, `max_retries 0` (the agent retries gateway 429/503 itself, visibly: D-44); `.bind_tools(TOOLS, tool_choice="auto")` —
   never `"required"` (D-38: vLLM's constrained decoding collapsed into whitespace); no `strict`. API key from `VLLM_API_KEY`. Per-step headers via an httpx request hook
   (context variable): `X-Request-Id: <task>-<run8>-s<n>`, `X-Tenant` (default `platform`), `X-App: cluster-doctor`,
   `X-Priority: interactive` (investigate) | `batch` (audit, rightsize), `X-Data-Class: restricted`.

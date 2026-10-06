@@ -69,7 +69,9 @@ PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 GWBUILD = .cache/gateway
-HOPENV  = $(shell $(PY) -m serving.fit $(MODEL) $(TOPO) --hop-env)
+# The in-flight cap and the KV hop's rates for the deployed model and topology, from the fit (measured KV once make kv
+# has run): D-43.
+GWENV   = $(shell $(PY) -m serving.fit $(MODEL) $(TOPO) --gateway-env)
 GW_IMAGE ?= docker.io/cdugga/cluster-doctor-gateway
 GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- gateway || echo -dirty)
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
@@ -192,7 +194,7 @@ gateway:
 	lam push $(GWBUILD)/ '~/gateway/' --delete
 	$(REMOTE) "kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
 	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
-	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) $(HOPENV) && \
+	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) $(GWENV) && \
 	  kubectl rollout restart deployment/gateway && kubectl rollout status deployment/gateway --timeout=5m"
 
 tunnel:

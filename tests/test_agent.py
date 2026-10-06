@@ -66,12 +66,42 @@ def test_duplicates_budget_step_cap_and_bad_json(tasks):
     assert run["stop"] == "step_cap" and any("not valid JSON" in (c["error"] or "") for st in run["steps"] for c in st["calls"])
 
 
-def test_gateway_refusal_ends_with_named_stop(tasks):
+def test_gateway_refusal_is_retried_then_ends_with_named_stop(tasks, no_refusal_waits):
     t = tasks["dx-oom"]
-    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(Server(status=503)))
+    s = Server(status=503)
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(s))
     assert run["stop"] == "http_503" and run["diagnosis"] is None and run["steps"][0]["http_status"] == 503
-    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(Server(status=429)))
-    assert run["stop"] == "http_429"
+    assert len(s.requests) == agent.REFUSAL_RETRIES + 1                          # the first try, then every retry
+    assert [r["reason"] for r in run["steps"][0]["refusals"]] == ["kv_free"] * (agent.REFUSAL_RETRIES + 1)
+    assert no_refusal_waits == [1.0, 2.0, 4.0, 8.0][:agent.REFUSAL_RETRIES]      # max(Retry-After 1 s, 2^attempt), capped
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(Server(status=429, reason="tenant_tokens")))
+    assert run["stop"] == "http_429" and run["steps"][0]["refusals"][0]["reason"] == "tenant_tokens"
+
+
+def test_a_refused_step_waits_and_the_run_carries_on(tasks, no_refusal_waits):
+    t = tasks["dx-oom"]
+    s = Server(("list_problem_pods", {"namespace": "orders"}), refuse=2)
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(s))
+    first = run["steps"][0]
+    assert first.get("http_status") is None and first["prompt_tokens"] is not None      # the step succeeded
+    assert [(r["http_status"], r["reason"], r["waited_s"]) for r in first["refusals"]] == [(503, "kv_free", 1.0), (503, "kv_free", 2.0)]
+    assert all(st["refusals"] == [] for st in run["steps"][1:])
+    assert {h["x-request-id"] for h in (r["headers"] for r in s.requests[:3])} == {first["request_id"]}   # same step, same id
+
+
+def test_refusal_retries_can_be_turned_off(tasks, monkeypatch):
+    monkeypatch.setattr(agent, "REFUSAL_RETRIES", 0)
+    t = tasks["dx-oom"]
+    s = Server(status=503)
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(s))
+    assert run["stop"] == "http_503" and len(s.requests) == 1
+
+
+def test_a_server_error_is_not_retried(tasks):
+    t = tasks["dx-oom"]
+    s = Server(status=500)
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(s))
+    assert run["stop"] == "http_500" and len(s.requests) == 1 and run["steps"][0]["refusals"] == []
 
 
 def test_multi_hop_reference_run_and_harness_off(tasks, refs):

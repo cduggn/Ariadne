@@ -52,6 +52,7 @@ def score(task: dict, run: dict) -> dict:
             "observed_refs": run.get("observed_refs"), "stop": run["stop"],
             "n_steps": len(steps), "trace": run["trace"], "repairs": run["repairs"], "harness": run["harness"],
             "http_status": [s.get("http_status") for s in steps if s.get("http_status")],
+            "refusals": [r for s in steps for r in s.get("refusals", [])],          # every gateway 429/503, retried or not
             "tool_errors": sum(1 for s in steps for c in s.get("calls", []) if c.get("error")),
             "prompt_tokens": [s.get("prompt_tokens") for s in steps], "completion_tokens": [s.get("completion_tokens") for s in steps],
             "cached_tokens": [s.get("cached_tokens") for s in steps], "latency_s": [s.get("latency_s") for s in steps],
@@ -67,7 +68,7 @@ def error_row(task: dict, e: Exception) -> dict:
     return {"id": task["id"], "task_type": task["task_type"], "tier": task.get("tier", "easy"), "pass": False, "failed": why,
             "pass_v2": False, "failed_v2": why, "advisory": [], "parts": dict.fromkeys(PARTS, False), "observed_refs": 0,
             "stop": f"error_{type(e).__name__}", "n_steps": 0,
-            "trace": [], "repairs": 0, "harness": True, "http_status": [], "tool_errors": 0, "prompt_tokens": [],
+            "trace": [], "repairs": 0, "harness": True, "http_status": [], "refusals": [], "tool_errors": 0, "prompt_tokens": [],
             "completion_tokens": [], "cached_tokens": [], "latency_s": [], "headers": {}, "diagnosis": None, "finish_reasons": [], "calls": []}
 
 
@@ -109,7 +110,9 @@ def summarise(rows: list[dict], meta: dict) -> dict:
             "stop_reasons": dict(Counter(r["stop"] for r in rows)),
             "inconclusive": sum(r["stop"] == "inconclusive" for r in rows),
             "abstained": sum(r["stop"] == "abstained" for r in rows),
-            "http_refusals": dict(Counter(c for r in rows for c in r["http_status"])),
+            "http_refusals": dict(Counter(c for r in rows for c in r["http_status"])),       # refusals that ended a run
+            "refusal_reasons": dict(Counter(f"{x['http_status']} {x['reason']}" for r in rows for x in r.get("refusals", []))),
+            "runs_that_waited_out_a_refusal": sum(1 for r in rows if r.get("refusals") and not r["http_status"]),
             "top_failed_rules": Counter(f.split(":")[0] for r in rows for f in r["failed"]).most_common(10),
             "repairs": sum(r["repairs"] for r in rows), "tool_errors": sum(r["tool_errors"] for r in rows),
             "steps_per_task_mean": round(statistics.mean(r["n_steps"] for r in rows), 2) if rows else None,
@@ -172,7 +175,8 @@ def main() -> int:
                                "only": a.only, "git_commit": commit, "wall_s": round(time.time() - t0, 1), "timestamp": stamp})
     Path(f"{base}.summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps({k: summary[k] for k in ("pass_rate", "pass_rate_v2", "pass_rate_v2_ci95", "pass_rate_by_tier_v2", "parts_v2",
-                                              "stop_reasons", "inconclusive", "abstained", "http_refusals", "top_failed_rules_v2")}, indent=2))
+                                              "stop_reasons", "inconclusive", "abstained", "http_refusals", "refusal_reasons",
+                                              "runs_that_waited_out_a_refusal", "top_failed_rules_v2")}, indent=2))
     print(f"wrote {base}.jsonl and .summary.json")
     return 0
 

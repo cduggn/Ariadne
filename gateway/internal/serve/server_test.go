@@ -637,3 +637,27 @@ func TestClientKVTransferParamsAre400AndNeverReachAWorker(t *testing.T) {
 		t.Errorf("a worker saw a client's kv_transfer_params")
 	}
 }
+
+func TestClientThatLeavesMidRequestIsClientGoneNotAnUpstreamError(t *testing.T) {
+	h := start(t, tuning{})
+	h.ready()
+	for _, w := range h.fakes { // slow only after warm-up, which must answer within 50 ms
+		w.Set(func(s *fakevllm.Settings) { s.Latency = 2 * time.Second })
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, h.url+"/v1/chat/completions", strings.NewReader(doctorBody))
+	for k, v := range doctorHeaders("runD-s1") {
+		req.Header.Set(k, v)
+	}
+	if _, err := http.DefaultClient.Do(req); err == nil {
+		t.Fatal("request finished before the client gave up; the fake's latency should outlast the client")
+	}
+
+	ev := h.event("runD-s1")
+	if ev.Reason != "client_gone" || ev.Status != 0 {
+		t.Fatalf("event reason %q status %d, want client_gone with no status", ev.Reason, ev.Status)
+	}
+	eventually(t, "the ticket settled", func() bool { return h.inFlight() == 0 })
+}

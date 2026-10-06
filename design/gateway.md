@@ -174,7 +174,7 @@ two, so the hop matters only if contexts grow. The code is in `gateway/internal/
 | Setting | Default | Where it comes from |
 |---|---|---|
 | `GW_HOP_MIN_TOKENS` | 8,192 | Below this, a recompute is under ~1.2 s on a slice and not worth two extra round trips |
-| `GW_HOP_KV_BYTES_PER_TOKEN` | 147,456 (8B) | `make gateway` sets it from `serving.fit --hop-env` for the deployed model |
+| `GW_HOP_KV_BYTES_PER_TOKEN` | 147,456 (8B) | `make gateway` sets it from `serving.fit --gateway-env` for the deployed model |
 | `GW_HOP_PREFILL_TOKENS_PER_S` | 3,810 (8B slice) | Same, from the fit's prefill estimate; replace with a measured rate |
 | `GW_HOP_TRANSFER_BYTES_PER_S` | 2e9 | A guess for TCP between two pods on one host; **measure before trusting the rule** |
 | `GW_HOP_OVERHEAD`, `GW_HOP_TIMEOUT` | 50 ms, 10 s | The fixed cost of a hop; the longest wait for a busy source before recomputing |

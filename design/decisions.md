@@ -292,3 +292,61 @@ unusual words can fail. When that happens, widen the regex rather than adding a 
 fix, grounded in what the model actually saw. It shouldn't penalise a different route to the same answer.
 **Revisit when:** a v2 failure on a live run turns out to be a false negative (widen the regex), or a run shows many
 abstentions on faults the tools can observe (tighten the nudge).
+
+### D-42 — The inference gateway (C11): guard, admit, place, queue in Go (2026-10-01, recorded 2026-10-06)
+**Context:** the doctor's agent makes 5–16 chained calls per run, and each step's prompt extends the last, so a run's
+history is cached only on the worker that served it (95% of prompt tokens on one worker). The brief asks for a
+gateway that decides what is refused, where work goes and who waits, with `orch_*` telemetry, and that never sends
+restricted data off the box.
+**Choice:** a Go gateway in front of the vLLM workers (`gateway/`, design in `design/gateway.md`):
+- **Four ordered decisions,** pure and tested in `decide`: guard (400), tenant token quota (429, stays), KV and queue
+  shedding (503, may leave), placement, then a per-worker priority queue with deadlines.
+- **Placement `prefix_then_load`:** keep a run on the worker holding its history unless that worker is more than 0.25
+  load units busier; `least_loaded` and `p2c` are the A/B controls.
+- **Warm-up before Ready:** a worker takes traffic only after two probes replay the doctor's real first request, which
+  also puts the shared prefix in its cache.
+- **Stay or leave:** only a 503 may overflow, a restricted request never does (a value only `MayLeave` builds, plus a
+  fuzz test), and the overflow backend is null until one is configured.
+- **Delivery:** a public, digest-pinned Docker Hub image (`make gateway-image`); one replica, because the run table,
+  reservations and quotas live in memory.
+**Because:** the client only understands 429 and 503, so the gateway is where admission, placement and priority can
+be decided and measured; keeping a run on its worker is what keeps its history cached.
+**Measured:** routing changes placement, not answers (F2, F29); stickiness saves 10% of prefill and 8–11% of step
+time at concurrency 4 (F29); up to 16 concurrent runs the KV shed protected vLLM from preemption (F25).
+**Revisit when:** more than one gateway replica is needed (partition runs by id, or share the run table), or an
+overflow backend becomes available (Superlinked, F22).
+
+### D-43 — Admission sized to each worker's measured KV pool (2026-10-06)
+**Context:** the gateway allowed 16 requests in flight per worker, a constant that suited the 8B on an A100 slice
+(79,056 tokens of KV). On H100 halves Qwen3.8-27B has 51,092 tokens per worker, about two full contexts, and at 32
+concurrent runs vLLM preempted 3 requests per worker and thrashed (findings F24–F26). The constant described the
+first card we used, not the one serving.
+**Choice:** `make gateway` sets `GW_MAX_INFLIGHT` per model and topology from `serving.fit --gateway-env`: the number of
+typical runs (the 12k-token app length, with the 3.8k shared prefix held once) one worker's KV pool holds, between 1
+and 16. The pool is vLLM's own measurement once `make kv` has recorded one, the paper estimate before that. That gives
+9 for the 8B on an A100 slice, 4 for Qwen3.8 on an H100 half, and the ceiling of 16 on a whole card. The KV shed line
+(0.80) and the continuing-run exemption (down to 5% free) are unchanged: with the cap sized to the pool, the
+exemption keeps runs alive mid-investigation without overfilling KV.
+**Because:** the gateway should hold back what vLLM cannot fit, so overload waits in the gateway's priority queue
+instead of being preempted inside vLLM, where it costs recomputation and throughput for everyone.
+**Revisit when:** the re-run of the knee (backlog) still shows vLLM preemptions with the sized cap (then tighten the
+continuing-run exemption), or runs grow well past the 12k-token app length (size to a larger typical run).
+
+### D-44 — The doctor waits out gateway refusals, and a client that leaves is not a worker failure (2026-10-06)
+**Context:** a 429 or 503 ended the run at once: the client ran with `max_retries 0` (SPEC, the agent's client) so that
+"a gateway refusal must surface, not be hidden". So at the knee every shed counted as a failed, undiagnosed run (F27),
+and pass rates measured how often the gateway said
+"not now" rather than how well the model diagnosed. Separately, cancelling a client mid-request was logged as a worker
+`upstream_error` 502, which overstated worker faults (F28).
+**Choice:**
+- **Retry refusals, visibly.** The agent retries a 429 or 503 on the same step after `max(Retry-After, 1, 2, 4, 8 s)`,
+  up to `DOCTOR_REFUSAL_RETRIES` (default 4, about 15 s at most), with the same request id, so the gateway still sees
+  the same run and step. Every refusal is recorded on its step with the gateway's reason (`kv_free`, `queue_full`,
+  `tenant_tokens`, …) and the wait; the golden summary reports `refusal_reasons` and how many runs waited one out.
+  Other errors are not retried. `DOCTOR_REFUSAL_RETRIES=0` restores failing on the first refusal.
+- **Client gone.** When the forward fails because the client's own request was cancelled, the gateway records
+  `client_gone` with no status (its documented meaning), not `upstream_error` 502.
+**Because:** the gateway's refusal already says why and when to come back; an agent that honours it rides out a spike,
+and the results keep the refusal visible instead of either hiding it or turning it into a lost run.
+**Revisit when:** waits of ~15 s are too long for interactive use (lower the retries for interactive priority), or a
+refusal storm suggests retries are amplifying load (add jitter or a per-tenant retry budget).

@@ -110,10 +110,10 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{8,16,32}-20261006-*.summary.js
   holds. Fix and experiment: `design/backlog.md`, "KV-sized admission". (measured cause; fix pending)
 - **F27. A refused run fails outright.** The gateway's 503 carries the reason (`kv_free`) and `Retry-After`, but the
   doctor neither retries nor records the reason, so each shed shows as a failed, undiagnosed run. That is why pass
-  rates fall at the knee rather than latency rising. (measured)
+  rates fall at the knee rather than latency rising. (measured; fixed by D-44)
 - **F28. Client aborts are counted as worker errors.** Cancelling a sweep left 5 requests logged `upstream_error` with
   502 (four in the same millisecond, across both workers), when they should be `client_gone` with no status. The
-  "Upstream errors" panel overstates worker faults by those 5. (measured, gateway log 12:51:30–35 UTC)
+  "Upstream errors" panel overstates worker faults by those 5. (measured, gateway log 12:51:30–35 UTC; fixed by D-44)
 
 ## 4c. The routing A/B (10-06)
 
@@ -163,6 +163,6 @@ concurrency 4. (measured)
 
 ## Still to measure
 
-- After "KV-sized admission" lands: the concurrency-32 level again, against F24's row (38.5%, 14 refused, 6 preempted).
+- With D-43 and D-44 deployed: concurrency 16 and 32 again, against F24's table (backlog).
 - Time series (KV usage, power, placement over time) were not kept on 10-06: the node's Prometheus keeps nothing after
   `make down`. Build `make export` before the next session so they are saved as data.
