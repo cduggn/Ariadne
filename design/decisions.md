@@ -4,6 +4,8 @@ One entry per decision: what we chose, why, what we checked, and what would make
 Numbering continues from the predecessor project (trip planner, `cduggn/trip-planner-inference`),
 whose decisions still govern the serving stack this repo inherits.
 
+What the measurements showed, with evidence for each, is in [`findings.md`](findings.md).
+
 ## Inherited from the trip-planner project (D-1 … D-18, summary)
 
 | Id | Decision | Why it still matters here |

@@ -17,7 +17,8 @@ infrastructure.
 ```
 
 Final project for *AI Inference Engineering & Systems Design* (Track B), and the seed of a product.
-Start with [`SPEC.md`](SPEC.md). Decisions are in [`design/decisions.md`](design/decisions.md), and how
+Start with [`SPEC.md`](SPEC.md). Decisions are in [`design/decisions.md`](design/decisions.md), measured findings in
+[`design/findings.md`](design/findings.md), and how
 the project answers the brief is in [`design/course-objectives.md`](design/course-objectives.md).
 
 ## Run it autonomously
