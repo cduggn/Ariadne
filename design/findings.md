@@ -140,6 +140,10 @@ concurrency 4. (measured)
   shared 3.9k prefix from warm-up; only each run's own history is at stake. It should widen under uneven or heavier
   load. (measured)
 
+- **F30. The 768-token output cap never bound in the A/B.** All 901 steps across both arms finished with `tool_calls`;
+  none with `length`. The ~40 s end-to-end spike seen on vllm-1 (F13) was a long answer that still fit under the cap.
+  (measured: `finish_reasons` in `metrics/golden-gw-38-*20261006*.jsonl`)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
@@ -157,7 +161,8 @@ concurrency 4. (measured)
 - **F23. The KV hop is built and tested but not yet measured on hardware.** Copy bandwidth between two HAMi halves and
   Qwen3.8's hybrid state through the connector are unverified. Test plan H1–H3. (status)
 
-## Still to measure in this session
+## Still to measure
 
 - After "KV-sized admission" lands: the concurrency-32 level again, against F24's row (38.5%, 14 refused, 6 preempted).
-- Whether the 768-token output cap binds (`finish_reason length`; the new "Output and the 768-token cap" panels).
+- Time series (KV usage, power, placement over time) were not kept on 10-06: the node's Prometheus keeps nothing after
+  `make down`. Build `make export` before the next session so they are saved as data.
