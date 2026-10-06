@@ -1,6 +1,8 @@
 // Package serve is the gateway's HTTP shell. It reads each request, asks
-// decide and fleet what to do, forwards the body unchanged to the chosen
-// worker and relays the answer. It holds no policy of its own.
+// decide and fleet what to do, forwards the body to the chosen worker and
+// relays the answer. It holds no policy of its own. The body goes unchanged
+// unless the optional KV hop marks it for the worker to pull a moved run's
+// cache.
 package serve
 
 import (
@@ -18,6 +20,7 @@ import (
 
 	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
 	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
+	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
 )
 
 // DefaultUpstreamTimeout bounds one upstream call. It sits under the
@@ -32,6 +35,8 @@ const maxResponseBytes = 32 << 20
 // plain http.Client, slog.Default or time.Now. OnRequest, when set, sees
 // one Event per request, including refusals and 400s. Metrics, when set,
 // serves GET /metrics. The metrics package feeds the one from the other.
+// Hop, when set, copies a moved run's KV to its new worker; nil leaves every
+// moved run to recompute its history.
 type Options struct {
 	MaxBody         int
 	Budgets         decide.Budgets
@@ -41,14 +46,18 @@ type Options struct {
 	Now             func() time.Time
 	OnRequest       func(Event)
 	Metrics         http.Handler
+	Hop             *hop.Hopper
 }
 
 // Event is one request as the gateway saw it. Pod, Policy, Sticky, Unknown
 // and Est are zero when the guard rejected the request. Status is 0 when
 // the client went away before anything was written. Gateway is the time
-// spent in this process outside the queue and the upstream call. The token
-// fields are set only for a 200 that carried usage. Overflow is set only for
-// a 503 the gateway refused, and names what the overflow decision did.
+// spent in this process outside the queue, the hop and the upstream call.
+// The token fields are set only for a 200 that carried usage. Overflow is set
+// only for a 503 the gateway refused, and names what the overflow decision
+// did. Hop is set only when the KV hop is configured and the request moved a
+// run off a worker that still held its history, and HopTime is the time the
+// hop spent with the old worker.
 type Event struct {
 	RequestID        string
 	Run              decide.RunID
@@ -72,6 +81,8 @@ type Event struct {
 	CompletionTokens int
 	FinishReason     string
 	Overflow         string
+	Hop              string
+	HopTime          time.Duration
 }
 
 // Server is the gateway's handler set over one Gate and one Fleet. urls
@@ -174,7 +185,8 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), s.opt.UpstreamTimeout)
 	defer cancel()
-	up, err := s.forward(ctx, s.urls[t.Pod()], body, r.Header)
+	fwd := s.moveKV(ctx, d, req, t.Pod(), body, &ev)
+	up, err := s.forward(ctx, s.urls[t.Pod()], fwd, r.Header)
 	ev.Upstream = up.took
 	if err != nil {
 		ev.Status, ev.Reason = http.StatusBadGateway, "upstream_error"
@@ -188,8 +200,30 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		ev.PromptTokens, ev.CachedTokens, ev.CompletionTokens, ev.FinishReason = u.prompt, u.cached, u.completion, u.finish
 		outcome = fleet.Outcome{OK: ok, PromptTokens: u.prompt, CompletionTokens: u.completion, Latency: up.took}
 	}
-	ev.Gateway = s.opt.Now().Sub(start) - ev.Queue - ev.Upstream
+	ev.Gateway = s.opt.Now().Sub(start) - ev.Queue - ev.HopTime - ev.Upstream
 	relay(w, up, ev)
+}
+
+// moveKV asks the KV hop, when configured, to carry the run's history from
+// the worker it was bound to onto pod. It returns the body to forward, which
+// is body itself unless a hop succeeded. A failed hop is logged and the
+// worker recomputes, so it never fails the request.
+func (s *Server) moveKV(ctx context.Context, d fleet.Decision, req decide.Request, pod string, body []byte, ev *Event) []byte {
+	if s.opt.Hop == nil {
+		return body
+	}
+	out, res := s.opt.Hop.Move(ctx, hop.Move{
+		RequestID: req.ID,
+		Sticky:    d.Placement.Sticky,
+		From:      d.From,
+		To:        pod,
+		History:   d.History,
+	}, body)
+	ev.Hop, ev.HopTime = string(res.Outcome), res.Took
+	if res.Err != nil {
+		s.opt.Log.Warn("kv hop failed, the worker recomputes", "request_id", req.ID, "from", d.From, "to", pod, "err", res.Err)
+	}
+	return out
 }
 
 // forwarded are the request headers copied to the worker. Everything else,
@@ -244,6 +278,9 @@ func relay(w http.ResponseWriter, up upstream, ev Event) {
 	h.Set("X-Pod", ev.Pod)
 	h.Set("X-Policy", string(ev.Policy))
 	h.Set("X-Sticky", string(ev.Sticky))
+	if ev.Hop != "" {
+		h.Set("X-Hop", ev.Hop)
+	}
 	h.Set("X-Gateway-Queue-Ms", millisText(ev.Queue))
 	h.Set("Server-Timing", "gateway;dur="+millisText(ev.Gateway)+
 		", queue;dur="+millisText(ev.Queue)+
@@ -309,6 +346,8 @@ func (s *Server) finish(ev Event) {
 		"completion_tokens", ev.CompletionTokens,
 		"finish_reason", ev.FinishReason,
 		"overflow", ev.Overflow,
+		"hop", ev.Hop,
+		"hop_ms", millis(ev.HopTime),
 	)
 	if s.opt.OnRequest != nil {
 		s.opt.OnRequest(ev)

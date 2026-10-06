@@ -159,6 +159,57 @@ candidate 1 (evolve `inference-gateway`) and 15 for candidate 3 (thinnest proxy)
 - We accept a static two-worker list, in exchange for no discovery code. The sliced topology can't exceed two anyway.
 - We accept no upstream retry and no re-pick. A pod that dies mid-request shows up as a 502.
 
+## KV hop (opt-in)
+
+When the gateway moves a run off the worker that holds its history (`broken_load` or `broken_shed`), the new worker
+normally recomputes that history. With the hop on, the gateway copies the KV instead, through vLLM's
+`MooncakeConnector`. It is off by default (`GW_HOP=false`), because for today's workload a recompute takes a second or
+two, so the hop matters only if contexts grow. The code is in `gateway/internal/hop`, separate from the routing core.
+
+**Decision (pure, `hop.Config.Decide`).** Hop only when both hold:
+1. the run's history (its last step's `usage.prompt_tokens`) is at least `GW_HOP_MIN_TOKENS` (default 8,192);
+2. `overhead + tokens × KV bytes/token ÷ transfer bandwidth` < `tokens ÷ prefill rate`, where `tokens` is the history
+   beyond the shared prefix every worker already holds from warm-up.
+
+| Setting | Default | Where it comes from |
+|---|---|---|
+| `GW_HOP_MIN_TOKENS` | 8,192 | Below this, a recompute is under ~1.2 s on a slice and not worth two extra round trips |
+| `GW_HOP_KV_BYTES_PER_TOKEN` | 147,456 (8B) | `make gateway` sets it from `serving.fit --hop-env` for the deployed model |
+| `GW_HOP_PREFILL_TOKENS_PER_S` | 3,810 (8B slice) | Same, from the fit's prefill estimate; replace with a measured rate |
+| `GW_HOP_TRANSFER_BYTES_PER_S` | 2e9 | A guess for TCP between two pods on one host; **measure before trusting the rule** |
+| `GW_HOP_OVERHEAD`, `GW_HOP_TIMEOUT` | 50 ms, 10 s | The fixed cost of a hop; the longest wait for a busy source before recomputing |
+
+**Transport (`hop.Mooncake`),** as vLLM v0.29.0's own Mooncake proxy does it:
+1. Find the source's engine id from its bootstrap registry, `GET http://<pod>:8998/query` (cached; dropped on any
+   failure, because a restarted worker has a new id).
+2. Send the source the request with `kv_transfer_params={do_remote_decode, transfer_id}`, `max_tokens=1` and no
+   streaming. The source prefills from its own prefix cache and holds the blocks. It holds them only if it stops at the
+   length cap, so the gateway checks `finish_reason == "length"`.
+3. Forward the request to the destination with `{do_remote_prefill, remote_engine_id, remote_bootstrap_addr,
+   transfer_id}`. vLLM pulls only the blocks the destination doesn't already have.
+
+**Guarantees and limits.**
+- Any failure (registry, source error, timeout, a source that didn't hold) forwards the original body, and the
+  destination recomputes. A hop can't fail a request.
+- Both workers are the fleet's own pods, so a hop never sends data off the box.
+- Only the gateway sets `kv_transfer_params`. The guard refuses it from a client with a 400 (`kv_transfer_params`),
+  whether or not the hop is on, because a worker running the connector would otherwise connect to any
+  `remote_bootstrap_addr` a client names (SSRF) or pull another request's KV by its `transfer_id`.
+- With `HOP=1` the render adds a NetworkPolicy (`vllm-kv-hop`): workers accept the API port only from the gateway and
+  Prometheus, the bootstrap port only from the gateway, and anything only from another worker. So nothing in the
+  cluster can bypass the gateway's guard by calling a worker directly. `make tunnel` uses `kubectl port-forward`, which
+  enters the pod directly and is unaffected.
+- A hop doesn't relieve the source's KV pressure: the blocks stay until vLLM evicts them. A hop whose destination
+  request never arrives pins the source's blocks for `VLLM_MOONCAKE_ABORT_REQUEST_TIMEOUT` (480 s).
+- The workers must run the connector: `make deploy HOP=1` adds `--kv-transfer-config` (`kv_both`, `tcp` because the
+  node has no RDMA) and port 8998, from `serving.json` `kv_hop`.
+- Unverified on hardware: the copy bandwidth between two HAMi slices on one GPU, and hybrid models (Qwen3.8), whose
+  recurrent state goes through vLLM's hybrid path for this connector.
+
+**Signals.** `orch_hop_total{result=hopped|failed|below_threshold|recompute_cheaper}`, the `hop` stage of
+`orch_request_duration_seconds`, an `X-Hop` response header, and `hop`/`hop_ms` on the request log line. A successful
+hop shows on the destination as `cached_tokens ≈ prompt_tokens` for that step.
+
 ## Open questions
 
 - Tenant rates: `platform` 200k tokens/min with a 32k burst, other tenants shared at a lower rate. Does that make the

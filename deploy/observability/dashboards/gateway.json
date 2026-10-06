@@ -678,6 +678,48 @@
           "legendFormat": "{{pod}} {{kind}}"
         }
       ]
+    },
+    {
+      "type": "timeseries",
+      "title": "KV hops by result",
+      "description": "Runs moved off a worker that still held their history (GW_HOP on). hopped: the new worker pulled the KV over Mooncake. failed: it recomputed. below_threshold / recompute_cheaper: the cost rule chose recompute. Flat zeros while the hop is off.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 36
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (result) (rate(orch_hop_total[1m]))",
+          "legendFormat": "{{result}}"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(orch_request_duration_seconds_bucket{stage=\"hop\"}[1m])))",
+          "legendFormat": "hop p95 (s)"
+        }
+      ]
     }
   ],
   "templating": {

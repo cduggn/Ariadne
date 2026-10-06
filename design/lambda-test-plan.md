@@ -148,6 +148,15 @@ For each arm, look at these values in `metrics/gateway-*.prom`:
   pick;
 - step latency p50 and p95 from the golden summary, compared between the two arms.
 
+Optional, if time allows after the A/B: **the KV hop** (`design/gateway.md`, "KV hop"). It needs the workers
+restarted with the Mooncake connector, so run it last.
+
+| # | Command | What it proves |
+|---|---|---|
+| H1 | `make deploy HOP=1 && make scale N=2`, then `make gateway HOP=1`, restart the tunnel | Both workers start with `--kv-transfer-config` (`kubectl logs vllm-0 \| grep -i mooncake`); the gateway logs `kv hop on` |
+| H2 | `make sweep WORKERS=2 LEVELS="16 32"` | Load breaks some bindings. `orch_hop_total` shows `hopped` or `below_threshold`; with short contexts most moves stay below the 8,192-token threshold, which is the rule working |
+| H3 | `lam ssh cluster-doctor -- kubectl set env deployment/gateway GW_HOP_MIN_TOKENS=1`, restart the tunnel, then repeat H2 | Forces hops. Compare the destination's `cached_tokens` and the `hop` stage against recompute steps; that gives the real transfer rate for `GW_HOP_TRANSFER_BYTES_PER_S` |
+
 If something goes wrong:
 - The gateway pod is stuck in `ImagePullBackOff`: check the digest in `deploy/k8s/gateway.yaml` exists on Docker Hub; after a
   gateway code change, run `make gateway-image` and commit the new digest first.

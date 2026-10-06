@@ -147,7 +147,7 @@ spec:
             - {{name: HF_HUB_OFFLINE, value: "1"}}          # weights are fetched by `make prefetch`; never download at serve time
             - {{name: HF_HOME, value: /root/.cache/huggingface}}
           ports:
-            - {{name: http, containerPort: 8000}}
+{ports}
           resources:
             limits:
               nvidia.com/gpu: "1"
@@ -187,6 +187,40 @@ touch "$MARK"
 """
 
 
+HOP_POLICY = """\
+---
+# With the KV hop on, each worker runs vLLM's MooncakeConnector: a bootstrap registry on {port} and a KV transfer
+# engine on further ports, and the OpenAI server would act on a client's kv_transfer_params. So the workers accept
+# connections only from the fleet: the API port from the gateway and from Prometheus, the registry from the gateway,
+# and anything from another worker (the handshake and the transfer). The gateway also refuses kv_transfer_params
+# from clients. kubectl port-forward (make tunnel) enters the pod directly and is unaffected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vllm-kv-hop
+spec:
+  podSelector:
+    matchLabels: {{app: vllm}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {{app: gateway}}
+        - namespaceSelector:
+            matchLabels: {{kubernetes.io/metadata.name: monitoring}}
+      ports:
+        - {{port: 8000, protocol: TCP}}
+    - from:
+        - podSelector:
+            matchLabels: {{app: gateway}}
+      ports:
+        - {{port: {port}, protocol: TCP}}
+    - from:
+        - podSelector:
+            matchLabels: {{app: vllm}}
+"""
+
+
 def topology(s: dict, topo: str) -> dict:
     if topo not in s["topologies"]:
         raise SystemExit(f"no topology {topo!r}; have: {', '.join(s['topologies'])}")
@@ -197,15 +231,24 @@ def gpu(s: dict, topo: str) -> dict:
     return s["gpus"][topology(s, topo)["gpu"]]
 
 
-def render_manifest(p: dict, topo: str, s: dict | None = None) -> str:
+def render_manifest(p: dict, topo: str, s: dict | None = None, hop: bool = False) -> str:
+    """The worker manifest for a profile on a topology. hop adds vLLM's MooncakeConnector and its bootstrap port, so
+    the gateway's KV hop can copy a moved run's cache between workers."""
     s = s or load_serving()
     t, e, g = topology(s, topo), s["engine"], gpu(s, topo)
+    args, ports = list(p["serve"]["args"]), ["{name: http, containerPort: 8000}"]
+    if hop:
+        h = s["kv_hop"]
+        args.append("--kv-transfer-config=" + json.dumps(h["kv_transfer_config"], separators=(",", ":")))
+        ports.append(f"{{name: mooncake, containerPort: {h['bootstrap_port']}}}")
     return TEMPLATE.format(name=p["name"], topo=topo, summary=p["summary"], purpose=t["purpose"], gpumem=t["gpumem_mib"],
                            cores=t["gpucores"], max_replicas=t["max_replicas"], image=e["image"], repo=p["hf"]["repo"],
                            revision=p["hf"]["revision"], served=p["serve"]["served_name"], max_model_len=e["max_model_len"],
                            util=e["gpu_memory_utilization"], max_num_seqs=e["max_num_seqs"],
                            max_num_batched_tokens=e["max_num_batched_tokens"], gpu_mib=g["mib"], gpu_name=g["name"],
-                           model_args="\n".join(f"            - {a}" for a in p["serve"]["args"]))
+                           model_args="\n".join(f"            - {a}" for a in args),
+                           ports="\n".join(f"            - {x}" for x in ports)) + (
+        HOP_POLICY.format(port=s["kv_hop"]["bootstrap_port"]) if hop else "")
 
 
 def render_prefetch(p: dict, s: dict | None = None) -> str:
@@ -223,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("model")
     r.add_argument("topology")
     r.add_argument("--out", help="directory for k8s/vllm.yaml and prefetch.sh (default: the manifest on stdout)")
+    r.add_argument("--hop", action="store_true", help="run vLLM's MooncakeConnector for the gateway's KV hop")
     f = sub.add_parser("field", help="print one profile field, e.g. serve.served_name")
     f.add_argument("model")
     f.add_argument("path")
@@ -239,7 +283,7 @@ def main(argv: list[str] | None = None) -> int:
         print(v if isinstance(v, str) else json.dumps(v))
         return 0
     s = load_serving()
-    manifest = render_manifest(p, a.topology, s)
+    manifest = render_manifest(p, a.topology, s, hop=a.hop)
     if not a.out:
         sys.stdout.write(manifest)
         return 0

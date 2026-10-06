@@ -7,6 +7,8 @@
 #   make gateway-image              build + push the gateway image (Docker Hub, public), pin its digest
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda GPU node via the `lam` CLI: up takes the first of TYPES with capacity (lab/up.sh)
 #   make gateway [POLICY=least_loaded]   apply the pinned gateway image + warm-up body on the node and roll it out (D-42)
+#   make deploy HOP=1 && make gateway HOP=1   workers run vLLM's MooncakeConnector and the gateway copies a moved
+#                                   run's KV instead of recomputing it (gateway/internal/hop; off by default)
 #   make tunnel [TUNNEL=pod/vllm-0]      localhost:8000 → the gateway (default) or one vLLM pod directly
 #   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
 #   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits sliced | full (D-40)
@@ -38,6 +40,7 @@ REPEAT ?= 2
 CTX    ?= lambda
 TUNNEL ?= svc/gateway
 POLICY ?= prefix_then_load
+HOP    ?= 0
 FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
 STAGGER ?= 0
 WATCH_EXCLUDE ?= monitoring,opencost,doctor,default
@@ -52,6 +55,7 @@ PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 GWBUILD = .cache/gateway
+HOPENV  = $(shell $(PY) -m serving.fit $(MODEL) $(TOPO) --hop-env)
 GW_IMAGE ?= docker.io/cdugga/cluster-doctor-gateway
 GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- gateway || echo -dirty)
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
@@ -79,7 +83,7 @@ fit-all:
 	$(PY) -m serving.fit all
 
 render:
-	$(PY) -m serving.profiles render $(MODEL) $(TOPO) --out $(RENDER)
+	$(PY) -m serving.profiles render $(MODEL) $(TOPO) --out $(RENDER) $(if $(filter 1,$(HOP)),--hop)
 
 matrix:
 	$(PY) -m serving.matrix
@@ -145,7 +149,7 @@ gateway:
 	lam push $(GWBUILD)/ '~/gateway/' --delete
 	$(REMOTE) "kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
 	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
-	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) && \
+	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) $(HOPENV) && \
 	  kubectl rollout restart deployment/gateway && kubectl rollout status deployment/gateway --timeout=5m"
 
 tunnel:

@@ -113,5 +113,16 @@
         "next_model": "gemma-4-31b-it-fp8"
       }
     }
+  },
+  "kv_hop": {
+    "about": "Opt-in (make deploy HOP=1, make gateway HOP=1): every worker runs vLLM's MooncakeConnector as kv_both, so the gateway can copy a moved run's KV from its old worker instead of recomputing it. tcp, because the node has no RDMA. See gateway/internal/hop.",
+    "kv_transfer_config": {
+      "kv_connector": "MooncakeConnector",
+      "kv_role": "kv_both",
+      "kv_connector_extra_config": {
+        "mooncake_protocol": "tcp"
+      }
+    },
+    "bootstrap_port": 8998
   }
 }

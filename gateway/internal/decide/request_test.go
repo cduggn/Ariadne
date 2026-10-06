@@ -249,6 +249,12 @@ func TestInspectRejectReasons(t *testing.T) {
 			wantReason: "stream_unsupported",
 		},
 		{
+			name:       "client sets kv_transfer_params",
+			body:       `{"model":"m","messages":[` + validMessages + `],"kv_transfer_params":{"do_remote_prefill":true,"remote_bootstrap_addr":"http://attacker:8998"}}`,
+			maxBody:    DefaultMaxBody,
+			wantReason: "kv_transfer_params",
+		},
+		{
 			name:       "max_tokens zero",
 			body:       `{"model":"m","messages":[` + validMessages + `],"max_tokens":0}`,
 			maxBody:    DefaultMaxBody,

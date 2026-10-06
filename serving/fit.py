@@ -3,6 +3,7 @@
     python -m serving.fit qwen3-30b-a3b-2507-awq full        # one pair, with the derivation
     python -m serving.fit all                                 # every profile × topology, one table
     python -m serving.fit qwen3-8b-awq sliced --gate          # exit 1 if the pair fails the gate (make deploy runs this)
+    python -m serving.fit qwen3-8b-awq sliced --hop-env       # the gateway's KV-hop rates for the pair (make gateway uses this)
 
 Per worker (topology → HAMi memory and SM share):
     budget      = slice MiB × gpu_memory_utilization
@@ -102,6 +103,14 @@ def fit(p: dict, topo: str, s: dict | None = None, *, metrics: Path | None = Non
     }
 
 
+def hop_env(r: dict) -> str:
+    """The gateway's KV-hop cost inputs for one pair, as GW_* assignments: the model's KV bytes per token, and the
+    uncached prefill rate the fit estimates for the topology. Paper numbers, to be replaced by measured ones."""
+    kv_bytes = round(r["kv_per_token_kib"] * 1024)
+    prefill = round(r["app_len"] / r["prefill_s_app_len_uncached"])
+    return f"GW_HOP_KV_BYTES_PER_TOKEN={kv_bytes} GW_HOP_PREFILL_TOKENS_PER_S={prefill}"
+
+
 def verdict(r: dict) -> str:
     if r["pool_gib"] <= 0:
         return "does not fit: weights + overhead exceed the budget"
@@ -151,11 +160,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("topology", nargs="?", default="all", help="a topology from deploy/serving.json, or all")
     ap.add_argument("--gate", action="store_true", help="exit 1 unless the pair passes the fit gate")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--hop-env", action="store_true", help="print the gateway's KV-hop rates for one pair")
     a = ap.parse_args(argv)
     s = load_serving()
     ps = profiles() if a.model == "all" else [load_profile(a.model)]
     topos = list(s["topologies"]) if a.topology == "all" else [a.topology]
     rows = [fit(p, t, s) for p in ps for t in topos]
+    if a.hop_env:
+        if len(rows) != 1:
+            raise SystemExit("--hop-env needs one model and one topology")
+        print(hop_env(rows[0]))
+        return 0
     if a.json:
         print(json.dumps(rows, indent=1))
     elif len(rows) == 1:

@@ -1,6 +1,10 @@
 // Package fakevllm is a fake vLLM worker for tests and the laptop demo. It
-// serves the two endpoints the gateway touches, /metrics and
-// /v1/chat/completions, and records every chat request it receives.
+// serves the endpoints the gateway touches, /metrics and
+// /v1/chat/completions, and records every chat request it receives. It also
+// plays vLLM's MooncakeConnector: GET /query is its bootstrap registry, a
+// request marked do_remote_decode stops at its one-token cap as a held
+// prefill does, and a request marked do_remote_prefill reports its whole
+// prompt as cached, as a pulled KV would make it.
 package fakevllm
 
 import (
@@ -20,7 +24,8 @@ import (
 // than 200 makes chat answer that status with an OpenAI error body, and
 // MetricsDown makes /metrics answer 503. Steps is how many read-tool calls
 // a run makes before it submits, so a demo run has the doctor's chained
-// shape. At 0 every answer submits.
+// shape. At 0 every answer submits. EngineID is the engine the bootstrap
+// registry reports.
 type Settings struct {
 	KVUsage     float64
 	PoolBlocks  int
@@ -29,6 +34,7 @@ type Settings struct {
 	Status      int
 	MetricsDown bool
 	Steps       int
+	EngineID    string
 }
 
 // Recorded is one chat request as the worker saw it, and the bytes it
@@ -53,7 +59,7 @@ type Worker struct {
 // reference deployment, no latency and a 200 status.
 func New() *Worker {
 	return &Worker{
-		settings: Settings{PoolBlocks: 4941, Status: http.StatusOK},
+		settings: Settings{PoolBlocks: 4941, Status: http.StatusOK, EngineID: "fake-engine"},
 		lastBody: make(map[decide.RunID][]byte),
 	}
 }
@@ -72,12 +78,22 @@ func (w *Worker) Requests() []Recorded {
 	return append([]Recorded(nil), w.requests...)
 }
 
-// Handler serves GET /metrics and POST /v1/chat/completions.
+// Handler serves GET /metrics, GET /query and POST /v1/chat/completions.
 func (w *Worker) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /metrics", w.metrics)
+	mux.HandleFunc("GET /query", w.query)
 	mux.HandleFunc("POST /v1/chat/completions", w.chat)
 	return mux
+}
+
+// query is the Mooncake bootstrap registry: one engine at data-parallel rank 0.
+func (w *Worker) query(rw http.ResponseWriter, r *http.Request) {
+	w.mu.Lock()
+	engine := w.settings.EngineID
+	w.mu.Unlock()
+	rw.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(rw).Encode(map[string]any{"0": map[string]any{"engine_id": engine}})
 }
 
 // metricsText is the subset of vLLM's exposition the fleet reads, with the
@@ -141,6 +157,12 @@ func (w *Worker) chat(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := completion(body, cached, s.Steps)
+	switch hop := kvTransfer(body); {
+	case hop.DoRemoteDecode:
+		resp = held(body)
+	case hop.DoRemotePrefill:
+		resp = completion(body, tokens(len(body)), s.Steps)
+	}
 	if s.Status != http.StatusOK {
 		resp = errorBody(s.Status)
 	}
@@ -255,6 +277,36 @@ func completion(body []byte, cached, steps int) []byte {
 			TotalTokens:      prompt + 35,
 			Details:          usageDetails{CachedTokens: cached},
 		},
+	})
+	return out
+}
+
+// transferParams is the part of kv_transfer_params the fake acts on.
+type transferParams struct {
+	DoRemoteDecode  bool `json:"do_remote_decode"`
+	DoRemotePrefill bool `json:"do_remote_prefill"`
+}
+
+// kvTransfer reads a request's kv_transfer_params, zero when it has none.
+func kvTransfer(body []byte) transferParams {
+	var req struct {
+		Params transferParams `json:"kv_transfer_params"`
+	}
+	json.Unmarshal(body, &req)
+	return req.Params
+}
+
+// held is the answer to a do_remote_decode request: one token and a length
+// stop, the only finish for which vLLM's MooncakeConnector holds the blocks.
+func held(body []byte) []byte {
+	prompt := tokens(len(body))
+	empty := ""
+	out, _ := json.Marshal(chatCompletion{
+		ID:      "chatcmpl-fake-hold",
+		Object:  "chat.completion",
+		Created: time.Now().Unix(),
+		Choices: []choice{{Message: message{Role: "assistant", Content: &empty}, FinishReason: "length"}},
+		Usage:   usage{PromptTokens: prompt, CompletionTokens: 1, TotalTokens: prompt + 1},
 	})
 	return out
 }

@@ -97,6 +97,10 @@ func TestPreregisteredSeriesAppearBeforeAnyRequest(t *testing.T) {
 		`orch_shed_total{code="503",reason="queue_full"} 0`,
 		`orch_overflow_total{result="blocked_invariant"} 0`,
 		`orch_overflow_total{result="no_backend"} 0`,
+		`orch_hop_total{result="hopped"} 0`,
+		`orch_hop_total{result="failed"} 0`,
+		`orch_hop_total{result="below_threshold"} 0`,
+		`orch_hop_total{result="recompute_cheaper"} 0`,
 		`orch_restricted_offbox_total 0`,
 		`# TYPE go_goroutines gauge`,
 		`# TYPE process_cpu_seconds_total counter`,
@@ -104,6 +108,26 @@ func TestPreregisteredSeriesAppearBeforeAnyRequest(t *testing.T) {
 	if strings.Contains(body, "orch_pick_total{") {
 		t.Errorf("orch_pick_total has a series before any request:\n%s", body)
 	}
+}
+
+func TestObserveCountsHopsAndTheirTime(t *testing.T) {
+	m, _, _ := fixture(t)
+	moved := serve.Event{Pod: "vllm-1", Status: 200, Sticky: decide.StickyBrokenLoad}
+	hopped, failed, skipped := moved, moved, moved
+	hopped.Hop, hopped.HopTime = "hopped", 40*time.Millisecond
+	failed.Hop, failed.HopTime = "failed", 10*time.Millisecond
+	skipped.Hop = "below_threshold"
+	for _, ev := range []serve.Event{hopped, failed, skipped, {Pod: "vllm-0", Status: 200}} {
+		m.Observe(ev)
+	}
+	wantLines(t, scrape(t, m),
+		`orch_hop_total{result="hopped"} 1`,
+		`orch_hop_total{result="failed"} 1`,
+		`orch_hop_total{result="below_threshold"} 1`,
+		`orch_hop_total{result="recompute_cheaper"} 0`,
+		`orch_request_duration_seconds_count{stage="hop"} 2`,
+		`orch_request_duration_seconds_sum{stage="hop"} 0.05`,
+	)
 }
 
 func TestObserveCountsEachOutcome(t *testing.T) {

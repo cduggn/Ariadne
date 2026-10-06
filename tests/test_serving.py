@@ -64,6 +64,29 @@ def test_full_topology_gets_the_whole_card_and_model_specific_args():
     assert "allow_patterns=None" in profiles.render_prefetch(profiles.load_profile("qwen3-8b-awq"))
 
 
+def test_hop_adds_the_mooncake_connector_and_its_port_and_nothing_else():
+    p, s = profiles.load_profile("qwen3-8b-awq"), profiles.load_serving()
+    plain, hop = profiles.render_manifest(p, "sliced", s), profiles.render_manifest(p, "sliced", s, hop=True)
+    conf = re.findall(r"^\s+- --kv-transfer-config=(.+)$", hop, re.M)
+    assert [json.loads(c) for c in conf] == [s["kv_hop"]["kv_transfer_config"]]
+    assert s["kv_hop"]["kv_transfer_config"]["kv_role"] == "kv_both"
+    port = f"- {{name: mooncake, containerPort: {s['kv_hop']['bootstrap_port']}}}"
+    assert port in hop
+    policy = profiles.HOP_POLICY.format(port=s["kv_hop"]["bootstrap_port"])
+    assert hop.endswith(policy)
+    worker = hop[: -len(policy)]
+    added = [line for line in worker.splitlines() if line not in plain.splitlines()]
+    assert [line.strip() for line in added] == [f"- --kv-transfer-config={conf[0]}", port]
+    assert "kind: NetworkPolicy" in policy and "matchLabels: {app: vllm}" in policy
+    assert f"port: {s['kv_hop']['bootstrap_port']}" in policy and "port: 8000" in policy
+    assert "MooncakeConnector" not in plain and "NetworkPolicy" not in plain
+
+
+def test_hop_env_gives_the_gateway_the_models_kv_size_and_prefill_rate(capsys):
+    assert fit.main(["qwen3-8b-awq", "sliced", "--hop-env"]) == 0
+    assert capsys.readouterr().out.strip() == "GW_HOP_KV_BYTES_PER_TOKEN=147456 GW_HOP_PREFILL_TOKENS_PER_S=3810"
+
+
 def test_fit_matches_the_measured_8b_slice_and_gates_what_cannot_start():
     r = fit.fit(profiles.load_profile("qwen3-8b-awq"), "sliced")
     assert r["tokens_measured"] == 79_056 and abs(r["measured_vs_paper"]) < 0.015       # paper within 1.5 % of vLLM
