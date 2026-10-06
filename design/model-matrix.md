@@ -50,8 +50,8 @@ Each topology names its GPU:
 | qwen3.5-9b | round-2 | gh200-half | 18.0 | 32 | 49.1 | 22.0 | 722,370 | n/a | 27.6 | 73.4 | 1.17 | fits |
 | qwen3.8-27b-fp8 | round-2 | sliced | 28.8 | 64 | 146.8 | -12.3 | 0 | n/a | 0.0 | 0.0 | 10.68 | does not fit: weights + overhead exceed the budget |
 | qwen3.8-27b-fp8 | round-2 | full | 28.8 | 64 | 146.8 | 5.7 | 92,672 | n/a | 3.4 | 8.4 | 5.34 | fits |
-| qwen3.8-27b-fp8 | round-2 | h100-full | 28.8 | 64 | 146.8 | 39.9 | 653,004 | n/a | 24.3 | 61.5 | 2.20 | fits |
-| qwen3.8-27b-fp8 | round-2 | h100-half | 28.8 | 64 | 146.8 | 4.8 | 77,926 | n/a | 2.9 | 7.0 | 4.41 | fits |
+| qwen3.8-27b-fp8 | round-2 | h100-full | 28.8 | 64 | 146.8 | 39.9 | 653,004 | 525,797 (-19.5%) | 19.5 | 49.4 | 2.20 | fits |
+| qwen3.8-27b-fp8 | round-2 | h100-half | 28.8 | 64 | 146.8 | 4.8 | 77,926 | 51,092 (-34.4%) | 1.9 | 4.5 | 4.41 | fits, tight: 1.9 requests of 24,576 tokens (< 2) |
 | qwen3.8-27b-fp8 | round-2 | gh200-full | 28.8 | 64 | 146.8 | 52.5 | 859,443 | n/a | 31.9 | 81.0 | 1.69 | fits |
 | qwen3.8-27b-fp8 | round-2 | gh200-half | 28.8 | 64 | 146.8 | 11.1 | 181,145 | n/a | 6.7 | 16.8 | 3.37 | fits |
 | ministral-3-14b | paper-only | sliced | 26.0 | 160 | 0.0 | -9.5 | 0 | n/a | 0.0 | 0.0 | 5.37 | does not fit: weights + overhead exceed the budget |
@@ -79,19 +79,22 @@ Each row is the newest full-set run for that model, topology and worker count. v
 
 | Model | Topology | Workers | Tasks × repeat | v2 pass [95 % CI] | v1 pass | easy | multi-hop | red-herring | rightsizing | Root found | Category | Mechanism | Abstained / failed closed | Steps / task | Step p50 / p95 s | Cached share | Correct / GPU-hour | Concurrency | Run |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| qwen3.8-27b-fp8 | h100-half | 2 | 26 × 2 | 88% [77%–95%] | 77% | 93% | 79% | 88% | 100% | 90% | 88% | 90% | 0 / 5 | 8.46 | 3.098 / 25.145 | 86% | 211 | 4 | gw-38-ll 20261006-140918 00fab90 |
 | qwen3-30b-a3b-2507-awq | full | 1 | 26 × 2 | 67% [54%–78%] | 65% | 75% | 50% | 75% | 50% | 77% | 73% | 77% | 0 / 1 | 9.73 | 0.444 / 2.502 | 97% | 326 | 1 | 30b-smoke 20260928-164635 8c0ebec |
 | qwen3-8b-awq | sliced | 1 | 26 × 2 | 52% [39%–65%] | 44% | 68% | 43% | 25% | 0% | 62% | 62% | 58% | 0 / 4 | 10.98 | 0.436 / 6.481 | 95% | 267 | 1 | baseline 20260928-161531 8c0ebec |
+| qwen3-8b-awq | sliced | 2 | 26 × 2 | 48% [35%–61%] | 42% | 61% | 43% | 25% | 0% | 60% | 58% | 54% | 0 / 4 | 10.85 | 1.064 / 14.648 | 95% | 270 | 8 | gw-ptl 20261004-162326 900642d |
 
 ## 3. Ranking and status
 
 Models are ranked by v2 pass rate, then by correct diagnoses per GPU-hour. Quality is compared on the full-GPU topology, because slicing changes capacity and latency but not the answers. The chosen model then serves the slicing, routing and KV-hop demonstration on the sliced topology.
 
-1. **qwen3-30b-a3b-2507-awq** on full × 1: v2 67% [54%–78%], 326 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
-2. **qwen3-8b-awq** on sliced × 1: v2 52% [39%–65%], 267 correct diagnoses per GPU-hour
+1. **qwen3.8-27b-fp8** on h100-half × 2: v2 88% [77%–95%], 211 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
+2. **qwen3-30b-a3b-2507-awq** on full × 1: v2 67% [54%–78%], 326 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
+3. **qwen3-8b-awq** on sliced × 1: v2 52% [39%–65%], 267 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
+4. **qwen3-8b-awq** on sliced × 2: v2 48% [35%–61%], 270 correct diagnoses per GPU-hour
 - Not run: **qwen3-14b-awq**, plan round-1, scheduled for the next GPU session. Fit: sliced: fits, tight: 1.9 requests of 24,576 tokens (< 2); full: fits; h100-full: fits; h100-half: fits; gh200-full: fits; gh200-half: fits.
 - Not run: **gemma-4-31b-it-fp8**, plan round-2, to run if time allows after round 1. Fit: sliced: does not fit: weights + overhead exceed the budget; full: fits, tight: 1.2 requests of 24,576 tokens (< 2); h100-full: fits; h100-half: below the gate: 0.9 < 1 requests of 24,576 tokens; gh200-full: fits; gh200-half: fits.
 - Not run: **qwen3.5-9b**, plan round-2, to run if time allows after round 1. Fit: sliced: does not fit: weights + overhead exceed the budget; full: fits; h100-full: fits; h100-half: fits; gh200-full: fits; gh200-half: fits.
-- Not run: **qwen3.8-27b-fp8**, plan round-2, to run if time allows after round 1. Fit: sliced: does not fit: weights + overhead exceed the budget; full: fits; h100-full: fits; h100-half: fits; gh200-full: fits; gh200-half: fits.
 - Not run: **ministral-3-14b**, plan paper-only, not scheduled. Fit: sliced: does not fit: weights + overhead exceed the budget; full: fits; h100-full: fits; h100-half: fits; gh200-full: fits; gh200-half: fits.
 - Not run: **qwen3-coder-30b-a3b-awq**, plan paper-only, not scheduled. Fit: sliced: below the gate: 0.0 < 1 requests of 24,576 tokens; full: fits; h100-full: fits; h100-half: fits; gh200-full: fits; gh200-half: fits.
 - Not run: **qwen3.6-35b-a3b-awq**, plan paper-only, not scheduled. Fit: sliced: does not fit: weights + overhead exceed the budget; full: fits; h100-full: fits; h100-half: fits; gh200-full: fits; gh200-half: fits.
@@ -100,6 +103,13 @@ Models are ranked by v2 pass rate, then by correct diagnoses per GPU-hour. Quali
 
 | When | Tag | Model | Topology | Tasks (unique) | Repeat | v1 | v2 | Stops | Commit | Note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 20261006-140918 | gw-38-ll | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 40/52 | 46/52 | submitted 47, inconclusive 5 | 00fab90 | full set |
+| 20261006-135709 | sweep-qwen3.8-27b-fp8-c32 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 8/26 | 10/26 | submitted 11, http_503 14, inconclusive 1 | 963e5fb | full set |
+| 20261006-135533 | sweep-qwen3.8-27b-fp8-c16 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 11/26 | 13/26 | http_503 13, submitted 13 | 963e5fb | full set |
+| 20261006-135139 | sweep-qwen3.8-27b-fp8-c8 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 20/26 | 23/26 | submitted 23, inconclusive 2, http_503 1 | 963e5fb | full set |
+| 20261006-131640 | gw-38 | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 42/52 | 45/52 | submitted 46, inconclusive 6 | 8d4fe00 | full set |
+| 20261004-162326 | gw-ptl | qwen3-8b-awq | sliced | 26 | 2 | 22/52 | 25/52 | submitted 44, inconclusive 4, context_budget 3, step_cap 1 | 900642d | full set |
+| 20261004-160817 | 8b-v030 | qwen3-8b-awq | sliced | 1 | 1 | 0/1 | 0/1 | inconclusive 1 | 900642d | partial: dx-crashloop |
 | 20260928-164635 | 30b-smoke | qwen3-30b-a3b-2507-awq | full | 26 | 2 | 34/52 | 35/52 | submitted 50, inconclusive 1, step_cap 1 | 8c0ebec | full set |
 | 20260928-164539 | 30b-smoke | qwen3-30b-a3b-2507-awq | full | 2 | 1 | 1/2 | 1/2 | submitted 2 | 8c0ebec | partial: dx-crashloop,dx-port-mismatch |
 | 20260928-161531 | baseline | qwen3-8b-awq | sliced | 26 | 2 | 23/52 | 27/52 | submitted 43, inconclusive 4, context_budget 4, step_cap 1 | 8c0ebec | full set |

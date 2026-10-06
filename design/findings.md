@@ -61,7 +61,7 @@ Each finding has a label:
   is higher than F9's 87.8% because the dashboard showed a stretch mid-run, while the summary covers every step,
   including each run's first.
 - **F11. Stickiness is what keeps run history cached.** `run_hit` is each run's own history served from cache; without
-  stickiness it would turn into `miss`. The `least_loaded` arm of the A/B measures how much. (A/B pending)
+  stickiness it would turn into `miss`. The A/B (F29) measured it: 10% more prefill without stickiness. (measured)
 
 ## 4. Latency, batching and chunked prefill
 
@@ -115,6 +115,31 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{8,16,32}-20261006-*.summary.js
   502 (four in the same millisecond, across both workers), when they should be `client_gone` with no status. The
   "Upstream errors" panel overstates worker faults by those 5. (measured, gateway log 12:51:30–35 UTC)
 
+## 4c. The routing A/B (10-06)
+
+Same workload in both arms: the golden set, 26 tasks × 2, concurrency 4, Qwen3.8-27B-FP8 on two H100 halves through the
+gateway, gateway defaults. Only the pick policy differs.
+
+| | `prefix_then_load` (sticky) | `least_loaded` |
+|---|---|---|
+| v2 pass [95% CI] | 86.5% [74.7–93.3] | 88.5% [77.0–94.6] |
+| Cached share of prompt | **87.8%** | 85.6% |
+| Uncached prompt tokens prefilled | **416,445** | 459,909 (+10.4%) |
+| Step latency p50 | **2.86 s** | 3.10 s (+8%) |
+| Step latency p95, steps after the first | **25.3 s** | 28.1 s (+11%) |
+| Continuing steps back on their run's worker | **94%** (1,127 of 1,204)* | 77% (300 of 388) |
+
+Evidence: `metrics/golden-gw-38-20261006-131640.*`, `metrics/golden-gw-38-ll-20261006-140918.*`,
+`metrics/gateway-gw-38-ll-20261006-142337.prom`, `metrics/gateway-gw-38-20261006-140723.prom`. *The sticky arm's
+gateway counters were saved after the sweep as well, so they include the overloaded levels and understate stickiness at
+concurrency 4. (measured)
+
+- **F29. Stickiness saves prefill and time without changing answers.** Without it, 10% more prompt tokens were
+  recomputed and steps were 8–11% slower, at the same pass rate. The gap is modest at concurrency 4 because load is low
+  and even, so `least_loaded` often picks the run's previous worker anyway (77% of the time), and both workers hold the
+  shared 3.9k prefix from warm-up; only each run's own history is at stake. It should widen under uneven or heavier
+  load. (measured)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
@@ -134,6 +159,5 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{8,16,32}-20261006-*.summary.js
 
 ## Still to measure in this session
 
-- The `least_loaded` arm (F11): cached share, `run_hit` against `miss`, step latency.
 - After "KV-sized admission" lands: the concurrency-32 level again, against F24's row (38.5%, 14 refused, 6 preempted).
 - Whether the 768-token output cap binds (`finish_reason length`; the new "Output and the 768-token cap" panels).
