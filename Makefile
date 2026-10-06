@@ -26,6 +26,7 @@
 #   make prom / opencost            port-forward Prometheus (:9090) / the OpenCost API (:9003) from the Lambda node
 # ---- playbook: a GPU session in order (make help prints this) ------------------------------------------------
 #   make preflight && make up       lint + tests + fit gate, then the first GPU with capacity; prints the node it got
+#   make resume                     if make up timed out while Lambda was still booting the node: wait, then finish
 #   make bringup                    deploy → scale to the topology's workers → kv → gateway → dashboards
 #   make tunnel                     terminal 2: the gateway at localhost:8000
 #   make grafana                    terminal 3: Grafana at localhost:3000
@@ -74,7 +75,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench resume demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 .DEFAULT_GOAL := help
 
@@ -144,6 +145,9 @@ lab-down:
 
 up:
 	NAME=$(NAME) TYPES="$(TYPES)" lab/up.sh
+
+resume:
+	NAME=$(NAME) lab/up.sh --resume
 
 status:
 	lam ls --uptime
