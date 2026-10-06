@@ -213,11 +213,10 @@ func (s *Server) moveKV(ctx context.Context, d fleet.Decision, req decide.Reques
 		return body
 	}
 	out, res := s.opt.Hop.Move(ctx, hop.Move{
-		RequestID: req.ID,
-		Sticky:    d.Placement.Sticky,
-		From:      d.From,
-		To:        pod,
-		History:   d.History,
+		Sticky:  d.Placement.Sticky,
+		From:    d.From,
+		To:      pod,
+		History: d.History,
 	}, body)
 	ev.Hop, ev.HopTime = string(res.Outcome), res.Took
 	if res.Err != nil {

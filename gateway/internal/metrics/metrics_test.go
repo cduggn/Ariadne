@@ -101,6 +101,7 @@ func TestPreregisteredSeriesAppearBeforeAnyRequest(t *testing.T) {
 		`orch_hop_total{result="failed"} 0`,
 		`orch_hop_total{result="below_threshold"} 0`,
 		`orch_hop_total{result="recompute_cheaper"} 0`,
+		`orch_hop_total{result="busy"} 0`,
 		`orch_restricted_offbox_total 0`,
 		`# TYPE go_goroutines gauge`,
 		`# TYPE process_cpu_seconds_total counter`,

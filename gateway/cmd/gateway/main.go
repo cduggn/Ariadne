@@ -49,6 +49,7 @@ func main() {
 	flag.Float64Var(&hopCfg.PrefillTokensPerS, "hop-prefill-tokens-per-s", envFloat("hop-prefill-tokens-per-s", hopCfg.PrefillTokensPerS), "measured uncached prefill rate of one worker")
 	flag.DurationVar(&hopCfg.Overhead, "hop-overhead", envDuration("hop-overhead", hopCfg.Overhead), "fixed cost of one hop")
 	flag.DurationVar(&hopCfg.Timeout, "hop-timeout", envDuration("hop-timeout", hopCfg.Timeout), "longest wait for the old worker before recomputing instead")
+	flag.IntVar(&hopCfg.MaxInflight, "hop-max-inflight", envInt("hop-max-inflight", hopCfg.MaxInflight), "hops running at once; past this a moved run recomputes")
 	hopPort := flag.Int("hop-bootstrap-port", envInt("hop-bootstrap-port", hop.DefaultBootstrapPort), "workers' Mooncake bootstrap port (VLLM_MOONCAKE_BOOTSTRAP_PORT)")
 	flag.Parse()
 	hopCfg.SharedPrefixTokens = *sharedPrefix
@@ -95,7 +96,8 @@ func main() {
 		opts.Hop = hopper
 		log.Info("kv hop on", "min_tokens", hopCfg.MinTokens, "kv_bytes_per_token", hopCfg.KVBytesPerToken,
 			"transfer_bytes_per_s", hopCfg.TransferBytesPerS, "prefill_tokens_per_s", hopCfg.PrefillTokensPerS,
-			"overhead", hopCfg.Overhead.String(), "timeout", hopCfg.Timeout.String(), "bootstrap_port", *hopPort)
+			"overhead", hopCfg.Overhead.String(), "timeout", hopCfg.Timeout.String(), "max_inflight", hopCfg.MaxInflight,
+			"bootstrap_port", *hopPort)
 	}
 	server := serve.New(gate, workersLoop, urls, opts)
 

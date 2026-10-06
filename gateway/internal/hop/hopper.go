@@ -2,6 +2,8 @@ package hop
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,10 +16,9 @@ import (
 // is the prompt length the run's last settled step reported, which is what
 // From holds in its cache.
 type Move struct {
-	RequestID string
-	Sticky    decide.Sticky
-	From, To  string
-	History   int
+	Sticky   decide.Sticky
+	From, To string
+	History  int
 }
 
 // Result is what Hopper.Move did. Outcome is empty when the move was not one
@@ -38,6 +39,7 @@ type Hopper struct {
 	endpoints map[string]Endpoint
 	mooncake  *Mooncake
 	now       func() time.Time
+	slots     chan struct{} // one token per hop in flight, MaxInflight deep
 }
 
 // New checks cfg and returns a Hopper over endpoints, which must name every
@@ -49,7 +51,13 @@ func New(cfg Config, endpoints map[string]Endpoint, client *http.Client, now fun
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("hop needs at least one worker endpoint")
 	}
-	return &Hopper{cfg: cfg, endpoints: endpoints, mooncake: NewMooncake(client), now: now}, nil
+	return &Hopper{
+		cfg:       cfg,
+		endpoints: endpoints,
+		mooncake:  NewMooncake(client),
+		now:       now,
+		slots:     make(chan struct{}, cfg.MaxInflight),
+	}, nil
 }
 
 // Move returns the body to forward to m.To. When the move qualifies and the
@@ -64,20 +72,32 @@ func New(cfg Config, endpoints map[string]Endpoint, client *http.Client, now fun
 // long.
 func (h *Hopper) Move(ctx context.Context, m Move, body []byte) ([]byte, Result) {
 	src, known := h.endpoints[m.From]
-	// The transfer id is built from the request id, so a request without one
-	// could share a transfer with another and pull the wrong KV.
-	if !Moved(m.Sticky) || !known || m.From == m.To || m.RequestID == "" {
+	if !Moved(m.Sticky) || !known || m.From == m.To {
 		return body, Result{}
 	}
 	plan := h.cfg.Decide(m.History)
 	if !plan.Hop {
 		return body, Result{Outcome: plan.Outcome, Plan: plan}
 	}
+	select {
+	case h.slots <- struct{}{}:
+		defer func() { <-h.slots }()
+	default:
+		return body, Result{Outcome: Busy, Plan: plan}
+	}
 
 	start := h.now()
+	// The transfer id names the held blocks on the source, and any request
+	// that presents it pulls them. It is random and never derived from the
+	// client's request id, so one tenant cannot name, or collide with, a
+	// transfer made for another.
+	transferID, err := newTransferID()
+	if err != nil {
+		return body, Result{Outcome: Failed, Plan: plan, Err: err}
+	}
 	ctx, cancel := context.WithTimeout(ctx, h.cfg.Timeout)
 	defer cancel()
-	params, err := h.mooncake.Send(ctx, src, body, m.RequestID+"-hop", "xfer-"+m.RequestID)
+	params, err := h.mooncake.Send(ctx, src, body, transferID, transferID)
 	if err == nil {
 		var marked []byte
 		if marked, err = Receive(body, params); err == nil {
@@ -85,4 +105,14 @@ func (h *Hopper) Move(ctx context.Context, m Move, body []byte) ([]byte, Result)
 		}
 	}
 	return body, Result{Outcome: Failed, Plan: plan, Took: h.now().Sub(start), Err: err}
+}
+
+// newTransferID is 128 random bits, unguessable and collision-free in
+// practice.
+func newTransferID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("transfer id: %w", err)
+	}
+	return "xfer-" + hex.EncodeToString(b[:]), nil
 }

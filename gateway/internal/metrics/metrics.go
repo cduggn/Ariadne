@@ -114,7 +114,7 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 		overflow: counter("orch_overflow_total",
 			"Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it.", "result"),
 		hop: counter("orch_hop_total",
-			"KV hops for runs moved off a worker that still held their history: hopped, failed (the worker recomputed), below_threshold or recompute_cheaper.", "result"),
+			"KV hops for runs moved off a worker that still held their history: hopped, failed or busy (the worker recomputed), below_threshold or recompute_cheaper.", "result"),
 		restrictedOffbox: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "orch_restricted_offbox_total",
 			Help: "Restricted requests routed off the box. Must stay 0.",

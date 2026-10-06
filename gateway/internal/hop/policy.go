@@ -35,10 +35,13 @@ const (
 	// Failed means the hop was attempted and did not complete, so the
 	// destination recomputed the history.
 	Failed Outcome = "failed"
+	// Busy means MaxInflight hops were already running, so this one was
+	// skipped and the destination recomputed the history.
+	Busy Outcome = "busy"
 )
 
 // Outcomes lists every Outcome, for pre-registering the metric's labels.
-var Outcomes = []Outcome{BelowThreshold, RecomputeCheaper, Hopped, Failed}
+var Outcomes = []Outcome{BelowThreshold, RecomputeCheaper, Hopped, Failed, Busy}
 
 // Config is the cost rule's inputs. The rates describe the deployment and
 // should come from a measurement on the real node: until then they are
@@ -64,6 +67,10 @@ type Config struct {
 	// Timeout bounds the source request. A source too busy to answer in
 	// time means a recompute rather than a stalled request.
 	Timeout time.Duration
+	// MaxInflight caps hops running at once. Each sends the source a request
+	// outside the gateway's admission and may pin its blocks until pulled, so
+	// a burst of moves must not turn into a burst of hops.
+	MaxInflight int
 }
 
 // DefaultConfig is sized for Qwen3-8B-AWQ on a 20 GiB A100 slice. The KV
@@ -79,6 +86,7 @@ var DefaultConfig = Config{
 	PrefillTokensPerS:  3800,
 	Overhead:           50 * time.Millisecond,
 	Timeout:            10 * time.Second,
+	MaxInflight:        4,
 }
 
 // Validate reports every field that cannot drive the rule.
@@ -104,6 +112,9 @@ func (c Config) Validate() error {
 	}
 	if c.Timeout <= 0 {
 		errs = append(errs, fmt.Errorf("timeout %s must be positive", c.Timeout))
+	}
+	if c.MaxInflight < 1 {
+		errs = append(errs, fmt.Errorf("max in-flight hops %d must be at least 1", c.MaxInflight))
 	}
 	return errors.Join(errs...)
 }

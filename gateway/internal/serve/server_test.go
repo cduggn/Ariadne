@@ -542,6 +542,7 @@ var eagerHop = hop.Config{
 	TransferBytesPerS: 1e12,
 	PrefillTokensPerS: 1,
 	Timeout:           time.Second,
+	MaxInflight:       4,
 }
 
 func TestMovedRunHopsItsKVAndTheNewWorkerPullsIt(t *testing.T) {
@@ -583,7 +584,11 @@ func TestMovedRunHopsItsKVAndTheNewWorkerPullsIt(t *testing.T) {
 		t.Errorf("cached %d of %d prompt tokens, want the whole pulled history", ev.CachedTokens, ev.PromptTokens)
 	}
 
-	hold := h.lastRecorded("runA-s2-hop")
+	reqs := h.fakes[from].Requests()
+	hold := reqs[len(reqs)-1]
+	if strings.Contains(hold.Header.Get("X-Request-Id"), "runA") {
+		t.Errorf("source request id %q carries the client's request id", hold.Header.Get("X-Request-Id"))
+	}
 	var held struct {
 		Params    map[string]any `json:"kv_transfer_params"`
 		MaxTokens int            `json:"max_tokens"`

@@ -178,6 +178,7 @@ two, so the hop matters only if contexts grow. The code is in `gateway/internal/
 | `GW_HOP_PREFILL_TOKENS_PER_S` | 3,810 (8B slice) | Same, from the fit's prefill estimate; replace with a measured rate |
 | `GW_HOP_TRANSFER_BYTES_PER_S` | 2e9 | A guess for TCP between two pods on one host; **measure before trusting the rule** |
 | `GW_HOP_OVERHEAD`, `GW_HOP_TIMEOUT` | 50 ms, 10 s | The fixed cost of a hop; the longest wait for a busy source before recomputing |
+| `GW_HOP_MAX_INFLIGHT` | 4 | Hops running at once; past it a moved run recomputes (`busy`) |
 
 **Transport (`hop.Mooncake`),** as vLLM v0.29.0's own Mooncake proxy does it:
 1. Find the source's engine id from its bootstrap registry, `GET http://<pod>:8998/query` (cached; dropped on any
@@ -192,6 +193,10 @@ two, so the hop matters only if contexts grow. The code is in `gateway/internal/
 - Any failure (registry, source error, timeout, a source that didn't hold) forwards the original body, and the
   destination recomputes. A hop can't fail a request.
 - Both workers are the fleet's own pods, so a hop never sends data off the box.
+- Each hop's `transfer_id` is 128 random bits, never derived from the client's `X-Request-Id`. The id is what names the
+  held blocks on the source, so one tenant can't name, or collide with, a transfer made for another.
+- At most `GW_HOP_MAX_INFLIGHT` hops run at once. Each sends the source a request outside admission and may pin its
+  blocks, so a burst of moves can't become a burst of hops.
 - Only the gateway sets `kv_transfer_params`. The guard refuses it from a client with a 400 (`kv_transfer_params`),
   whether or not the hop is on, because a worker running the connector would otherwise connect to any
   `remote_bootstrap_addr` a client names (SSRF) or pull another request's KV by its `transfer_id`.
@@ -206,7 +211,7 @@ two, so the hop matters only if contexts grow. The code is in `gateway/internal/
 - Unverified on hardware: the copy bandwidth between two HAMi slices on one GPU, and hybrid models (Qwen3.8), whose
   recurrent state goes through vLLM's hybrid path for this connector.
 
-**Signals.** `orch_hop_total{result=hopped|failed|below_threshold|recompute_cheaper}`, the `hop` stage of
+**Signals.** `orch_hop_total{result=hopped|failed|busy|below_threshold|recompute_cheaper}`, the `hop` stage of
 `orch_request_duration_seconds`, an `X-Hop` response header, and `hop`/`hop_ms` on the request log line. A successful
 hop shows on the destination as `cached_tokens ≈ prompt_tokens` for that step.
 
