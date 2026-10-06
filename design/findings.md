@@ -83,6 +83,38 @@ Each finding has a label:
   under vLLM's 32-sequence cap, so vLLM's own waiting queue should stay near zero and priority ordering happens at the
   gateway. (design; check `vllm:num_requests_waiting` in the sweep)
 
+## 4b. Load: the knee (sweep, 10-06)
+
+Qwen3.8-27B-FP8 on two H100 halves, through the gateway with `prefix_then_load`, gateway in-flight cap 16 per worker,
+26 tasks per level (`REPEAT=1`).
+
+| Concurrency | v2 pass [95% CI] | Refused (503 `kv_free`) | vLLM preemptions (cumulative, both workers) | Step p50 / p95 s | Cached share |
+|---|---|---|---|---|---|
+| 4 (golden, ×2) | 86.5% [74.7–93.3] | 0 | 0 | 2.9 / 24.2 | 87.8% |
+| 8 | 88.5% [71.0–96.0] | 1 | 0 | 3.1 / 25.0 | 86.1% |
+| 16 | 50.0% [32.1–67.9] | 13 | 0 | 3.4 / 24.0 | 81.9% |
+| 32 | 38.5% [22.4–57.5] | 14 | **6** (3 + 3) | 3.8 / 25.9 | 82.8% |
+
+Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{8,16,32}-20261006-*.summary.json`, and
+`metrics/{gateway,vllm-0,vllm-1}-sweep-c{8,16,32}-20261006-135138.prom` for sheds and preemptions. (measured)
+
+- **F24. The knee is between 8 and 16 concurrent runs, and KV is the limiter.** Each half holds ~51k tokens (F6), about
+  two full contexts, while 16 runs put ~8 per worker at 5–15k tokens each. Every refusal was the gateway's `kv_free`
+  shed. (measured)
+- **F25. Up to 16, admission control protected KV: the gateway shed new runs and vLLM preempted nothing.** At 32 it was
+  overrun: vLLM preempted 3 requests per worker, and the vLLM dashboard showed the thrashing pattern (waiting up,
+  prefix hit rate and throughput down, TTFT, ITL and queue time up). (measured preemptions; observed dashboards)
+- **F26. The gateway's in-flight cap is sized for the A100, not the H100 half.** 16 in flight per worker suited a
+  79k-token slice holding the 8B; a 51k-token half holding the 27B fits far fewer. Continuing runs are also exempt from
+  the KV line down to 5% free, so at high concurrency most requests skip it. Both let more work into vLLM than its KV
+  holds. Fix and experiment: `design/backlog.md`, "KV-sized admission". (measured cause; fix pending)
+- **F27. A refused run fails outright.** The gateway's 503 carries the reason (`kv_free`) and `Retry-After`, but the
+  doctor neither retries nor records the reason, so each shed shows as a failed, undiagnosed run. That is why pass
+  rates fall at the knee rather than latency rising. (measured)
+- **F28. Client aborts are counted as worker errors.** Cancelling a sweep left 5 requests logged `upstream_error` with
+  502 (four in the same millisecond, across both workers), when they should be `client_gone` with no status. The
+  "Upstream errors" panel overstates worker faults by those 5. (measured, gateway log 12:51:30–35 UTC)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
@@ -103,6 +135,5 @@ Each finding has a label:
 ## Still to measure in this session
 
 - The `least_loaded` arm (F11): cached share, `run_hit` against `miss`, step latency.
-- The sweep at concurrency 8, 16 and 32: where sheds start and TTFT p95 jumps (the knee), the batch size reached, and
-  whether F15 still holds as more runs start at once.
+- After "KV-sized admission" lands: the concurrency-32 level again, against F24's row (38.5%, 14 refused, 6 preempted).
 - Whether the 768-token output cap binds (`finish_reason length`; the new "Output and the 768-token cap" panels).

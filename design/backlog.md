@@ -13,6 +13,18 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   the scores, so re-run the golden set afterwards.
 
 ## Gateway
+- [ ] **KV-sized admission, then re-run the knee** (findings F24–F26). Today each worker allows 16 requests in flight,
+  sized for an A100 slice; an H100 half holds ~51k tokens of KV (about two full contexts), so at 32 concurrent runs vLLM
+  preempted 3 requests per worker. Fix: (1) derive `GW_MAX_INFLIGHT` per topology from the measured KV pool and the
+  typical run size, e.g. `floor(kv_tokens / median_context)` with the pool from `make kv` (about 4–6 on an H100 half),
+  and set it from `make gateway` as the hop rates are; (2) tighten the continuing-run exemption from 5% free KV.
+  Experiment, on the same node and model: `make sweep WORKERS=2 LEVELS="16 32" REPEAT=1` and compare with F24's table.
+  Expect more waiting at the gateway (priority ordered), vLLM preemptions at 0, and fewer runs failing mid-way.
+  A quick version without a rebuild: `kubectl set env deployment/gateway GW_MAX_INFLIGHT=4`.
+- [ ] **The doctor retries a 503 after `Retry-After`** (bounded), and the runner records the refusal reason (F27), so a
+  shed run waits out a spike instead of failing.
+- [ ] **Record a client disconnect as `client_gone`, not `upstream_error` 502** (F28): when the forward fails and the
+  client's context is already cancelled.
 - [ ] **Round-robin as a third routing arm.** Round-robin, `least_loaded` and `prefix_then_load` separate what
   load-awareness buys from what cache-awareness buys. About 10 lines in `decide` plus a test, then
   `make gateway-image` and `make gateway POLICY=round_robin`.
