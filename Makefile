@@ -6,6 +6,7 @@
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
 #   make gateway-image              build + push the gateway image (Docker Hub, public), pin its digest
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda GPU node via the `lam` CLI: up takes the first of TYPES with capacity (lab/up.sh)
+#   make scale [N=2]                workers on the topology's slices (at most its max_replicas)
 #   make gateway [POLICY=least_loaded]   apply the pinned gateway image + warm-up body on the node and roll it out (D-42)
 #   make deploy HOP=1 && make gateway HOP=1   workers run vLLM's MooncakeConnector and the gateway copies a moved
 #                                   run's KV instead of recomputing it (gateway/internal/hop). node.env turns it on
@@ -23,6 +24,16 @@
 #   make inject FAULTS=… [STAGGER=60] / heal   break the lab cluster on purpose / remove what inject created
 #   make faults                     list injectable faults by tier
 #   make prom / opencost            port-forward Prometheus (:9090) / the OpenCost API (:9003) from the Lambda node
+# ---- playbook: a GPU session in order (make help prints this) ------------------------------------------------
+#   make preflight && make up       lint + tests + fit gate, then the first GPU with capacity; prints the node it got
+#   make bringup                    deploy → scale to the topology's workers → kv → gateway → dashboards
+#   make tunnel                     terminal 2: the gateway at localhost:8000
+#   make grafana                    terminal 3: Grafana at localhost:3000
+#   make check                      pods, both workers Ready through the gateway, KV hop on or off
+#   make bench TAG=…                golden set + concurrency sweep + metrics, all through the gateway
+#   make gateway POLICY=least_loaded && make bench TAG=…-ll   the control arm of the stickiness A/B
+#   git add metrics && git commit   before make down: the node's Prometheus keeps nothing
+#   make down                       billing stops
 # `make up` writes the node it got (GPU, ARCH, MODEL, TOPO, HOP) here; anything on the make line still wins.
 -include .cache/node.env
 NAME   ?= cluster-doctor
@@ -42,6 +53,7 @@ CTX    ?= lambda
 TUNNEL ?= svc/gateway
 POLICY ?= prefix_then_load
 HOP    ?= 0
+MAXREP  = $(shell $(PY) -c "import json; print(json.load(open('deploy/serving.json'))['topologies']['$(TOPO)']['max_replicas'])")
 FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
 STAGGER ?= 0
 WATCH_EXCLUDE ?= monitoring,opencost,doctor,default
@@ -62,7 +74,33 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+
+.DEFAULT_GOAL := help
+
+help:
+	@sed -n '/^# ---- playbook/,/^# .make up. writes/p' Makefile | sed '$$d' | sed 's/^# \{0,1\}//'
+	@echo "Node: GPU=$(GPU) MODEL=$(MODEL) TOPO=$(TOPO) HOP=$(HOP)   (.cache/node.env, or the defaults)"
+
+# One worker per slice of the topology (2 on sliced and the halves, 1 on a whole card), so the gateway, the A/B and
+# the KV hop always have workers to route between. kv needs vllm-0 up, which scale's rollout status waits for.
+bringup:
+	$(MAKE) deploy
+	@if [ "$(MAXREP)" -gt 1 ]; then $(MAKE) scale N=$(MAXREP); else echo "TOPO=$(TOPO) has one worker; not scaling"; fi
+	$(MAKE) kv
+	$(MAKE) gateway
+	$(MAKE) dashboards
+
+check:
+	$(REMOTE) "kubectl get pods -o wide; kubectl logs deploy/gateway 2>/dev/null | grep -m1 -o 'kv hop on' || echo 'kv hop: off'"
+	@curl -sf http://127.0.0.1:$(PORT)/debug/workers | python3 -c 'import json,sys; [print(w["pod"], w["phase"]) for w in json.load(sys.stdin)]' \
+	  || echo "no gateway at localhost:$(PORT): start make tunnel in another terminal"
+
+bench:
+	@test "$(TAG)" != baseline || (echo "set TAG=… to name this run"; exit 1)
+	$(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=2 TAG=$(TAG)
+	$(MAKE) sweep WORKERS=$(MAXREP)
+	$(MAKE) metrics TAG=$(TAG)
 
 tools:
 	bash lab/get-tools.sh

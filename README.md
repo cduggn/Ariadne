@@ -87,16 +87,19 @@ from `make up` to `make down`.
 serves every GPU: it reads the hardware, fetches that GPU's boot model and starts the next one in the background.
 `make up` then writes `.cache/node.env` (GPU, model, topology, hop), so the commands below need no flags; anything on
 the make line overrides it.
+`make help` prints this playbook.
 ```
 make preflight && make up                # prints node: GPU=… MODEL=… TOPO=… HOP=…
-make deploy && make kv && make scale N=2 # two workers on HAMi slices (the KV hop's connector too, if HOP=1)
-make gateway                             # the Go gateway (image pinned in deploy/k8s/gateway.yaml)
+make bringup                             # deploy → scale to the topology's workers → kv → gateway → dashboards
 make tunnel                              # terminal 2: the gateway at localhost:8000
+make grafana                             # terminal 5: Grafana at localhost:3000
+make check                               # pods, both workers Ready through the gateway, KV hop on or off
 make kubeconfig && make k8s-tunnel       # terminal 3: k3s API at localhost:6443
 make watch                               # terminal 4: the doctor, autonomous
 make inject FAULTS=crashloop,cascade-db,port-mismatch,tls-truststore STAGGER=60   # break things, watch it find them
-make golden TAG=gw WORKERS=2 CONC=8 && make sweep WORKERS=2 && make metrics
-make gateway POLICY=least_loaded         # control arm of the stickiness A/B, then golden + metrics again
+make bench TAG=gw                        # golden set + concurrency sweep + metrics, through the gateway
+make gateway POLICY=least_loaded && make bench TAG=gw-ll   # control arm of the stickiness A/B
+git add metrics && git commit            # before make down: the node's Prometheus keeps nothing
 make heal && make down
 ```
 The gateway guards, admits, places and queues every request: tenant quotas (429), KV and queue shedding (503),
