@@ -12,6 +12,14 @@ TYPES=${TYPES:-gpu_1x_gh200 gpu_1x_h100_pcie gpu_1x_a100_sxm4}
 RETRY=${RETRY:-30}
 PREFER=$(lam config 2>/dev/null | awk '$1 == "LAM_REGION:" {print $2}')
 
+# An instance is ours if lam ls shows its name as a whole word.
+exists() { lam ls 2>/dev/null | grep -qw -- "$NAME"; }
+
+if exists; then
+  echo "an instance named $NAME is already running (lam ls); make down first, or pick another NAME=" >&2
+  exit 1
+fi
+
 launch() {
   local avail t regions region
   avail=$(lam types --available)
@@ -21,8 +29,15 @@ launch() {
     region=${regions%%,*}
     [[ ",$regions," == *",$PREFER,"* ]] && region=$PREFER
     echo "== $t has capacity in $regions; launching in $region"
-    # Capacity can vanish between the listing and the launch; then try the next type.
+    # Capacity can vanish between the listing and the launch; then try the next type. But a launch that created
+    # the instance and failed later (waiting for ssh or cloud-init) must not be retried, or each retry bills a
+    # second node.
     lam launch -c "$ROOT/deploy/cloud-init.yaml" --name "$NAME" --type "$t" --region "$region" && return 0
+    if exists; then
+      echo "$t was launched as $NAME but did not finish booting; not launching another." >&2
+      echo "Check it with lam logs, or remove it with make down." >&2
+      exit 1
+    fi
   done
   return 1
 }
