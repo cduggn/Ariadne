@@ -213,6 +213,19 @@ to 10 requests per worker with up to 10 waiting and KV at 100% during the cap-16
   `Path.with_suffix`, which cut the tag at the dot in `qwen3.8`. The rows are all there, appended, but not split by
   level; summaries were unaffected. Fixed in the runner (`result_paths`, with a test). (measured)
 
+## 4e. Autoscaling rehearsal (10-07, kind)
+
+The D-49 ScaledObject, with the pinned KEDA 2.21.0 and Prometheus 29.33.0 charts, ran on the kind lab against a stand-in
+`vllm` StatefulSet and a fake gateway `/metrics` whose numbers were set by hand. No model and no GPU were involved, so
+these are the scaler's own timings, not a worker's load time.
+
+- **F38. The scaler behaves as designed, in both directions and on both triggers.** Demand of 7 (4 in flight, 3 queued)
+  against a cap of 4 asked for 2 workers 142 s after it began: about 80 s for the 2-minute average to pass 4, then the
+  60 s scale-up window. Dropping demand to 1 removed the second worker 670 s later (the 10-minute quiet window plus the
+  average falling). With demand at 1, capacity sheds at 3 a minute alone added a worker after about 100 s. KEDA read
+  both recording rules from the chart's Prometheus service with no extra configuration. On hardware, the model load
+  and warm-up add minutes to every scale-up. (measured, kind lab; HPA events at 20:42:54 and 20:54:24 UTC)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
@@ -232,6 +245,8 @@ to 10 requests per worker with up to 10 waiting and KV at 100% during the cap-16
 
 ## Still to measure
 
+- Autoscaling on the H100 (session 5): the time from demand to a ready second worker, including the model load, and
+  whether a scale-down cuts off requests in flight on the removed worker (D-49's revisit trigger).
 - The tuned cap (backlog): somewhere between 4 and 16, or cap 4 with a longer queue deadline, against F36's table.
 - Whether a hop's destination really pulls the KV: its `cached_tokens` on the hopped step (gateway log `hop`, the
   step's `cached_tokens`), since vLLM 0.29 has no transfer metric.

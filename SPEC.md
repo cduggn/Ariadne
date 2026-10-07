@@ -327,7 +327,7 @@ deadline), `VLLMPreempting`, `DoctorInconclusiveRateHigh` (over 20% in an hour),
 (critical). The node's Prometheus values embed the rules, and a test keeps the copy equal. `make alerts-test` runs
 promtool tests that check each rule fires on its condition and stays quiet below it.
 
-### C22 — Worker autoscaling 🟡 (`deploy/autoscale/keda-vllm.yaml`, D-49; rehearsed on kind, not yet on a GPU)
+### C22 — Worker autoscaling 🟡 (`deploy/autoscale/keda-vllm.yaml`, D-49; rehearsed on kind (F38), not yet on a GPU)
 A KEDA ScaledObject on `statefulset/vllm`, opt-in with `make autoscale` (`make autoscale-off` deletes it; `make scale`
 refuses while it exists). Between 1 and the topology's `max_replicas`. Workers wanted = ceil(demand / `GW_MAX_INFLIGHT`),
 where demand is the recording rule `doctor:vllm_demand_requests` (in flight plus queued, averaged over 2 minutes); a
