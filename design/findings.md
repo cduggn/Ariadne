@@ -233,8 +233,11 @@ these are the scaler's own timings, not a worker's load time.
   8 min 21 s later, about 2 minutes after the run had ended. A second run started 9.7 minutes after the first ended;
   KEDA removed `vllm-1` 40 s into it, because the 10-minute window ran out before the new load reached the 2-minute
   averages, then re-created it at 23:47:33. No request failed (vLLM `error` and `abort` both 0), but one worker carried
-  the run with KV free under 20%. The window is now 15 minutes (D-51). (measured, H100; HPA events, pod timestamps,
-  dashboard screenshots)
+  the run with KV free under 20%. The window is now 15 minutes (D-51). With it, a third run on both workers shed nothing and
+  KEDA removed `vllm-1` at 00:23:54, 15 quiet minutes after that run. The v2 pass rate follows the worker count: 59.6%
+  and 57.7% on one worker under load (`as-up`, `as-up2`), 84.6% on two (`as-up3`), near the 86.5% baseline (F1).
+  (measured, H100; HPA events, pod timestamps, `metrics/golden-as-*`, `metrics/ts-autoscale-20261008-002807.json`,
+  `design/screenshots/`)
 
 ## 5. Infrastructure and operations
 

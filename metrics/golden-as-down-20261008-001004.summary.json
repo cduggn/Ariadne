@@ -1,0 +1,105 @@
+{
+  "tag": "as-down",
+  "profile": "qwen3.8-27b-fp8",
+  "model": "Qwen/Qwen3.8-27B-FP8",
+  "topology": "h100-half",
+  "workers": 1,
+  "gpu_share": 0.5,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 1,
+  "repeat": 1,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "9455fbc",
+  "wall_s": 732.2,
+  "timestamp": "20261008-001004",
+  "tasks": 26,
+  "unique_tasks": 26,
+  "passed": 19,
+  "pass_rate": 0.731,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.864,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.786,
+    "multi_hop": 0.714,
+    "red_herring": 0.75,
+    "rightsizing": 0.0
+  },
+  "passed_v2": 21,
+  "pass_rate_v2": 0.808,
+  "pass_rate_v2_ci95": [
+    0.621,
+    0.915
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.333,
+    "investigate": 0.909,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.929,
+    "multi_hop": 0.714,
+    "red_herring": 0.75,
+    "rightsizing": 0.0
+  },
+  "parts_v2": {
+    "submitted": 0.846,
+    "grounded": 0.846,
+    "status": 0.846,
+    "root": 0.846,
+    "category": 0.846,
+    "mechanism": 0.846,
+    "chain": 0.846,
+    "no_false_positive": 0.808
+  },
+  "top_failed_rules_v2": [
+    [
+      "inconclusive",
+      4
+    ],
+    [
+      "no-false-positive",
+      1
+    ]
+  ],
+  "advisory_v2": [],
+  "stop_reasons": {
+    "submitted": 22,
+    "inconclusive": 4
+  },
+  "inconclusive": 4,
+  "abstained": 0,
+  "http_refusals": {},
+  "refusal_reasons": {},
+  "runs_that_waited_out_a_refusal": 0,
+  "top_failed_rules": [
+    [
+      "inconclusive",
+      4
+    ],
+    [
+      "category",
+      2
+    ],
+    [
+      "no-false-positive",
+      1
+    ]
+  ],
+  "repairs": 18,
+  "tool_errors": 10,
+  "steps_per_task_mean": 9.23,
+  "prompt_tokens_last_step_p50": 8050,
+  "prompt_tokens_last_step_max": 16695,
+  "completion_tokens_per_step_p50": 52,
+  "cached_share_of_prompt": 0.885,
+  "step_latency_s_p50": 1.49,
+  "step_latency_s_p95": 10.986
+}
