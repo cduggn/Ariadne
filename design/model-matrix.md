@@ -1,6 +1,6 @@
 # Model matrix
 
-`make matrix` (serving/matrix.py) generates this file from `deploy/models/*.json`, `deploy/serving.json` and `metrics/`, and CI fails if it is stale. Don't edit it by hand. To change a number, rerun whatever produced it. D-40 covers the profiles, topologies and this matrix, and D-41 covers the v2 score. The review behind both is `design/model-and-golden-review-2026-09-28.md`, and `design/model-architecture-guide.md` explains the architecture.
+`make matrix` (serving/matrix.py) generates this file from `deploy/models/*.json`, `deploy/serving.json` and `metrics/`, and CI fails if it is stale. Don't edit it by hand. To change a number, rerun whatever produced it. D-40 covers the profiles, topologies and this matrix, and D-41 covers the v2 score. `design/model-architecture-guide.md` explains the architecture.
 
 The GPUs are the A100 40 GB SXM4 (a100-40), H100 80 GB PCIe (h100-80), GH200 96 GB (arm64 host) (gh200-96). Every model runs with the same engine settings: `vllm-openai:v0.29.0-cu129`, context 24,576, at most 32 sequences, 8,192 batched tokens, prefix caching, 0.9 of the memory HAMi exposes, and 16-bit KV. Sampling follows each model's card, as set in the profile's `client` block.
 
@@ -114,12 +114,8 @@ Models are ranked by v2 pass rate, then by correct diagnoses per GPU-hour. Quali
 | 20261006-135139 | sweep-qwen3.8-27b-fp8-c8 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 20/26 | 23/26 | submitted 23, inconclusive 2, http_503 1 | 963e5fb | full set |
 | 20261006-131640 | gw-38 | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 42/52 | 45/52 | submitted 46, inconclusive 6 | 8d4fe00 | full set |
 | 20261004-162326 | gw-ptl | qwen3-8b-awq | sliced | 26 | 2 | 22/52 | 25/52 | submitted 44, inconclusive 4, context_budget 3, step_cap 1 | 900642d | full set |
-| 20261004-160817 | 8b-v030 | qwen3-8b-awq | sliced | 1 | 1 | 0/1 | 0/1 | inconclusive 1 | 900642d | partial: dx-crashloop |
 | 20260928-164635 | 30b-smoke | qwen3-30b-a3b-2507-awq | full | 26 | 2 | 34/52 | 35/52 | submitted 50, inconclusive 1, step_cap 1 | 8c0ebec | full set |
-| 20260928-164539 | 30b-smoke | qwen3-30b-a3b-2507-awq | full | 2 | 1 | 1/2 | 1/2 | submitted 2 | 8c0ebec | partial: dx-crashloop,dx-port-mismatch |
 | 20260928-161531 | baseline | qwen3-8b-awq | sliced | 26 | 2 | 23/52 | 27/52 | submitted 43, inconclusive 4, context_budget 4, step_cap 1 | 8c0ebec | full set |
-| 20260928-161019 | baseline | qwen3-8b-awq | sliced | 1 | 2 | 0/2 | 0/2 | transport_error 2 | 8c0ebec | partial: dx-crashloop |
-| 20260927-221924 | fix-check | qwen3-8b-awq | sliced | 5 | 1 | 3/5 | n/a | submitted 5 | n/a | partial: subset; profile/topology assumed (pre D-40) |
 | 20260927-220614 | baseline | qwen3-8b-awq | sliced | 1 | 2 | 0/2 | n/a | step_cap 2 | n/a | partial: subset; profile/topology assumed (pre D-40) |
 
 One result isn't in these files. The first full baseline (2026-09-27, 8B, sliced) scored 9/26 on v1 in its first pass, but the crash fixed in D-39 lost its run file. Only D-39 records it.

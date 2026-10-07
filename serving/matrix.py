@@ -4,12 +4,12 @@
     python -m serving.matrix --stdout
 
 Inputs: deploy/models/*.json and deploy/serving.json (paper fit), metrics/kv-<model>-<topology>-*.log (measured KV,
-from `make kv`) and metrics/golden-*.summary.json (from `make golden`). Nothing is typed in by hand: to change a
-number, rerun the thing that produced it.
+from `make kv`) and metrics/golden-*.summary.json (from `make golden`). Nobody types a number in by hand. To change
+a number, rerun the thing that produced it.
 
 The headline result per model and topology is the newest FULL-SET run (all golden tasks, no --only). Its v2 pass
 rate (D-41) carries a 95 % Wilson interval; runs whose intervals overlap are not distinguishable yet. "Correct per
-GPU-hour" = v2 passes ÷ wall hours ÷ GPU share used (workers × SM share) at the run's concurrency: the number that
+GPU-hour" = v2 passes ÷ wall hours ÷ GPU share used (workers × SM share) at the run's concurrency. This number
 puts two sliced workers and one whole-card worker on the same axis.
 """
 from __future__ import annotations
@@ -31,8 +31,8 @@ def _served_to_profile() -> dict[str, str]:
 
 
 def load_runs(metrics: Path, n_tasks: int) -> list[dict]:
-    """Every golden summary, normalised. Summaries from before D-40 carry no profile or topology: they are mapped by
-    served model name and marked `assumed` (every run before D-40 was on the sliced topology)."""
+    """Every golden summary, normalised. Summaries from before D-40 carry no profile or topology: this maps them by
+    served model name and marks them `assumed` (every run before D-40 was on the sliced topology)."""
     s, names, runs = load_serving(), _served_to_profile(), []
     for f in sorted(metrics.glob("golden-*.summary.json")):
         r = json.loads(f.read_text())
@@ -137,8 +137,8 @@ def render(metrics: Path | None = None) -> str:
         "",
         "`make matrix` (serving/matrix.py) generates this file from `deploy/models/*.json`, `deploy/serving.json` and "
         "`metrics/`, and CI fails if it is stale. Don't edit it by hand. To change a number, rerun whatever produced it. "
-        "D-40 covers the profiles, topologies and this matrix, and D-41 covers the v2 score. The review behind both is "
-        "`design/model-and-golden-review-2026-09-28.md`, and `design/model-architecture-guide.md` explains the architecture.",
+        "D-40 covers the profiles, topologies and this matrix, and D-41 covers the v2 score. "
+        "`design/model-architecture-guide.md` explains the architecture.",
         "",
         f"The GPUs are the {gpus}. Every model runs with the same engine settings: `{e['image'].split('@')[0].split('/')[-1]}`, "
         f"context {e['max_model_len']:,}, at most {e['max_num_seqs']} sequences, {e['max_num_batched_tokens']:,} batched tokens, "

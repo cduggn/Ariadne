@@ -187,7 +187,7 @@ larger model (Qwen3-14B-AWQ fits a 20 GiB slice with a smaller KV pool), the rev
 
 ### D-40 — Model profiles, two topologies, a fit calculator and a model matrix (2026-09-28)
 **Context:** the first baseline (D-39) raised the question of which model to serve, and a separate review
-(`design/model-and-golden-review-2026-09-28.md`) proposed larger candidates. The course asks for GPU slicing and a KV
+(removed after the measured matrix replaced it; in git history before 2026-10-07) proposed larger candidates. The course asks for GPU slicing and a KV
 hop, which need small workers, while the best answers may need a model that only fits the whole card. The model was
 hard-coded in four places (manifest, cloud-init, Makefile and agent sampling), so every comparison meant hand edits.
 **Choice:**
