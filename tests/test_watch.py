@@ -60,7 +60,7 @@ def test_plan_dedups_cools_down_forgets_resolved_and_schedules():
     assert [x["namespaces"] for x in t] == [["orders"]] and t[0]["task_type"] == "investigate"
     assert "Automated detection in orders: Deployment/orders-api: CrashLoopBackOff" in t[0]["report"]
     w.diagnosed["orders"], w.last_run["orders"] = set(t[0]["fingerprints"]), clock()
-    assert w.plan(f1) == []                                                     # unchanged → nothing
+    assert w.plan(f1) == []                                                     # unchanged, so nothing to do
     clock.t += 60
     f2 = {"orders": {**f1["orders"], "orders|Service/orders": "Service/orders: Warning FailedToUpdateEndpoint"}, "inventory": {}}
     assert w.plan(f2) == [] and w.metrics.get("doctor_skipped_total", reason="cooldown") == 1   # new, but cooling down
@@ -68,7 +68,7 @@ def test_plan_dedups_cools_down_forgets_resolved_and_schedules():
     assert [x["trigger"] for x in w.plan(f2)] == [["orders|Service/orders"]]
     w.diagnosed["orders"], w.last_run["orders"] = set(f2["orders"]), clock()
     clock.t += 1000
-    assert w.plan({"orders": {}, "inventory": {}}) == [] and w.diagnosed["orders"] == set()      # resolved → forgotten
+    assert w.plan({"orders": {}, "inventory": {}}) == [] and w.diagnosed["orders"] == set()      # resolved, so forgotten
     relapse = w.plan(f1)                                                        # relapse triggers again
     assert [x["trigger"] for x in relapse] == [["orders|Deployment/orders-api"]]
     clock.t += 3600
@@ -84,7 +84,7 @@ def test_cycle_diagnoses_emits_and_counts(refs):
                       audit_every_s=0, rightsize_every_s=0, max_parallel=1)
     assert [r["status"] for r in w.cycle()] == ["issue"] and recs[0]["trigger"] == ["orders|Deployment/orders-api"]
     assert recs[0]["diagnosis"]["findings"][0]["name"] == "orders-api" and recs[0]["cached_tokens"] == 3800 * len(script)
-    assert w.cycle() == []                                                      # same fingerprints → no second model run
+    assert w.cycle() == []                                                      # same fingerprints, so no second model run
     text = w.metrics.render()
     assert 'doctor_diagnoses_total{mode="investigate",status="issue",stop="submitted"} 1' in text
     assert 'doctor_findings_total{category="crashloop_app_error"} 1' in text and "doctor_scans_total 2" in text

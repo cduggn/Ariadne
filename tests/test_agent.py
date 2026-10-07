@@ -34,7 +34,7 @@ def test_wire_format_tools_prompt_order_and_headers(tasks, refs):
     assert all("strict" not in t["function"] for t in b1["tools"])
     roles = [m["role"] for m in b1["messages"]]
     assert roles == ["system", "user", "user"] and b1["messages"][0]["content"] == agent.RULESET
-    assert b1["messages"][:2] == b2["messages"][:2]                              # ruleset + card identical → cacheable prefix
+    assert b1["messages"][:2] == b2["messages"][:2]                              # same ruleset and card, so a cacheable prefix
     assert b1["messages"][1]["content"].startswith("<cluster_card>") and b1["messages"][2] != b2["messages"][2]
     assert h1["x-priority"] == "interactive" and h2["x-priority"] == "batch" and h1["x-data-class"] == "restricted"
     assert h1["x-request-id"].startswith("dx-oom-") and h1["x-request-id"].endswith("-s1") and h1["x-app"] == "cluster-doctor"

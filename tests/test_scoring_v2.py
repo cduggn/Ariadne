@@ -54,7 +54,7 @@ def test_a_real_ref_the_model_never_saw_is_not_evidence(tasks, refs):
     """Review repro: an existing but unrelated ref (another Deployment) supported a pricing finding under v1."""
     d = copy.deepcopy(refs["dx-port-mismatch"])
     d["findings"][0]["evidence"].append("ds-deployment-traffic")
-    assert _v1(tasks, "dx-port-mismatch", d)["pass"]                         # exists → v1 accepts it
+    assert _v1(tasks, "dx-port-mismatch", d)["pass"]                         # it exists, so v1 accepts it
     r = _v2(tasks, "dx-port-mismatch", d)
     assert not r["pass"] and "ds-deployment-traffic" in r["failed"][0] and "to you by a tool call" in r["failed"][0]
     extra = [["describe", {"kind": "deployment", "namespace": "pricing", "name": "traffic"}]]

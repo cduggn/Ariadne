@@ -1,8 +1,8 @@
 """The cluster card: fixed facts about the cluster, placed before the task (D-23).
 
-Identical for every task against the same cluster, so vLLM can prefix-cache it and the gateway can
-route a cluster's investigations to the worker that already holds it — the analogue of the trip
-planner's city brief. It carries inventory only (version, nodes, namespaces), never workload state,
+The card is identical for every task against the same cluster, so vLLM can prefix-cache it and the
+gateway can route a cluster's investigations to the worker that already holds it. It is the analogue
+of the trip planner's city brief. It carries inventory only (version, nodes, namespaces), never workload state,
 so it gives away no answer.
 """
 from __future__ import annotations

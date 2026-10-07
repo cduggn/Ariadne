@@ -1,8 +1,8 @@
 """The doctor's tools: small, referenced, redacted views over a Backend (D-21). Standard library only.
 
 Every item a tool returns carries a stable `ref`. A diagnosis must cite refs as evidence; the
-validator and the checker recompute the full set of refs from the same backend, so a cited ref that
-does not exist is a fabrication and is rejected.
+validator and the checker recompute the full set of refs from the same backend, so they reject a cited
+ref that does not exist as a fabrication.
 
     ref prefix   evidence type   example
     st-          status          st-orders-api-7c9f8-abcde                  (pod status)
@@ -15,8 +15,8 @@ does not exist is a fabrication and is rejected.
     rz-          rightsizing     rz-analytics-reporting-api-reporting-api   (workload, container)
     cs-          cost            cs-aws_by_service_7d
 
-Guards: names are validated (RFC 1123); tools only read; results are size-capped; text is redacted;
-log lines that look like instructions to an AI are flagged `suspicious`, never obeyed.
+Guards: tools check names against RFC 1123, only read, cap result size and redact text. They flag log
+lines that look like instructions to an AI as `suspicious` and never obey them.
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ LIST_KINDS = {"deployments": "deployment", "services": "service", "jobs": "job",
               "persistentvolumeclaims": "persistentvolumeclaim", "ingresses": "ingress"}
 EVIDENCE_TYPES = {"st": "status", "ev": "event", "ds": "describe", "lg": "log", "rs": "resources", "mt": "metrics",
                   "ct": "certificate", "rz": "rightsizing", "cs": "cost"}
-# Price list for the idle-request estimate (OpenCost's on-prem defaults, $/hour) — an estimate, labelled as such.
+# Price list for the idle-request estimate (OpenCost's on-prem defaults, $/hour). The result's `price_basis` labels it an estimate.
 CPU_CORE_HOUR_USD, RAM_GIB_HOUR_USD, HOURS_PER_MONTH = 0.031611, 0.004237, 730
 
 
@@ -196,7 +196,7 @@ def _container(c: dict, cs: dict | None) -> dict:
             "command": _t(" ".join(c.get("command", []) + c.get("args", [])), 200) or None,
             "ports": [{"containerPort": p.get("containerPort"), "name": p.get("name")} for p in c.get("ports", [])],
             "resources": c.get("resources", {}),
-            "env_names": [e["name"] for e in c.get("env", [])][:15],        # names only — values may be secret
+            "env_names": [e["name"] for e in c.get("env", [])][:15],        # names only, because values may be secret
             "env_from": [{"configMap": x["configMapRef"].get("name")} if "configMapRef" in x else
                          {"secret": x.get("secretRef", {}).get("name")} for x in c.get("envFrom", [])],
             "volume_mounts": [{"name": m["name"], "mountPath": m["mountPath"]} for m in c.get("volumeMounts", [])],
@@ -447,7 +447,7 @@ def call(b: Backend, name: str, args: dict):
 # ---- everything a diagnosis may cite, recomputed from the backend -------------------------
 
 def all_refs(b: Backend, namespace: str) -> set[str]:
-    """Every ref any tool could return for this namespace — the grounding registry."""
+    """The grounding registry, every ref any tool could return for this namespace."""
     refs: set[str] = set()
     ns = namespace
     for p in b.objects("pods", ns):
@@ -491,7 +491,7 @@ OBJECT_KINDS = {"Pod": "pods", "Deployment": "deployments", "ReplicaSet": "repli
 
 
 def objects_in(b: Backend, namespace: str) -> set[tuple[str, str]]:
-    """(Kind, name) pairs that exist — findings may only name these."""
+    """(Kind, name) pairs that exist. Findings may only name these."""
     out = set()
     for kind, plural in OBJECT_KINDS.items():
         out |= {(kind, o["metadata"]["name"]) for o in b.objects(plural, namespace)}

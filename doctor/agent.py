@@ -17,9 +17,10 @@ Graph (state = messages + counters + diagnosis; backend, task and model travel i
          system = triage ruleset (+ tool schemas rendered by the chat template) · user = cluster card ·
          user = task · then assistant tool calls and tool results.
   act    executes every tool call through LangChain StructuredTools, behind the harness guards (exact-repeat
-         refusal, per-tool budgets × namespaces, submit-now nudge). Every result the model receives is recorded in the
-         observation ledger; `submit_diagnosis` is validated against it (expect-blind, doctor/validate.py, D-41): up to
-         2 repairs, then FAIL CLOSED to `inconclusive` (D-24). A model that submits `inconclusive` itself has abstained.
+         refusal, per-tool budgets × namespaces, submit-now nudge). It records every result the model receives in the
+         observation ledger and validates `submit_diagnosis` against it (expect-blind, doctor/validate.py, D-41). The
+         model gets up to 2 repairs, then the run fails closed to `inconclusive` (D-24). A model that submits
+         `inconclusive` itself has abstained.
 
 Every request carries X-Request-Id (task-run-step), X-Tenant, X-App, X-Priority and X-Data-Class, set per
 step through an httpx hook, so the gateway can admit, place and refuse without parsing bodies (D-25).
@@ -49,8 +50,8 @@ from .card import cluster_card
 from .lc_tools import make_tools
 from .validate import ledger_size, new_ledger, observe, validate
 
-# Cluster data must never leave self-hosted infrastructure (D-19, INV-13): LangChain's hosted tracing
-# (LangSmith) is forced off regardless of the caller's environment. Use OpenTelemetry/self-hosted tracing instead.
+# Cluster data must never leave self-hosted infrastructure (D-19, INV-13), so this module forces LangChain's hosted
+# tracing (LangSmith) off whatever the caller's environment says. Use OpenTelemetry or self-hosted tracing instead.
 for _v in ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2", "LANGCHAIN_TRACING"):
     os.environ[_v] = "false"
 
@@ -64,8 +65,8 @@ HTTP_TIMEOUT_S = 120
 MAX_REPAIRS = 2
 # Gateway refusals (D-44). A 429 or 503 carries its reason (error.code: kv_free, queue_full, tenant_tokens, …) and a
 # Retry-After. The step waits max(Retry-After, 1, 2, 4, 8 s) and asks again, up to REFUSAL_RETRIES times (about 15 s at
-# most), so a run rides out a load spike instead of failing. Every refusal is recorded on its step, so retries never
-# hide one. DOCTOR_REFUSAL_RETRIES=0 restores failing on the first refusal.
+# most), so a run waits out a load spike instead of failing. The step records every refusal, so retries never hide
+# one. DOCTOR_REFUSAL_RETRIES=0 restores failing on the first refusal.
 REFUSAL_STATUSES = (429, 503)
 REFUSAL_RETRIES = int(os.environ.get("DOCTOR_REFUSAL_RETRIES", "4"))
 REFUSAL_WAIT_MAX_S = 8.0
@@ -116,7 +117,7 @@ class _ToolSafeChatOpenAI(ChatOpenAI):
                 try:
                     ok = isinstance(json.loads(fn.get("arguments") or "{}"), dict)
                 except (TypeError, ValueError):
-                    ok = True                                    # not JSON at all: LangChain already marks it invalid
+                    ok = True                                    # not JSON at all, so LangChain already marks it invalid
                 if not ok:
                     fn["arguments"] = "not a JSON object: " + str(fn.get("arguments"))[:500]
         return super()._create_chat_result(data, generation_info)
@@ -131,15 +132,16 @@ PROFILES = HERE.parent / "deploy" / "models"
 
 
 def load_profile(ref: str) -> tuple[str, dict]:
-    """(served model name, client settings) from a model profile: a path, or a name in deploy/models/ (D-40)."""
+    """Return (served model name, client settings) from a model profile, given as a path or a name in deploy/models/ (D-40)."""
     path = Path(ref) if ref.endswith(".json") else PROFILES / f"{ref}.json"
     p = json.loads(path.read_text())
     return p["serve"]["served_name"], p["client"]
 
 
 def resolve_model(model: str | None, profile: str | None) -> tuple[str, dict | None]:
-    """--model and --profile: a profile supplies the served name and its sampling; --model overrides only the name
-    (e.g. a gateway alias). Without a profile: --model, DOCTOR_MODEL, or the baseline, with Qwen3 sampling."""
+    """Resolve --model and --profile. A profile supplies the served name and its sampling, and --model overrides only
+    the name (e.g. a gateway alias). Without a profile the name is --model, DOCTOR_MODEL or the baseline, with Qwen3
+    sampling."""
     if profile:
         served, client = load_profile(profile)
         return model or served, client
@@ -149,9 +151,9 @@ def resolve_model(model: str | None, profile: str | None) -> tuple[str, dict | N
 def build_llm(base_url: str, model: str, *, http_client: httpx.Client | None = None, client: dict | None = None):
     """ChatOpenAI against any OpenAI-compatible endpoint (vLLM or the gateway), bound to tools.json verbatim.
     tool_choice is "auto" (D-38): "required" made vLLM constrain decoding with a grammar that collapsed into
-    whitespace until max_tokens on Qwen3-8B-AWQ; a reply without a tool call is nudged by the act node instead.
-    `client` is a profile's sampling block (temperature, top_p, top_k, …, chat_template_kwargs); default Qwen3.
-    The API key comes only from VLLM_API_KEY. The client's own retries are off: agent_node retries a gateway
+    whitespace until max_tokens on Qwen3-8B-AWQ. The act node nudges a reply without a tool call instead.
+    `client` is a profile's sampling block (temperature, top_p, top_k, …, chat_template_kwargs). None means Qwen3's.
+    The API key comes only from VLLM_API_KEY. The client's own retries are off because agent_node retries a gateway
     429/503 itself, after its Retry-After, and records every refusal on the step, so none is hidden (D-44)."""
     c = DEFAULT_CLIENT if client is None else client
     extra = {k: c[k] for k in _EXTRA_SAMPLING if k in c}
@@ -204,7 +206,8 @@ def refusal_of(e: openai.APIStatusError) -> dict:
 
 
 def refusal_wait(refusal: dict, attempt: int) -> float:
-    """Seconds to wait before retry `attempt` (0-based): the gateway's Retry-After or an exponential floor, capped."""
+    """Seconds to wait before retry `attempt` (0-based). The larger of the gateway's Retry-After and an exponential
+    floor, capped at REFUSAL_WAIT_MAX_S."""
     return min(REFUSAL_WAIT_MAX_S, max(refusal["retry_after_s"] or 0.0, float(2 ** attempt)))
 
 
@@ -235,7 +238,7 @@ def agent_node(state: State, config) -> dict:
     except (openai.APIConnectionError, openai.APITimeoutError, httpx.HTTPError) as e:
         return {"n": n, "stop": "transport_error",
                 "steps": [{"step": n, "request_id": rid, "error": type(e).__name__, "latency_s": round(time.perf_counter() - t0, 3)}]}
-    except (ValueError, TypeError) as e:          # a response we cannot turn into a message: end this task, never the run
+    except (ValueError, TypeError) as e:          # a response we cannot turn into a message ends this task, never the run
         return {"n": n, "stop": "bad_response",
                 "steps": [{"step": n, "request_id": rid, "error": f"{type(e).__name__}: {str(e)[:160]}",
                            "latency_s": round(time.perf_counter() - t0, 3)}]}

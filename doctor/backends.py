@@ -1,16 +1,16 @@
 """Where cluster data comes from. The model never sees this layer (D-21).
 
     Backend            raw Kubernetes objects, logs, usage, metrics and cost data
-      ├── SnapshotBackend   a recorded dump (fixtures/snapshots/*.json) — tests, golden set, offline
+      ├── SnapshotBackend   a recorded dump (fixtures/snapshots/*.json) for tests, the golden set and offline use
       └── KubectlBackend    a live cluster through `kubectl -o json` (kind, k3s, EKS alike) plus
                             optional Prometheus / OpenCost / AWS readers
 
 Tools (doctor/tools.py) turn raw data into small, referenced, redacted results. Because both backends
-return the same raw shapes, one set of tool code serves both — a fixture exercises exactly the code
-path a live cluster does.
+return the same raw shapes, one set of tool code serves both, and a fixture exercises exactly the
+code path a live cluster does.
 
-Read-only by construction: the only kubectl verbs are `get`, `logs`, `top` and `version`; Secrets are
-never requested; ConfigMap data is dropped except values that are public X.509 certificates (D-31).
+Read-only by construction. The only kubectl verbs are `get`, `logs`, `top` and `version`. The backend
+never requests Secrets and drops ConfigMap data except values that are public X.509 certificates (D-31).
 """
 from __future__ import annotations
 

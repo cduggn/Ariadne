@@ -1,4 +1,4 @@
-"""The answer key is ground truth, so it is tested against known-good and deliberately wrong diagnoses — per tier."""
+"""The answer key is ground truth, so it is tested against known-good and deliberately wrong diagnoses, per tier."""
 import copy
 
 from doctor.validate import validate

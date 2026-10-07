@@ -1,4 +1,4 @@
-// Package metrics is the gateway's Prometheus surface. Observe feeds the
+// Package metrics exports the gateway's Prometheus metrics. Observe feeds the
 // request counters and the latency histogram from each serve.Event, and a
 // collector derives every replica gauge from the Gate's view and the
 // Fleet's status at scrape time, so a gauge can never drift from the state

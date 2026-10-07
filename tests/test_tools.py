@@ -32,7 +32,7 @@ def test_service_views_expose_selector_and_port_mistakes():
     svc = T.describe(b, "service", "pricing", "pricing-api")
     pod = T.describe(b, "pod", "pricing", _first_pod(b, "pricing", "pricing-api"))
     assert svc["ports"][0]["targetPort"] == 8080 and pod["containers"][0]["ports"][0]["containerPort"] == 80
-    assert svc["ready_endpoints"] >= 1                                                   # looks healthy — the trap
+    assert svc["ready_endpoints"] >= 1                                                   # looks healthy, which is the trap
 
 
 def test_policy_objects_are_visible():
@@ -61,7 +61,7 @@ def test_rightsizing_separates_idle_from_throttled():
     ws = {w["owner"]["name"]: w for w in T.rightsizing(backend_for(["rightsizing"]), "analytics")["workloads"]}
     idle, busy = ws["reporting-api"], ws["ingest-worker"]
     assert idle["requests"]["cpu_m"] == 300 and idle["usage"]["cpu_m"]["p95"] < 30 and idle["est_monthly_idle_usd"] > 3
-    assert busy["cpu_at_limit_share"] >= 0.5                                                # pinned at its limit: not idle
+    assert busy["cpu_at_limit_share"] >= 0.5                                                # pinned at its limit, so not idle
     assert ws["cache"]["est_monthly_idle_usd"] < 1
 
 

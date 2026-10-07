@@ -129,7 +129,7 @@ func TestPickStickyBrokenLoadOverSlack(t *testing.T) {
 }
 
 func TestPickStickyKeptWithinSlack(t *testing.T) {
-	// pod-a is exactly StickSlack (0.25 = 4/16) busier than pod-b: kept.
+	// pod-a is exactly StickSlack (0.25 = 4/16) busier than pod-b, so Pick keeps it.
 	f := fleetOf(
 		withInFlight(freshWorker("pod-a"), 4),
 		freshWorker("pod-b"),
@@ -172,9 +172,9 @@ func TestPickExcludesNotReadyAndDownWorkers(t *testing.T) {
 }
 
 func TestPickStaleFloorTwoWorkersBothStay(t *testing.T) {
-	// fresh/total = 16/32 = 0.5, below the 0.75 floor: the stale worker
-	// stays and, being less loaded, is chosen. Unknown reports it was
-	// picked on stale telemetry.
+	// fresh/total = 16/32 = 0.5, below the 0.75 floor, so the stale worker
+	// stays and Pick chooses it as the less loaded one. Unknown reports that
+	// Pick placed on stale telemetry.
 	f := fleetOf(
 		withAge(freshWorker("pod-a"), 3*time.Second), // stale: 2s <= Age < 10s
 		withInFlight(freshWorker("pod-b"), 8),
@@ -184,8 +184,8 @@ func TestPickStaleFloorTwoWorkersBothStay(t *testing.T) {
 }
 
 func TestPickStaleFloorEightWorkersTwoDropped(t *testing.T) {
-	// fresh/total = 96/128 = 0.75, at the floor: both stale workers are
-	// dropped even though they are the least loaded candidates.
+	// fresh/total = 96/128 = 0.75, at the floor, so Pick drops both stale
+	// workers even though they are the least loaded candidates.
 	workers := []WorkerState{
 		withAge(freshWorker("stale-0"), 3*time.Second),
 		withAge(freshWorker("stale-1"), 3*time.Second),

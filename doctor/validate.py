@@ -4,12 +4,12 @@ It never reads the task's answer key. It checks:
   schema       the whole diagnosis against diagnosis.schema.json: types, enums, patterns, lengths, no unknown keys
   consistency  issue ⇔ findings; healthy and inconclusive have none; inconclusive says in `summary` what it could not check
   scope        findings and victims are in the task's namespaces, and every named object exists
-  evidence     every cited ref was RETURNED TO THE MODEL by a tool call in this run — the observation ledger (D-41).
+  evidence     every cited ref is in the observation ledger, which holds what tool calls in this run RETURNED TO THE MODEL (D-41).
                Without a ledger (reference checks, the legacy score) a ref only has to be one the tools could return.
   duplicates   one finding per root cause: two findings on the same object (a pod or ReplicaSet counts as its owner)
   coverage     with a ledger, `healthy` needs a successful list_problem_pods for every namespace in the task
-A diagnosis that fails is sent back to the model with the errors; after the repair budget it is replaced by an
-`inconclusive` answer (fail closed, D-24) — an ungrounded diagnosis never reaches a user.
+The agent loop sends a failing diagnosis back to the model with the errors. After the repair budget it replaces the
+diagnosis with an `inconclusive` answer (fail closed, D-24), so an ungrounded diagnosis never reaches a user.
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def observe(ledger: dict, tool: str, result) -> dict:
     """Record one tool result the model received. Errors and refusals record nothing. Returns the ledger (a new dict)."""
     if not isinstance(result, dict) or "error" in result or tool == "submit_diagnosis":
         return ledger
-    ns = result.get("namespace") or ""             # node, cost and S3 results are cluster-wide: key ""
+    ns = result.get("namespace") or ""             # node, cost and S3 results are cluster-wide, so they go under key ""
     refs = {k: list(v) for k, v in ledger["refs"].items()}
     tools = {k: list(v) for k, v in ledger["tools"].items()}
     refs[ns] = list(dict.fromkeys(refs.get(ns, []) + _refs_in(result)))

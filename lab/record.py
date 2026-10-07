@@ -5,11 +5,11 @@
     python3 -m lab.record --only oom,cascade-db     # a subset (keeps the other fixtures)
     python3 -m lab.record --batch 3 --keep
 
-1. Create every scenario's namespace first, then record fixtures/cluster.json — so every snapshot shares
+1. Create every scenario's namespace first, then record fixtures/cluster.json, so every snapshot shares
    one cluster card (the same shared prefix a live cluster would give).
-2. Run scenarios in small batches (a 2-CPU / 2 GiB node must not create accidental faults): TLS setup
-   (throwaway PKI from lab/make_certs.py → Secrets and public-CA ConfigMaps), apply manifests, poll until
-   every settle rule holds, sample usage for right-sizing scenarios, dump, delete the batch's workloads.
+2. Run scenarios in small batches, because a 2-CPU / 2 GiB node must not create accidental faults. For each
+   batch: set up TLS (Secrets and public-CA ConfigMaps from lab/make_certs.py's throwaway PKI), apply manifests,
+   poll until every settle rule holds, sample usage for right-sizing scenarios, dump, and delete the workloads.
 
 Every string is redacted before it is written (fixtures live in git). Private keys exist only in a temp
 directory and in lab Secrets, which the doctor never reads. Only this script mutates a cluster (lab only).
@@ -134,7 +134,7 @@ def dump_namespace(b: KubectlBackend, sc: dict) -> dict:
                 try:
                     out["logs"][f"{ns}/{name}/{c}/{'previous' if prev else 'current'}"] = b.logs(ns, name, c, prev)
                 except LookupError:
-                    pass                          # evicted, never started, or previous container already GC'd — real behaviour
+                    pass                          # evicted, never started, or the previous container already GC'd, as on any real cluster
     try:
         out["usage"][ns] = b.usage(ns)
     except LookupError:

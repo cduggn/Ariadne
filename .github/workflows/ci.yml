@@ -1,5 +1,5 @@
 # Offline checks on every push and PR: lint, unit tests over recorded snapshots, golden references.
-# Actions pinned by commit SHA (supply-chain hygiene); no secrets, no network beyond package installs.
+# Every action is pinned by commit SHA for supply-chain hygiene. No secrets, no network beyond package installs.
 name: ci
 on:
   push:

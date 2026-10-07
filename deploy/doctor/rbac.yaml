@@ -1,6 +1,6 @@
 # Read-only identity for running the doctor inside a cluster (D-21). Grants get/list/watch on the
 # objects the tools read and on pod logs. Deliberately NO access to Secrets, no create/update/delete,
-# no exec, no port-forward. ConfigMap *data* is dropped by the backend; names are enough.
+# no exec, no port-forward. The backend drops ConfigMap *data*; names are enough.
 apiVersion: v1
 kind: Namespace
 metadata:

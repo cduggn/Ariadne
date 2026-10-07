@@ -59,7 +59,7 @@ Fetch = Callable[[str], dict]
 
 
 def ssh_fetch(node: str) -> Fetch:
-    """Prometheus through the API server's service proxy on the node; ssh joins the argv into a remote shell line."""
+    """Read Prometheus through the API server's service proxy on the node. ssh joins the argv into a remote shell line."""
     def fetch(path_and_query: str) -> dict:
         cmd = ["lam", "ssh", node, "--", "kubectl", "get", "--raw", shlex.quote(PROXY + path_and_query)]
         return json.loads(subprocess.run(cmd, check=True, capture_output=True, text=True).stdout)

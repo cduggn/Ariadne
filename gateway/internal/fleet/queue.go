@@ -58,7 +58,7 @@ func (w *worker) queued() int {
 // Queue is the gateway's per-worker admission queue. One mutex guards every
 // worker, because grants on one worker are rare and short, and one lock keeps
 // Depth consistent across lanes. The lock is never held while blocking, and
-// the queue spawns no goroutines. Waiters are woken by the releaser.
+// the queue spawns no goroutines. The releaser wakes waiters.
 type Queue struct {
 	mu      sync.Mutex
 	workers map[string]*worker

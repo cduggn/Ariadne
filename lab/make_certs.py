@@ -3,7 +3,7 @@
 
     uv run --with cryptography==50.0.1 python lab/make_certs.py <out-dir>
 
-Writes PEM files to <out-dir> (never to the repo — private keys must not reach git):
+Writes PEM files to <out-dir> (never to the repo, because private keys must not reach git):
   internal-ca.crt/.key   the CA the services are meant to trust
   legacy-ca.crt/.key     an unrelated, older CA (the wrong trust bundle in the truststore scenario)
   payments-api.crt/.key  valid 1 year, SAN payments-api.payments.svc[.cluster.local], signed by internal-ca

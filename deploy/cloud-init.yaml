@@ -1,14 +1,14 @@
 #cloud-config
 # Node bootstrap for one Lambda GPU node: k3s + HAMi, vLLM image pre-pulled, OpenCost for same-day cluster cost (D-26).
 # One file for every GPU we rent. `make up` (lab/up.sh) picks the first type with capacity; this script then reads the
-# hardware and fetches that GPU's boot model before ready.json and its next model in the background (D-40). Deploys no
-# workload — `make deploy` applies deploy/k8s/ after this.
+# hardware and fetches that GPU's boot model before ready.json and its next model in the background (D-40). It deploys no
+# workload; `make deploy` applies deploy/k8s/ after this.
 #
 # Launch:   make up      (tries TYPES in order; see lab/up.sh)
 # Progress: lam logs          Done marker: /var/lib/bootstrap/ready.json
 # Re-run:   sudo bash /opt/bootstrap/bootstrap.sh     (idempotent: every step checks before acting)
 #
-# No secrets in here: user_data is stored with the instance metadata. The model is ungated,
+# No secrets in here, because Lambda stores user_data with the instance metadata. The model is ungated,
 # so no HF token is needed.
 
 write_files:
@@ -69,8 +69,8 @@ write_files:
       until kubectl get nodes 2>/dev/null | grep -q " Ready"; do sleep 5; done
       install -d -o ubuntu -g ubuntu /home/ubuntu/.kube
       install -m 600 -o ubuntu -g ubuntu "$KUBECONFIG" /home/ubuntu/.kube/config
-      # k3s's bundled kubectl defaults to the root-only /etc/rancher/k3s/k3s.yaml; /etc/environment is read
-      # by non-interactive ssh sessions too (make deploy, make kv …), so point every login at the user copy.
+      # k3s's bundled kubectl defaults to the root-only /etc/rancher/k3s/k3s.yaml; non-interactive ssh
+      # sessions (make deploy, make kv …) read /etc/environment too, so point every login at the user copy.
       grep -q '^KUBECONFIG=' /etc/environment || echo 'KUBECONFIG=/home/ubuntu/.kube/config' >> /etc/environment
 
       step "helm $HELM_VERSION"
@@ -256,7 +256,7 @@ write_files:
     permissions: "0644"
     content: |
       # GPU-level metrics for the whole A100 (not per HAMi slice). No GPU resource request, so it
-      # does not take a HAMi slot; NVIDIA_VISIBLE_DEVICES=all + the nvidia default runtime give it
+      # does not take a HAMi slot; NVIDIA_VISIBLE_DEVICES=all and the nvidia default runtime give it
       # the device. No hostNetwork/hostPort: Prometheus scrapes the pod IP.
       apiVersion: apps/v1
       kind: DaemonSet

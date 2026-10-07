@@ -39,10 +39,10 @@ type Sample struct {
 }
 
 // ParseMetrics reads one Prometheus text exposition body into a Sample.
-// The body is read up to maxMetricsBytes. Gauges are summed across label
-// sets, as are histogram buckets with the same bound. KV usage is
+// It reads at most maxMetricsBytes. It sums gauges across label sets, and
+// histogram buckets with the same bound. KV usage is
 // normalised per label set, because older vLLM releases exported it as a
-// percentage. A panic inside the upstream parser is returned as an error,
+// percentage. It returns a panic inside the upstream parser as an error,
 // because a malformed body from another process must not take down the
 // gateway.
 func ParseMetrics(r io.Reader) (s Sample, err error) {

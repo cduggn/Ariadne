@@ -50,9 +50,9 @@ func TestShouldShedAdmitOnHealthyWorker(t *testing.T) {
 
 func TestShouldShedTenantTokens(t *testing.T) {
 	// Every case gives the worker a fully saturated KV pool, so a request
-	// that clears the tenant gate would still be shed by kv_free. A tenant
-	// refusal in every case therefore also proves gate order: tenant_tokens
-	// outranks a simultaneously full worker.
+	// that clears the tenant gate would still shed on kv_free. A tenant
+	// refusal in every case therefore also proves the gate order, with
+	// tenant_tokens outranking a worker that is full at the same time.
 	saturated := WorkerView{KVPoolTokens: 10000, KVUsage: 1.0, InFlight: 0, MaxInflight: 16}
 	deadline := fixedNow.Add(30 * time.Second)
 

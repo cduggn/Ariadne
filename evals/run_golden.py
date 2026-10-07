@@ -10,7 +10,7 @@ metrics/golden-<tag>-<ts>.jsonl (one row per task) and .summary.json. Every row 
 `pass` is the legacy v1 score (kept for continuity), `pass_v2` the corrected one (observed evidence,
 accepted equivalent categories, mechanism facts, advisory tool rules). The summary carries both, a 95 %
 interval on the v2 rate, per-tier rates, sub-scores, stop reasons, tokens, cached share, latency, refusals
-by HTTP status, and the model profile, topology and workers the run used — `make matrix` reads it (D-40).
+by HTTP status, and the model profile, topology and workers the run used. `make matrix` reads it (D-40).
 With --concurrency > 1 the same harness is the app-shaped load generator for the gateway.
 """
 from __future__ import annotations
@@ -86,7 +86,7 @@ def _pct(xs, p):
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> list[float] | None:
-    """95 % Wilson interval for k passes out of n — honest at small n (26 tasks × a few repeats)."""
+    """95 % Wilson interval for k passes out of n, which stays honest at small n (26 tasks × a few repeats)."""
     if not n:
         return None
     p = k / n
@@ -164,7 +164,7 @@ def main() -> int:
             row = score(task, run_task(task, backend_for(task["snapshots"]), llm, harness=not a.no_harness))
         except Exception as e:  # one task must never lose the run
             row = error_row(task, e)
-        with lock:                                  # written as each task finishes: an interrupted run keeps its rows
+        with lock:                                  # written as each task finishes, so an interrupted run keeps its rows
             with rows_path.open("a") as f:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
             print(f"{row['id']:22} {row['tier']:11} v1 {'PASS' if row['pass'] else 'FAIL'} v2 {'PASS' if row['pass_v2'] else 'FAIL'} "

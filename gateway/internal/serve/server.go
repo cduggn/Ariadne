@@ -212,8 +212,8 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 
 // moveKV asks the KV hop, when configured, to carry the run's history from
 // the worker it was bound to onto pod. It returns the body to forward, which
-// is body itself unless a hop succeeded. A failed hop is logged and the
-// worker recomputes, so it never fails the request.
+// is body itself unless a hop succeeded. moveKV logs a failed hop and the
+// worker recomputes, so a hop never fails the request.
 func (s *Server) moveKV(ctx context.Context, d fleet.Decision, req decide.Request, pod string, body []byte, ev *Event) []byte {
 	if s.opt.Hop == nil {
 		return body
@@ -453,7 +453,7 @@ func writeError(w http.ResponseWriter, status int, message, typ, code string) {
 }
 
 // writeRefusal answers a shed verdict. The client reads only the status
-// code, so the reason and the retry hint ride in headers and in the body.
+// code, so the reason and the retry hint go in headers and in the body.
 func writeRefusal(w http.ResponseWriter, v decide.Verdict) {
 	typ := "overloaded"
 	if v.Code == http.StatusTooManyRequests {

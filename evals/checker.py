@@ -12,18 +12,18 @@ v1 rules (D-28, D-31), kept unchanged for continuity with earlier runs:
   chain:<root>    for multi-hop faults, the finding's `affects` names every victim
   resize:<root>   for over-provisioning, the recommended requests fall inside the safe band
   no-false-positive  no finding blames a victim, a red herring, or a healthy object (unless also_ok)
-  trap:<obj>      no finding hits a forbidden (object, category) — e.g. calling a throttled pod over-provisioned
+  trap:<obj>      no finding hits a forbidden (object, category), e.g. calling a throttled pod over-provisioned
   tools-called, max-steps
 
 v2 (D-41) changes what counts as correct, not the answer key's roots:
-  grounded        evidence must be in the run's observation ledger — refs the model was actually shown
+  grounded        evidence must be in the run's observation ledger, the refs the model was actually shown
   category        also accepts a root's `also_accept` categories: readings the visible evidence supports equally
                   (e.g. crashloop whose log says "DATABASE_URL is not set" → config_missing)
   mechanism:<root>  the finding's root_cause + fix must state the root's facts and none of its contradictions
                   (e.g. port-mismatch: targetPort 8080 vs container port 80; "set targetPort to 8080" fails)
   abstained       a model that submits `inconclusive` fails, labelled apart from a fail-closed `inconclusive`
   advisory        tools-called and max-steps no longer fail a task: a different investigation path is not wrong.
-                  They are reported as `advisory` so efficiency stays visible.
+                  The checker reports them as `advisory` so efficiency stays visible.
 `parts` breaks one task into sub-scores (root found, category, mechanism, grounded, no false positive) for the matrix.
 """
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda GPU lifecycle (A100, H100 or GH200).
+# cluster-doctor: the local fault lab (kind), offline evaluation, and the Lambda GPU lifecycle (A100, H100 or GH200).
 #
 #   make tools                      fetch pinned kind, kubectl, promtool, golangci-lint, gitleaks into .bin/ (checksums verified)
 #   make test / lint                offline: unit tests over recorded snapshots, gateway vet + race tests, alert rule tests;
@@ -15,7 +15,7 @@
 #   make deploy HOP=1 && make gateway HOP=1   workers run vLLM's MooncakeConnector and the gateway copies a moved
 #                                   run's KV instead of recomputing it (gateway/internal/hop). node.env turns it on
 #                                   for an H100 node; HOP=0 on the make line turns it off
-#   make tunnel [TUNNEL=pod/vllm-0]      localhost:8000 → the gateway (default) or one vLLM pod directly
+#   make tunnel [TUNNEL=pod/vllm-0]      forward localhost:8000 to the gateway (default) or to one vLLM pod
 #   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
 #   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits each topology (D-40)
 #   make deploy MODEL=… TOPO=…      render, fetch weights, serve that model on that topology (fit gate first)
@@ -31,15 +31,15 @@
 #   make prom / opencost            port-forward Prometheus (:9090) / the OpenCost API (:9003) from the Lambda node
 # ---- playbook: a GPU session in order (make help prints this) ------------------------------------------------
 #   make preflight && make up       lint + tests + fit gate, then the first GPU with capacity; prints the node it got
-#   make resume                     if make up timed out while Lambda was still booting the node: wait, then finish
+#   make resume                     if make up timed out while Lambda was still booting the node, wait for it and finish
 #   make bringup                    deploy → scale to the topology's workers → kv → gateway → dashboards
 #   make tunnel                     terminal 2: the gateway at localhost:8000
 #   make grafana                    terminal 3: Grafana at localhost:3000
 #   make check                      pods, both workers Ready through the gateway, KV hop on or off
 #   make bench TAG=…                golden set + concurrency sweep + metrics + queue probes + export, through the gateway
-#                                   (PROBES=0 skips the probes; make export alone re-pulls the time series: D-48)
+#                                   (PROBES=0 skips the probes; make export alone re-pulls the time series, D-48)
 #   make gateway POLICY=least_loaded && make bench TAG=…-ll   the control arm of the stickiness A/B
-#   git add metrics && git commit   before make down: the node's Prometheus keeps nothing (make down warns if the
+#   git add metrics && git commit   before make down. The node's Prometheus keeps nothing (make down warns if the
 #                                   last bench was never exported)
 #   make down                       billing stops
 # `make up` writes the node it got (GPU, ARCH, MODEL, TOPO, HOP) here; anything on the make line still wins.
@@ -77,8 +77,8 @@ PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 GWBUILD = .cache/gateway
-# The in-flight cap and the KV hop's rates for the deployed model and topology, from the fit (measured KV once make kv
-# has run): D-43.
+# The in-flight cap and the KV hop's rates for the deployed model and topology, from the fit (D-43). The fit uses
+# measured KV once make kv has run.
 GWENV   = $(shell $(PY) -m serving.fit $(MODEL) $(TOPO) --gateway-env)
 GW_IMAGE ?= docker.io/cdugga/cluster-doctor-gateway
 GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- gateway || echo -dirty)

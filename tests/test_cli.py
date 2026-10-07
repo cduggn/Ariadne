@@ -30,7 +30,7 @@ def test_snapshot_investigation_reports_the_root_cause_and_shows_each_step(refs)
     body, headers = s.requests[0]["body"], s.requests[0]["headers"]
     assert headers["x-priority"] == "interactive" and headers["x-request-id"].startswith("cli-investigate-")
     assert "orders-api keeps restarting" in body["messages"][2]["content"]
-    golden = Server(("submit_diagnosis", refs["dx-crashloop"]))           # same card as a golden run → same cached prefix
+    golden = Server(("submit_diagnosis", refs["dx-crashloop"]))           # same card as a golden run, so the same cached prefix
     agent.run_task({"id": "g", "task_type": "investigate", "namespaces": ["orders"], "report": "x"}, backend_for(["crashloop"]), llm_for(golden))
     assert body["messages"][:2] == golden.requests[0]["body"]["messages"][:2]
 

@@ -87,7 +87,7 @@ type Staleness struct {
 }
 
 // DefaultStaleness marks a worker stale 2s after its last scrape and Down
-// after 10s. Stale workers are dropped only while 0.75 of capacity stays
+// after 10s. Pick drops stale workers only while 0.75 of capacity stays
 // fresh.
 var DefaultStaleness = Staleness{StaleAfter: 2 * time.Second, DownAfter: 10 * time.Second, CapacityFloor: 0.75}
 

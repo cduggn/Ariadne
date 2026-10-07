@@ -1,8 +1,8 @@
 """Scrub secrets out of cluster text before it reaches a model, a fixture or a log. Standard library only.
 
-Applied twice: when a snapshot is recorded (so fixtures in git never hold a secret) and when a live
-tool result is built (so a model never sees one). Patterns are deliberately broad — a false positive
-costs one hidden token, a false negative leaks a credential.
+It runs twice: when a snapshot is recorded (so fixtures in git never hold a secret) and when a live
+tool result is built (so a model never sees one). The patterns are broad on purpose. A false positive
+costs one hidden token, and a false negative leaks a credential.
 """
 from __future__ import annotations
 

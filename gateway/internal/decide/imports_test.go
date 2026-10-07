@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// allowedImports is the decide package's stdlib allowlist. Purity of the
-// gateway's decision core is enforced here, by the import graph, not by
+// allowedImports is the decide package's stdlib allowlist. This test keeps
+// the gateway's decision core pure through the import graph, not through
 // review.
 var allowedImports = map[string]bool{
 	"encoding/json": true,

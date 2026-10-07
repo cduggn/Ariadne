@@ -6,11 +6,12 @@
     uv run python -m doctor investigate -n orders --snapshot crashloop       # recorded fault, no cluster needed
     uv run python -m doctor watch --context lambda                            # autonomous: detect, then diagnose (doctor/watch.py)
 
-Model: --base-url / DOCTOR_BASE_URL (default http://127.0.0.1:8000/v1, the `make tunnel` port) and
+The model comes from --base-url / DOCTOR_BASE_URL (default http://127.0.0.1:8000/v1, the `make tunnel` port) and
 --model / DOCTOR_MODEL; the API key comes only from VLLM_API_KEY. Live reads go through kubectl with
 read-only verbs (get, logs, top, version) using --context / --kubeconfig; Prometheus, OpenCost, S3 and
 Cost Explorer are optional (DOCTOR_PROMETHEUS_URL, DOCTOR_OPENCOST_URL, DOCTOR_S3_BUCKET, DOCTOR_CCEXPLORER).
-Lambda's k3s from a laptop: `make kubeconfig k8s-tunnel`, then --kubeconfig .cache/lambda-kubeconfig --context lambda.
+To reach Lambda's k3s from a laptop, run `make kubeconfig k8s-tunnel`, then pass --kubeconfig .cache/lambda-kubeconfig
+--context lambda.
 
 Progress goes to stderr; the result goes to stdout (a report, or --json for the full run record).
 Exit status: 0 healthy · 1 issue found · 2 no grounded diagnosis (inconclusive, step cap, context budget,
@@ -83,7 +84,7 @@ def progress_printer(err, st: Style):
                         if c["rejected"] else "       submit_diagnosis → accepted")
                 print(st(line, "33" if c["rejected"] else "32"), file=err)
             elif c["name"] is None:
-                print(st("       (no tool call — nudged)", "33"), file=err)
+                print(st("       (no tool call, nudged)", "33"), file=err)
             else:
                 line = f"       {c['name']}({_args(c.get('args') or {})})"
                 print(line + (st(f" → {c['error'][:120]}", "33") if c.get("error") else ""), file=err)
@@ -150,7 +151,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(prog="python -m doctor", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("mode", choices=sorted(MODES), help="investigate a report, audit namespaces, or find over-provisioned "
                     "workloads; `watch` (see `python -m doctor watch --help`) runs autonomously")
-    ap.add_argument("report", nargs="?", help="what the user sees (optional; a default per mode is used)")
+    ap.add_argument("report", nargs="?", help="what the user sees (optional; each mode has a default)")
     ap.add_argument("-n", "--namespaces", required=True, help="comma-separated namespaces to examine")
     src = ap.add_mutually_exclusive_group()
     src.add_argument("--context", help="kubectl context of a live cluster (default: the current context)")
@@ -185,7 +186,7 @@ def open_source(context: str | None, snapshot: str | None, kubeconfig: str | Non
             names = ", ".join(sorted(p.stem for p in root.glob("*.json")))
             raise SourceError(EXIT_USAGE, f"no recorded snapshot {', '.join(bad) or snapshot!r}; available: {names}")
         backend = SnapshotBackend.load(FIXTURES / "cluster.json", *paths)
-        return backend, sorted(backend.dump["namespaces"]), "doctor-lab", f"snapshot {snapshot}"   # golden card → same cached prefix
+        return backend, sorted(backend.dump["namespaces"]), "doctor-lab", f"snapshot {snapshot}"   # the golden set's name, so the card hits the same cached prefix
     if kubeconfig:
         os.environ["KUBECONFIG"] = kubeconfig                                        # inherited by the kubectl subprocess
     backend = KubectlBackend(context=context)
@@ -205,7 +206,7 @@ def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -
     out, err = stdout or sys.stdout, stderr or sys.stderr
     try:
         a = parse(argv)
-    except SystemExit as e:                        # argparse: --help → 0, bad usage → 64
+    except SystemExit as e:                        # argparse exits 0 for --help and 2 for bad usage, reported as 64
         return EXIT_USAGE if e.code else 0
     st_err, st_out = Style(_color(err)), Style(_color(out) and not a.json)
 
@@ -230,7 +231,7 @@ def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -
     except SourceError as e:
         return fail(e.code, str(e))
     missing = [ns for ns in namespaces if ns not in available]
-    if missing:                                   # kubectl returns an empty list for a typo — that must not read as "healthy"
+    if missing:                                   # kubectl returns an empty list for a typo, which must not read as "healthy"
         return fail(EXIT_USAGE, f"namespace not found: {', '.join(missing)}; available: {', '.join(available)}")
 
     report, max_steps = MODES[a.mode]

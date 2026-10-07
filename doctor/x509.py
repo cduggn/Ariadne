@@ -4,8 +4,8 @@
     # {"subject_cn", "subject_o", "issuer_cn", "issuer_o", "not_before", "not_after", "dns_names", "is_ca"}
 
 A minimal DER walker over the TBSCertificate: issuer, validity, subject, and the subjectAltName and
-basicConstraints extensions. No signature verification — this reports what a certificate claims, which
-is what a diagnosis cites. Only public certificates ever reach it (Secrets are never read).
+basicConstraints extensions. It does not verify signatures. It reports what a certificate claims, which
+is what a diagnosis cites. Only public certificates ever reach it, because the doctor never reads Secrets.
 """
 from __future__ import annotations
 

@@ -62,7 +62,7 @@ type Mooncake struct {
 	client *http.Client
 
 	mu      sync.Mutex
-	engines map[string]string // bootstrap URL → engine id of data-parallel rank 0
+	engines map[string]string // bootstrap URL to the engine id of data-parallel rank 0
 }
 
 // NewMooncake returns a Mooncake that sends with client.
@@ -71,8 +71,8 @@ func NewMooncake(client *http.Client) *Mooncake {
 }
 
 // Send makes src prefill body and hold its KV under transferID, and returns
-// the Params the destination needs. On any error the cached engine id is
-// dropped, because the likeliest cause is a restarted worker with a new one.
+// the Params the destination needs. On any error it drops the cached engine
+// id, because the likeliest cause is a restarted worker with a new one.
 func (m *Mooncake) Send(ctx context.Context, src Endpoint, body []byte, requestID, transferID string) (Params, error) {
 	engine, err := m.engine(ctx, src.BootstrapURL)
 	if err != nil {

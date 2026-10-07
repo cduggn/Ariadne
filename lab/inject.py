@@ -8,8 +8,8 @@
 
 --faults takes fault ids, `all`, or `all-<tier>` (easy, multi_hop, red_herring, rightsizing). Live-only faults
 (GPU, S3) are applied only when named. Every namespace it creates is labelled doctor.lab/managed=true, and
---clear deletes only namespaces with that label. Lab clusters only (kind, the Lambda k3s node) — this is the
-one part of the project, with lab/record.py, that writes to a cluster; the doctor itself never does.
+--clear deletes only namespaces with that label. Lab clusters only (kind, the Lambda k3s node). This script and
+lab/record.py are the only parts of the project that write to a cluster; the doctor itself never does.
 """
 from __future__ import annotations
 

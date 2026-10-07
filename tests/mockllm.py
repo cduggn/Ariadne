@@ -40,6 +40,6 @@ def llm_for(server: Server):
 
 
 def reference_script(task_id: str, submit: dict) -> list:
-    """The reference trajectory (the tool calls that return every ref the reference cites), then submit_diagnosis:
-    a scripted model run whose citations are all in the observation ledger (D-41)."""
+    """The reference trajectory (the tool calls that return every ref the reference cites), then submit_diagnosis.
+    Every citation in this scripted run is in the observation ledger (D-41)."""
     return [(name, args) for name, args in TRAJECTORIES[task_id]] + [("submit_diagnosis", submit)]

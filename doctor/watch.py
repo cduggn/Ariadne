@@ -11,9 +11,9 @@ Every --interval seconds (default 60):
             there at its last diagnosis and its --cooldown (900 s) has passed. Resolved fingerprints are
             forgotten, so a relapse triggers again. A gateway refusal or transport error is retried next scan.
   diagnose  an investigation per changed namespace (X-Priority interactive), up to --max-parallel at once. The
-            report is built only from structured fields (kind, name, sanitised reason, restarts) — never from
-            free text in the cluster — because the report is a user turn.
-  schedule  audits of every watched namespace in groups of 4 every --audit-every (24 h) and right-sizing per
+            scan builds the report only from structured fields (kind, name, sanitised reason, restarts), never
+            from free text in the cluster, because the report is a user turn.
+  schedule  audits of every watched namespace in groups of 3 every --audit-every (24 h) and right-sizing per
             namespace every --rightsize-every (7 d), both X-Priority batch; 0 turns one off.
   emit      one JSON line per diagnosis (stdout, and appended to --out); human lines on stderr; Prometheus
             text at http://--metrics-addr/metrics (default 127.0.0.1:9109; empty to disable).
@@ -133,8 +133,8 @@ _REASON = re.compile(r"^(Init:|Restarted after )?[A-Z][A-Za-z]{1,39}$")      # K
 
 
 def _reason(text: str) -> str:
-    """Only a CamelCase reason token reaches the report (a user turn); anything else — free text a workload or
-    controller could have written — becomes "Other". Tool results carry the details, as untrusted data."""
+    """Only a CamelCase reason token reaches the report (a user turn); anything else, such as free text a workload or
+    controller could have written, becomes "Other". Tool results carry the details, as untrusted data."""
     text = (text or "").strip()
     return text if _REASON.match(text) else ("NotReady" if not text else "Other")
 
@@ -250,7 +250,7 @@ class Watcher:
         """Tasks to run this cycle: investigations for changed namespaces, then any scheduled work that is due."""
         now, tasks = self.clock(), []
         for ns, fps in found.items():
-            prev = self.diagnosed.get(ns, set()) & set(fps)       # forget resolved problems → a relapse re-triggers
+            prev = self.diagnosed.get(ns, set()) & set(fps)       # forget resolved problems so a relapse triggers again
             self.diagnosed[ns] = prev
             new = sorted(set(fps) - prev)
             if not new:
@@ -312,7 +312,7 @@ class Watcher:
         for task, rec in zip(tasks, recs, strict=True):
             if task["task_type"] == "investigate":
                 ns = task["namespaces"][0]
-                if rec["stop"].startswith(RETRY_STOPS):           # refused or unreachable: try again next scan
+                if rec["stop"].startswith(RETRY_STOPS):           # refused or unreachable, so try again next scan
                     self.metrics.inc("doctor_skipped_total", reason="retry")
                 else:
                     self.diagnosed[ns] = set(task["fingerprints"])
@@ -339,7 +339,7 @@ def _line(rec: dict) -> str:
 # ---- entry point ------------------------------------------------------------------------------
 
 def main(argv: list[str], *, llm=None, stdout=None, stderr=None, open_source=None) -> int:
-    from .cli import EXIT_NO_DIAGNOSIS, EXIT_USAGE, SourceError, open_source as _open  # noqa: I001 — avoids an import cycle
+    from .cli import EXIT_NO_DIAGNOSIS, EXIT_USAGE, SourceError, open_source as _open  # noqa: I001  (a local import avoids an import cycle)
     out, err = stdout or sys.stdout, stderr or sys.stderr
     ap = argparse.ArgumentParser(prog="python -m doctor watch", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = ap.add_mutually_exclusive_group()

@@ -1,4 +1,4 @@
-"""Kubernetes resource quantities → numbers. CPU in millicores, memory in MiB. Standard library only."""
+"""Convert Kubernetes resource quantities to numbers. CPU in millicores, memory in MiB. Standard library only."""
 from __future__ import annotations
 
 import re

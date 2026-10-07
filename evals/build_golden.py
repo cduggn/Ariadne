@@ -4,16 +4,16 @@
     python3 -m evals.build_golden
 
 Tasks (D-28, D-31):
-  investigate  one per recorded scenario — one namespace, the user's report, interactive priority
-  rightsize    right-sizing scenarios — batch priority
-  audit        several namespaces at once — nobody waiting, batch priority (the gateway's batch tenant)
+  investigate  one per recorded scenario, with one namespace, the user's report and interactive priority
+  rightsize    right-sizing scenarios, batch priority
+  audit        several namespaces at once with nobody waiting, batch priority (the gateway's batch tenant)
 Each task carries its tier (easy · multi_hop · red_herring · rightsizing) so results are reported per tier.
 
 The answer key comes from faults/*/scenario.json (what was injected), never from a model. A reference
 solver builds one grounded diagnosis per task using only tool results (plus solver-only hints naming
 which ConfigMap or container holds the evidence), and records the tool calls that returned every ref it
-cites: its trajectory (D-41). The trajectory is replayed through the same dispatch and observation ledger
-the agent uses, within the task's step cap, and the reference must pass BOTH scores (v1 legacy, v2 with
+cites as its trajectory (D-41). The build replays the trajectory through the same dispatch and observation
+ledger the agent uses, within the task's step cap, and the reference must pass BOTH scores (v1 legacy, v2 with
 the ledger), so key, tools and checker are proven consistent before any model is scored. The reference
 is an answer-key consistency proof, not a demonstration that a model could find the path unaided.
 """

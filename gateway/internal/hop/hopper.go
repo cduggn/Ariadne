@@ -32,8 +32,8 @@ type Result struct {
 	Err     error
 }
 
-// Hopper is the gateway's hop capability: the cost rule and the transport,
-// over the fixed set of workers.
+// Hopper joins the cost rule and the transport over the gateway's fixed set
+// of workers.
 type Hopper struct {
 	cfg       Config
 	endpoints map[string]Endpoint

@@ -365,8 +365,8 @@ func (f *Fleet) probe(ctx context.Context, m *member) {
 	m.update(func(st *WorkerStatus) { st.LastProbeS = elapsed.Seconds() })
 }
 
-// post sends WarmBody to url and returns the status code. The response
-// body is drained so the connection can be reused.
+// post sends WarmBody to url and returns the status code. It drains the
+// response body so the client can reuse the connection.
 func (f *Fleet) post(ctx context.Context, url, requestID string) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(f.cfg.WarmBody))
 	if err != nil {

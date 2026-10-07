@@ -5,7 +5,7 @@
     python -m serving.fit qwen3-8b-awq sliced --gate          # exit 1 if the pair fails the gate (make deploy runs this)
     python -m serving.fit qwen3-8b-awq sliced --gateway-env   # the gateway settings the pair implies (make gateway uses this)
 
-Per worker (topology → HAMi memory and SM share):
+Per worker (the topology sets its HAMi memory and SM share):
     budget      = slice MiB × gpu_memory_utilization
     KV pool     = budget − weights − activation peak − CUDA context
     KV / token  = 2 (K,V) × attention layers × KV heads × head dim × bytes            (standard attention)

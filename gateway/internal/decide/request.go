@@ -21,7 +21,7 @@ type RunID string
 type Priority uint8
 
 const (
-	Batch Priority = iota // zero value: the conservative lane
+	Batch Priority = iota // zero value, the conservative lane
 	Interactive
 )
 

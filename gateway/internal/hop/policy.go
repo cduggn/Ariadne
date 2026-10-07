@@ -3,9 +3,9 @@
 // It is off unless configured, and every failure falls back to recompute, so
 // a hop can make a request faster but never makes it fail.
 //
-// The package has three parts. Config.Decide is the pure cost rule: hop only
-// when the history is long enough and the copy is estimated to be cheaper
-// than the prefill. Mooncake speaks vLLM's MooncakeConnector protocol to the
+// The package has three parts. Config.Decide is the pure cost rule. It hops
+// only when the history is long enough and it estimates the copy to be
+// cheaper than the prefill. Mooncake speaks vLLM's MooncakeConnector protocol to the
 // two workers. Hopper joins them for the serve package. Both workers are the
 // fleet's own pods, so a hop never sends data off the box.
 package hop
@@ -44,7 +44,7 @@ const (
 var Outcomes = []Outcome{BelowThreshold, RecomputeCheaper, Hopped, Failed, Busy}
 
 // Config is the cost rule's inputs. The rates describe the deployment and
-// should come from a measurement on the real node: until then they are
+// should come from a measurement on the real node. Until then they are
 // estimates, and the rule is only as good as they are.
 type Config struct {
 	// MinTokens is the shortest history worth hopping. A shorter one
