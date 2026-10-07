@@ -1,7 +1,10 @@
 # cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda GPU lifecycle (A100, H100 or GH200).
 #
-#   make tools                      fetch pinned kind, kubectl and promtool into .bin/ (checksums verified)
-#   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, alert rule tests, ruff
+#   make tools                      fetch pinned kind, kubectl, promtool, golangci-lint, gitleaks into .bin/ (checksums verified)
+#   make test / lint                offline: unit tests over recorded snapshots, gateway vet + race tests, alert rule tests;
+#                                   ruff and golangci-lint (gateway/.golangci.yml)
+#   make hooks                      use .githooks/: secrets + gateway fmt/vet/build before commit, lint + race tests before push (D-47)
+#   make secrets / vulncheck        gitleaks over the whole history / govulncheck on the gateway (needs the network)
 #   make lab-up / lab-record / lab-down   kind cluster, inject faults, record fixtures/  (lab only mutates kind)
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
 #   make gateway-image              build + push the gateway image (Docker Hub, public), pin its digest
@@ -78,7 +81,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 .DEFAULT_GOAL := help
 
@@ -111,13 +114,13 @@ tools:
 
 test: alerts-test
 	uv run -q python -m pytest
-	cd gateway && go vet ./... && go test ./...
+	cd gateway && go vet ./... && go test -race ./...
 
-# The production alert rules (D-45): valid, and each fires on its condition and stays quiet below it.
 # The results notebook and its charts (D-46), rebuilt from metrics/: report/report.ipynb, design/figures/*.png.
 report:
 	uv run -q --group report python -m report.build
 
+# The production alert rules (D-45): valid, and each fires on its condition and stays quiet below it.
 alerts-test: .bin/promtool
 	.bin/promtool check rules deploy/observability/alerts.yaml
 	cd deploy/observability && ../../.bin/promtool test rules alerts_test.yaml
@@ -125,8 +128,26 @@ alerts-test: .bin/promtool
 .bin/promtool:
 	bash lab/get-tools.sh promtool
 
-lint:
+lint: go-lint
 	$(RUFF) check doctor evals lab serving tests report
+
+# Code-quality gates (D-47). The hooks call the same tools; CI runs them too, so --no-verify only delays a failure.
+GOVULNCHECK_VERSION = v1.8.0
+go-lint: .bin/golangci-lint
+	cd gateway && ../.bin/golangci-lint run ./...
+
+hooks: .bin/golangci-lint .bin/gitleaks
+	git config core.hooksPath .githooks
+	@echo "hooks on: .githooks/pre-commit, .githooks/pre-push"
+
+secrets: .bin/gitleaks
+	.bin/gitleaks git --no-banner --redact --config .gitleaks.toml
+
+vulncheck:
+	cd gateway && go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
+
+.bin/golangci-lint .bin/gitleaks:
+	bash lab/get-tools.sh $(notdir $@)
 
 models:
 	$(PY) -m serving.profiles list

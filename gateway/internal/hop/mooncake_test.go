@@ -40,7 +40,7 @@ func newSource(t *testing.T) *source {
 		s.queries++
 		engine := s.engineID
 		s.mu.Unlock()
-		json.NewEncoder(w).Encode(map[string]any{"0": map[string]any{"engine_id": engine, "dp_rank": 0}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"0": map[string]any{"engine_id": engine, "dp_rank": 0}})
 	})
 	mux.HandleFunc("POST /v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -50,7 +50,7 @@ func newSource(t *testing.T) *source {
 		status, finish := s.status, s.finish
 		s.mu.Unlock()
 		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"finish_reason": finish}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"finish_reason": finish}}})
 	})
 	s.srv = httptest.NewServer(mux)
 	t.Cleanup(s.srv.Close)

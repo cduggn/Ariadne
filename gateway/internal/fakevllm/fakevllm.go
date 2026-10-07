@@ -93,7 +93,7 @@ func (w *Worker) query(rw http.ResponseWriter, r *http.Request) {
 	engine := w.settings.EngineID
 	w.mu.Unlock()
 	rw.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(rw).Encode(map[string]any{"0": map[string]any{"engine_id": engine}})
+	_ = json.NewEncoder(rw).Encode(map[string]any{"0": map[string]any{"engine_id": engine}}) // the client is gone if this fails
 }
 
 // metricsText is the subset of vLLM's exposition the fleet reads, with the
@@ -172,7 +172,7 @@ func (w *Worker) chat(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(s.Status)
-	rw.Write(resp)
+	_, _ = rw.Write(resp) // the client is gone if this fails
 }
 
 type chatCompletion struct {
@@ -243,7 +243,7 @@ func completion(body []byte, cached, steps int) []byte {
 			Role string `json:"role"`
 		} `json:"messages"`
 	}
-	json.Unmarshal(body, &req)
+	_ = json.Unmarshal(body, &req) // a malformed body reads as the zero value
 	done := 0
 	for _, m := range req.Messages {
 		if m.Role == "tool" {
@@ -292,7 +292,7 @@ func kvTransfer(body []byte) transferParams {
 	var req struct {
 		Params transferParams `json:"kv_transfer_params"`
 	}
-	json.Unmarshal(body, &req)
+	_ = json.Unmarshal(body, &req) // a malformed body reads as the zero value
 	return req.Params
 }
 

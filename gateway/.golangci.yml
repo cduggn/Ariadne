@@ -1,0 +1,39 @@
+# golangci-lint v2 config for the gateway (D-47). Run by `make go-lint`, the pre-push hook and CI.
+# The default set (errcheck, govet, ineffassign, staticcheck, unused) plus linters that catch real bugs in an HTTP
+# proxy: unclosed bodies, requests without a context, swallowed errors, unsafe conversions.
+version: "2"
+run:
+  timeout: 5m
+issues:
+  max-issues-per-linter: 0   # show every finding, not the first 50
+  max-same-issues: 0
+linters:
+  default: standard
+  enable:
+    - bodyclose        # response bodies closed
+    - contextcheck     # contexts passed down, not replaced
+    - durationcheck    # no duration × duration
+    - errorlint        # errors.Is/As, %w
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr           # no `return nil` after a non-nil error
+    - noctx            # outbound requests carry a context
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+  settings:
+    govet:
+      enable-all: true
+      disable: [fieldalignment]   # struct layout for memory, not correctness
+  exclusions:
+    presets: [std-error-handling]
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, bodyclose, unparam]
+formatters:
+  enable: [gofmt, goimports]
+  settings:
+    goimports:
+      local-prefixes: [github.com/cduggn/cluster-doctor]

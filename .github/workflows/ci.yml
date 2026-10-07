@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with: {fetch-depth: 0}   # gitleaks scans every commit
+      - run: bash lab/get-tools.sh gitleaks && make secrets   # pinned gitleaks, .gitleaks.toml (D-47)
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uvx -q ruff@0.13.2 check doctor evals lab serving tests report
       - run: uv sync --locked --python 3.12
@@ -20,6 +22,7 @@ jobs:
       - run: uv run python -m pytest
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e   # v7.0.0
         with: {go-version-file: gateway/go.mod, cache-dependency-path: gateway/go.sum}
-      - run: go vet ./... && go test ./...
+      - run: go vet ./... && go test -race ./... && go mod tidy -diff && go mod verify
         working-directory: gateway
+      - run: bash lab/get-tools.sh golangci-lint && make go-lint   # gateway/.golangci.yml (D-47)
       - run: bash lab/get-tools.sh promtool && make alerts-test   # pinned promtool, checksum in the script (D-45)

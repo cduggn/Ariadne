@@ -1,0 +1,18 @@
+# gitleaks config (D-47): the default rules, plus the project's known non-secrets. Used by the git hooks, make secrets
+# and CI. Allow by pattern, never by whole directory, so a real key in metrics/ or tests/ still fails.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Doctor evidence ids: <kind>-<object>-<suffix>, e.g. lg-orders-api-54b7775f96-6wmnn-orders-api-c0"
+regexTarget = "secret"
+regexes = ['''^(cs|ct|ds|lg|mt|rs|rz|st)-[a-z0-9.-]+$''']
+
+[[allowlists]]
+description = "Redaction test inputs: fake keys the redactor must mask"
+paths = ['''^tests/test_redact\.py$''']
+
+[[allowlists]]
+description = "vLLM's finish_reason=length next to the word max_tokens in prose"
+regexTarget = "match"
+regexes = ['''finish_reason=length''']

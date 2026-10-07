@@ -126,7 +126,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/chat/completions", s.chat)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "ok")
+		_, _ = io.WriteString(w, "ok")
 	})
 	mux.HandleFunc("GET /readyz", s.readyz)
 	mux.HandleFunc("GET /debug/workers", s.workers)
@@ -291,7 +291,7 @@ func relay(w http.ResponseWriter, up upstream, ev Event) {
 		", queue;dur="+millisText(ev.Queue)+
 		", upstream;dur="+millisText(ev.Upstream))
 	w.WriteHeader(up.status)
-	w.Write(up.body)
+	_, _ = w.Write(up.body) // a failed write means the client left; the request is already recorded
 }
 
 // usage is what the gateway reads from a worker's answer. Every field is
@@ -363,7 +363,7 @@ func (s *Server) finish(ev Event) {
 func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
 	for _, ws := range s.gate.View() {
 		if ws.Ready {
-			io.WriteString(w, "ready")
+			_, _ = io.WriteString(w, "ready")
 			return
 		}
 	}
@@ -390,7 +390,7 @@ func (s *Server) workers(w http.ResponseWriter, r *http.Request) {
 		out = append(out, debugWorker{Pod: st.Pod, Phase: st.Phase.String(), Status: st, View: views[st.Pod]})
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(out)
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func (s *Server) workerMetrics(w http.ResponseWriter, r *http.Request) {
@@ -405,7 +405,8 @@ func (s *Server) workerMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	w.Write(body)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(body) //nolint:gosec // G705: a known worker's exposition, served as nosniff text/plain
 }
 
 // headersOf copies the headers decide reads out of an http.Header.
@@ -448,7 +449,7 @@ type apiErrorBody struct {
 func writeError(w http.ResponseWriter, status int, message, typ, code string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(apiError{Error: apiErrorBody{Message: message, Type: typ, Code: code}})
+	_ = json.NewEncoder(w).Encode(apiError{Error: apiErrorBody{Message: message, Type: typ, Code: code}})
 }
 
 // writeRefusal answers a shed verdict. The client reads only the status

@@ -524,7 +524,7 @@ func TestReadyzAndDebugEndpoints(t *testing.T) {
 func TestMetricsRouteServesTheHandlerWhenSet(t *testing.T) {
 	exposition := "# TYPE orch_requests_total counter\norch_requests_total{class=\"restricted\",priority=\"batch\"} 0\n"
 	h := start(t, tuning{options: Options{Metrics: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, exposition)
+		_, _ = io.WriteString(w, exposition)
 	})}})
 	if got := h.get("/metrics"); got.status != 200 || string(got.body) != exposition {
 		t.Errorf("/metrics = %d %q, want 200 with the handler's text", got.status, got.body)
@@ -593,14 +593,18 @@ func TestMovedRunHopsItsKVAndTheNewWorkerPullsIt(t *testing.T) {
 		Params    map[string]any `json:"kv_transfer_params"`
 		MaxTokens int            `json:"max_tokens"`
 	}
-	json.Unmarshal(hold.Body, &held)
+	if err := json.Unmarshal(hold.Body, &held); err != nil {
+		t.Fatal(err)
+	}
 	if held.Params["do_remote_decode"] != true || held.MaxTokens != 1 {
 		t.Errorf("source request params %v max_tokens %d, want do_remote_decode and a one-token cap", held.Params, held.MaxTokens)
 	}
 	var pulled struct {
 		Params map[string]any `json:"kv_transfer_params"`
 	}
-	json.Unmarshal(h.lastRecorded("runA-s2").Body, &pulled)
+	if err := json.Unmarshal(h.lastRecorded("runA-s2").Body, &pulled); err != nil {
+		t.Fatal(err)
+	}
 	if pulled.Params["do_remote_prefill"] != true || pulled.Params["remote_engine_id"] != "fake-engine" ||
 		pulled.Params["transfer_id"] != held.Params["transfer_id"] {
 		t.Errorf("destination params %v, want do_remote_prefill from fake-engine under the source's transfer id", pulled.Params)

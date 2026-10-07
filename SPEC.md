@@ -357,7 +357,7 @@ promtool tests that check each rule fires on its condition and stays quiet below
 | Item | Value |
 |---|---|
 | Model / engine | A100: Qwen/Qwen3-8B-AWQ @ `4da05a8…` · H100/GH200: Qwen/Qwen3.8-27B-FP8 @ `017b9c7…` · vLLM `v0.29.0-cu129` @ `sha256:7ef5a35d…` (v0.30.0-cu129 crash-loops, F19) |
-| Gateway | `docker.io/cdugga/cluster-doctor-gateway` by digest (`deploy/k8s/gateway.yaml`) · Go 1.27.0 · promtool 3.14.0 for the alert tests |
+| Gateway | `docker.io/cdugga/cluster-doctor-gateway` by digest (`deploy/k8s/gateway.yaml`) · Go 1.27.0 · promtool 3.14.0 for the alert tests · golangci-lint 2.14.0, gitleaks 8.30.1, govulncheck v1.8.0 (D-47) |
 | Lab | kind v0.33.0 · kubectl v1.37.1 · node v1.36.4 · metrics-server v0.9.0 · cryptography 50.0.1 (lab only) |
 | Tokens (measured) | prefix 3,787 · card 112 · unique per task median: easy 2,459, multi-hop 3,570, red herring 4,768, rightsize 5,200, audits 7.7k–11.2k · max context 15.1k |
 | KV (measured) | 8B on an A100 slice: 79,056 tokens (paper 79,699) · Qwen3.8 on an H100 half: 51,092 (paper 77,926) · whole H100: 525,797 |
@@ -367,10 +367,12 @@ promtool tests that check each rule fires on its condition and stays quiet below
 
 ## 5. How to verify
 ```
-make tools                 # pinned kind, kubectl and promtool into .bin/
+make tools                 # pinned kind, kubectl, promtool, golangci-lint and gitleaks into .bin/
+make hooks                 # git hooks: secrets + gateway fmt/vet/build on commit; golangci-lint + race tests on push
 uv sync                    # pinned agent stack (LangGraph, LangChain) from uv.lock
 make preflight             # before paying for a GPU: lint, tests, gateway linux build, golden references, fit gate, lam API key
-make lint test             # ruff + Python tests over recorded snapshots + gateway go vet/test + promtool alert tests
+make lint test             # ruff + golangci-lint + Python tests over recorded snapshots + gateway vet/race tests + promtool alert tests
+make secrets / vulncheck   # gitleaks over the whole history / govulncheck on the gateway (network; weekly in CI)
 make report                # rebuild report/report.ipynb and design/figures/ from metrics/
 make fit-all / make matrix # every model × topology on paper; regenerate design/model-matrix.md
 uv run python -m doctor watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # autonomous mode, one cycle
@@ -388,7 +390,8 @@ read; injection-flagged log lines; lab private keys only in a temp dir and lab S
 environment or a Kubernetes Secret; endpoints ClusterIP behind SSH tunnels; `restricted` never leaves
 self-hosted inference (fuzz-tested, and alerted on: C21); the gateway refuses client-supplied `kv_transfer_params`, and
 with the KV hop on a NetworkPolicy lets workers accept only the gateway, Prometheus and each other; hop transfer ids are
-random; the gateway image is public and holds no secrets; CI has `contents: read` only.
+random; the gateway image is public and holds no secrets; CI has `contents: read` only. gitleaks scans every commit in
+CI and each commit and push through the git hooks (D-47); `.gitignore` excludes kubeconfigs, keys and `.env.*`.
 
 ## 7. Porting notes (re-implementing in another language)
 Preserve exactly: ref formats (including `lg-<pod>-<container>-<c|p><i>` and `rz-<ns>-<owner>-<container>`)
@@ -425,3 +428,4 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-01 … 10-04 | The Go gateway (guard, admit, place, queue, warm-up, overflow decision, `orch_*`, dashboard); GPU fallback launch and per-GPU cloud-init; Qwen3.8 and Gemma-4 profiles; gateway image on Docker Hub; vLLM kept on v0.29.0 | D-42 |
 | 2026-10-06 | KV hop over MooncakeConnector (opt-in) with its security fixes; H100 boots HAMi-sliced; Makefile playbook; the H100 session (Qwen3.8 86.5%, routing A/B, the knee); findings F1–F30 | D-42 |
 | 2026-10-07 | Admission sized to KV; refusal retries; `client_gone`; same-node control (F36); five alerts with promtool tests; results notebook and figures | D-43 … D-46 |
+| 2026-10-07 | Code-quality gates: git hooks, golangci-lint on the gateway, gitleaks in hooks and CI, race tests, weekly govulncheck | D-47 |

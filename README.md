@@ -71,7 +71,8 @@ measured KV pool stops vLLM from preempting, but at these loads it finished fewe
 
 **Offline, no GPU:**
 ```
-make tools && uv sync      # pinned kind, kubectl, promtool; the locked Python stack
+make tools && uv sync      # pinned kind, kubectl, promtool, golangci-lint, gitleaks; the locked Python stack
+make hooks                 # secret scan and Go checks before each commit and push
 make lint test             # Python, Go and alert-rule tests over recorded faults
 make demo                  # the gateway in front of two fake workers, golden set at concurrency 8
 make report                # rebuild the results notebook and charts from metrics/

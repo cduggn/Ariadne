@@ -389,3 +389,28 @@ palette's first three categorical slots, which validate for every pair, on a lig
 mistakes code review does.
 **Revisit when:** a run's raw time series need charting (the node loses them at `make down` until `make export`
 exists).
+
+### D-47 — Code-quality gates: git hooks, golangci-lint, gitleaks, govulncheck (2026-10-07)
+**Context:** the repository is going public. A credential audit of every commit found no real secrets, but nothing
+stopped one landing later, and the gateway was checked only by `go vet` and `go test`. A first strict lint run found
+17 real issues: unchecked errors, a shadowed context, a shutdown context that dropped the request's values, and a
+fake worker serving with no timeouts.
+**Choice:**
+- **Tools, all standard and pinned.** golangci-lint 2.14.0 (gofmt, goimports, go vet with every analyser except
+  `fieldalignment`, staticcheck, errcheck, gosec, errorlint, bodyclose, noctx, contextcheck and others, in
+  `gateway/.golangci.yml`), gitleaks 8.30.1 (`.gitleaks.toml`), and govulncheck v1.8.0. `lab/get-tools.sh` fetches
+  golangci-lint and gitleaks with checksums pinned in the script, like promtool (D-45).
+- **Hooks in `.githooks/`, turned on by `make hooks`** (`core.hooksPath`), with no hook framework to install. Before
+  a commit, gitleaks scans the staged changes, and if gateway Go is staged the hook checks formatting, `go vet`, the
+  build and `go mod tidy`. Before a push, gitleaks scans the pushed commits, and if they touch `gateway/` the hook runs
+  golangci-lint, `go test -race` and `go mod verify`.
+- **CI runs the same checks,** so `--no-verify` only delays a failure. gitleaks scans the full history on every push.
+- **govulncheck runs weekly and on demand** (`make vulncheck`, `.github/workflows/vulncheck.yml`), not in the hooks,
+  because it queries vuln.go.dev and a new advisory elsewhere should not block an unrelated push.
+- **gitleaks allows by pattern, never by directory.** The doctor's evidence ids (`lg-orders-api-…`), the redaction
+  test's fake keys and the prose `finish_reason=length` are allowed. A real-looking key placed in `metrics/` still
+  fails.
+**Because:** the checks are cheap (lint under 10 s, race tests under 5 s), they catch the classes of bug an HTTP proxy
+gets wrong, and a secret is cheapest to stop before it is committed.
+**Revisit when:** the Python side needs the same push gate (ruff and pytest run in `make test` and CI today), or a
+lint rule's false positives outnumber its finds.

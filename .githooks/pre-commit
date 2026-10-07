@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Fast checks on what is being committed (D-47). Installed by `make hooks`; tools from `make tools`.
+#   1. no secrets in the staged changes (gitleaks, .gitleaks.toml)
+#   2. if gateway Go files are staged: gofmt and goimports clean, go vet, it builds, go.mod tidy
+# The full lint and race tests run before push (.githooks/pre-push). Bypass in an emergency with --no-verify;
+# CI runs the same checks, so a bypass only delays the failure.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+fail() { echo "pre-commit: $*" >&2; exit 1; }
+need() { [ -x ".bin/$1" ] || fail ".bin/$1 missing; run make tools"; }
+
+need gitleaks
+.bin/gitleaks git --staged --no-banner --redact --config .gitleaks.toml --log-level warn \
+  || fail "gitleaks found a secret in the staged changes (values redacted above)"
+
+staged_go=$(git diff --cached --name-only --diff-filter=ACMR -- 'gateway/*.go')
+staged_mod=$(git diff --cached --name-only --diff-filter=ACMR -- gateway/go.mod gateway/go.sum)
+[ -z "$staged_go$staged_mod" ] && exit 0
+
+command -v go >/dev/null || fail "go not on PATH"
+need golangci-lint
+# Format check on the staged files only (paths relative to gateway/).
+if [ -n "$staged_go" ]; then
+  rel=$(echo "$staged_go" | sed 's|^gateway/||')
+  # shellcheck disable=SC2086
+  diff=$(cd gateway && ../.bin/golangci-lint fmt --diff $rel 2>&1) || true
+  [ -z "$diff" ] || { echo "$diff" >&2; fail "unformatted Go; run: cd gateway && ../.bin/golangci-lint fmt"; }
+fi
+(cd gateway && go vet ./...) || fail "go vet"
+(cd gateway && go build ./...) || fail "go build"
+(cd gateway && go mod tidy -diff) || fail "go.mod/go.sum not tidy; run: cd gateway && go mod tidy"

@@ -26,7 +26,8 @@ func main() {
 		s.Steps, s.Latency, s.KVUsage = *steps, *latency, *kv
 	})
 	fmt.Fprintf(os.Stderr, "fakevllm on %s: %d steps, %s latency\n", *listen, *steps, *latency)
-	if err := http.ListenAndServe(*listen, w.Handler()); err != nil {
+	srv := &http.Server{Addr: *listen, Handler: w.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	if err := srv.ListenAndServe(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

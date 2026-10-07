@@ -47,7 +47,9 @@ func TestMoveHopsALongHistoryOffTheOldWorker(t *testing.T) {
 	var got struct {
 		Params map[string]any `json:"kv_transfer_params"`
 	}
-	json.Unmarshal(out, &got)
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
 	xfer, _ := got.Params["transfer_id"].(string)
 	if got.Params["do_remote_prefill"] != true || got.Params["remote_engine_id"] != "engine-vllm-0" || !validTransferID(xfer) {
 		t.Errorf("destination kv_transfer_params = %v", got.Params)
@@ -96,7 +98,7 @@ func TestMoveGivesUpOnASourceSlowerThanTheTimeout(t *testing.T) {
 	stall := make(chan struct{})
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /query", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"0":{"engine_id":"e0"}}`))
+		_, _ = w.Write([]byte(`{"0":{"engine_id":"e0"}}`))
 	})
 	mux.HandleFunc("POST /v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -147,7 +149,9 @@ func TestEveryHopGetsItsOwnUnguessableTransferID(t *testing.T) {
 				TransferID string `json:"transfer_id"`
 			} `json:"kv_transfer_params"`
 		}
-		json.Unmarshal(out, &got)
+		if err := json.Unmarshal(out, &got); err != nil {
+			t.Fatal(err)
+		}
 		id := got.Params.TransferID
 		if !validTransferID(id) || seen[id] {
 			t.Fatalf("transfer id %q is malformed or repeated across hops %v", id, seen)
@@ -160,7 +164,7 @@ func TestMoveIsBusyPastMaxInflightAndFreesItsSlot(t *testing.T) {
 	stall, entered := make(chan struct{}), make(chan struct{}, 1)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /query", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"0":{"engine_id":"e0"}}`))
+		_, _ = w.Write([]byte(`{"0":{"engine_id":"e0"}}`))
 	})
 	mux.HandleFunc("POST /v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
 		entered <- struct{}{}
@@ -169,7 +173,7 @@ func TestMoveIsBusyPastMaxInflightAndFreesItsSlot(t *testing.T) {
 		case <-r.Context().Done():
 			return
 		}
-		w.Write([]byte(`{"choices":[{"finish_reason":"length"}]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"length"}]}`))
 	})
 	slow := httptest.NewServer(mux)
 	t.Cleanup(slow.Close)

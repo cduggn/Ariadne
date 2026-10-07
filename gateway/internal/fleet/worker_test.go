@@ -40,7 +40,7 @@ func newFakeVLLM(t *testing.T) *fakeVLLM {
 			http.Error(w, "down", http.StatusServiceUnavailable)
 			return
 		}
-		io.WriteString(w, body)
+		_, _ = io.WriteString(w, body)
 	})
 	mux.HandleFunc("/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -55,7 +55,7 @@ func newFakeVLLM(t *testing.T) *fakeVLLM {
 			return
 		}
 		w.WriteHeader(status)
-		io.WriteString(w, `{"choices":[]}`)
+		_, _ = io.WriteString(w, `{"choices":[]}`)
 	})
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Strict checks before anything leaves the machine (D-47). Installed by `make hooks`; tools from `make tools`.
+#   1. no secrets in any commit being pushed (gitleaks over the pushed range)
+#   2. if those commits touch gateway/: golangci-lint (gateway/.golangci.yml), go test -race, go mod verify
+# govulncheck needs the network and runs weekly in CI and on demand (make vulncheck), not here.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+fail() { echo "pre-push: $*" >&2; exit 1; }
+need() { [ -x ".bin/$1" ] || fail ".bin/$1 missing; run make tools"; }
+need gitleaks
+
+zero=0000000000000000000000000000000000000000
+gateway_changed=
+while read -r _ local_sha _ remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue                       # a branch deletion pushes no commits
+  if [ "$remote_sha" = "$zero" ]; then range="$local_sha --not --remotes"   # a new branch: commits no remote has
+  else range="$remote_sha..$local_sha"; fi
+  .bin/gitleaks git --no-banner --redact --config .gitleaks.toml --log-level warn --log-opts="$range" \
+    || fail "gitleaks found a secret in a commit being pushed; rewrite it out before pushing, and revoke the secret"
+  # shellcheck disable=SC2086
+  [ -n "$(git log --format= --name-only $range -- gateway/ | head -1)" ] && gateway_changed=1
+done
+[ -z "$gateway_changed" ] && exit 0
+
+command -v go >/dev/null || fail "go not on PATH"
+need golangci-lint
+(cd gateway && ../.bin/golangci-lint run ./...) || fail "golangci-lint (gateway/.golangci.yml)"
+(cd gateway && go test -race -count=1 ./...) || fail "go test -race"
+(cd gateway && go mod verify >/dev/null) || fail "go mod verify: a module in the cache does not match go.sum"

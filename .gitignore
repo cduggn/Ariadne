@@ -4,5 +4,12 @@ __pycache__/
 .cache/
 .bin/
 .env
+.env.*
 *.pyc
 .venv/
+# credentials that must never be committed (gitleaks in the hooks and CI is the second line)
+*kubeconfig*
+*.pem
+*.key
+id_rsa*
+id_ed25519*

@@ -194,9 +194,9 @@ func (f *Fleet) Status() []WorkerStatus {
 func (f *Fleet) RawMetrics(ctx context.Context, pod string) ([]byte, error) {
 	for _, m := range f.members {
 		if m.name == pod {
-			ctx, cancel := context.WithTimeout(ctx, f.cfg.ScrapeTimeout)
+			scrapeCtx, cancel := context.WithTimeout(ctx, f.cfg.ScrapeTimeout)
 			defer cancel()
-			return f.get(ctx, m.base+"/metrics")
+			return f.get(scrapeCtx, m.base+"/metrics")
 		}
 	}
 	return nil, fmt.Errorf("fleet: unknown pod %q", pod)
@@ -379,7 +379,7 @@ func (f *Fleet) post(ctx context.Context, url, requestID string) (int, error) {
 		return 0, err
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(resp.Body, maxMetricsBytes))
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxMetricsBytes)) // drained for connection reuse; only the status matters
 	return resp.StatusCode, nil
 }
 

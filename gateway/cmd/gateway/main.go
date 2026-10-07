@@ -117,9 +117,11 @@ func main() {
 	}
 	go func() {
 		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second) // ctx is already done; keep its values, not its cancellation
 		defer cancel()
-		httpServer.Shutdown(shutdownCtx)
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Warn("shutdown", "err", err)
+		}
 	}()
 
 	log.Info("gateway listening", "addr", *listen, "pods", pods, "policy", string(pick),
