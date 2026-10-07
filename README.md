@@ -1,18 +1,52 @@
-# Ariadne
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="design/assets/ariadne-dark.png">
+    <img src="design/assets/ariadne-light.png" alt="A labyrinth with a thread leading to its centre" width="150">
+  </picture>
+</p>
 
-**A self-hosted inference stack, measured under the load of a Kubernetes root-cause agent.**
+<h1 align="center">Ariadne</h1>
 
-[![ci](https://github.com/cduggn/cluster-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/cduggn/cluster-doctor/actions/workflows/ci.yml)
+<p align="center">
+  <b>A self-hosted inference stack, measured under the load of a Kubernetes root-cause agent.</b>
+</p>
 
-> In Greek myth, Ariadne gave Theseus a ball of thread so he could find his way through the Minotaur's labyrinth and
+<p align="center">
+  <a href="https://github.com/cduggn/cluster-doctor/actions/workflows/ci.yml"><img src="https://github.com/cduggn/cluster-doctor/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <img src="https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white" alt="Go 1.27">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/vLLM-0.29-30A2FF" alt="vLLM 0.29">
+  <img src="https://img.shields.io/badge/Kubernetes-k3s%20%2B%20HAMi-326CE5?logo=kubernetes&logoColor=white" alt="k3s and HAMi">
+  <img src="https://img.shields.io/badge/autoscaling-KEDA-1A4F9C" alt="KEDA">
+</p>
+
+<p align="center">
+  <a href="#what-we-measured">Results</a> ·
+  <a href="#what-the-stack-is">Architecture</a> ·
+  <a href="#how-a-request-moves-through-the-gateway">Gateway</a> ·
+  <a href="#how-it-is-observed">Observability</a> ·
+  <a href="#run-it">Run it</a> ·
+  <a href="design/course-objectives.md">Brief mapping</a>
+</p>
+
+> *In Greek myth, Ariadne gave Theseus a ball of thread so he could find his way through the Minotaur's labyrinth and
 > back out. Kubernetes is the modern labyrinth. Ariadne is the thread that leads an engineer straight to the beast:
-> the root cause.
+> the root cause.*
 
 Ariadne is the final project for *AI Inference Engineering & Systems Design* (Track B). The app is an agent that
 investigates a broken cluster with read-only tools and names the object that has to change. The subject is the stack
 that serves it: vLLM on HAMi slices of one GPU, behind a Go gateway that guards, admits, places and queues every call,
-with Prometheus, Grafana and tested alerts watching each hop. Every number below comes from a committed run in
-`metrics/`.
+with Prometheus, Grafana and tested alerts watching each hop.
+
+<table>
+  <tr>
+    <td align="center"><h3>51k</h3>KV tokens per H100 half,<br>the first limit</td>
+    <td align="center"><h3>88%</h3>of prompt tokens<br>served from cache</td>
+    <td align="center"><h3>−10%</h3>prefill with<br>sticky placement</td>
+    <td align="center"><h3>−95%</h3>vLLM preemptions with<br>KV-sized admission</td>
+    <td align="center"><h3>0</h3>restricted requests<br>off the box</td>
+  </tr>
+</table>
 
 ## What the stack is
 
@@ -63,17 +97,31 @@ that: keep a run on the worker that holds its history, and protect KV before any
 | Does restricted data stay on the box? | Yes. `orch_restricted_offbox_total` is 0 in all 13 gateway scrapes, backed by a fuzz test and a critical alert. | D-42, D-45 |
 | Does the KV hop work? | 8 hops completed the Mooncake protocol with 0 failures. Whether the KV moved instead of being recomputed is unconfirmed. | F35 |
 
-![Pass rate against concurrent runs for three admission settings](design/figures/knee.png)
+<table>
+  <tr>
+    <td width="50%"><img src="design/figures/knee.png" alt="Pass rate against concurrent runs for three admission settings"></td>
+    <td width="50%"><img src="design/figures/routing_ab.png" alt="Prefill and step latency with and without stickiness"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Where it breaks: pass rate against concurrent runs (F24, F36)</sub></td>
+    <td align="center"><sub>Sticky against least-loaded placement, same workload (F29)</sub></td>
+  </tr>
+</table>
 
-![Prefill and step latency with and without stickiness](design/figures/routing_ab.png)
-
-The notebook [`report/report.ipynb`](report/report.ipynb) rebuilds every chart from `metrics/` with `make report`.
-Its section 10 answers the brief's Part 5, "what runs next", from time series exported during the run.
-[`design/findings.md`](design/findings.md) gives each finding with the file it comes from.
+> [!NOTE]
+> Every number comes from a committed run in `metrics/`. The notebook [`report/report.ipynb`](report/report.ipynb)
+> rebuilds every chart with `make report`, and its section 10 answers the brief's Part 5, "what runs next", from time
+> series exported during the run. [`design/findings.md`](design/findings.md) gives each finding with its source file.
 
 ## How a request moves through the gateway
 
 The gateway (`gateway/`, D-42) makes four decisions in order, and names every refusal on `orch_shed_total{reason}`.
+
+| Status | Reason | Means | May leave the box? |
+|---|---|---|---|
+| 400 | `bad_json`, `stream_unsupported`, `kv_transfer_params`, and 4 more | the request is wrong | no |
+| 429 | `tenant_tokens` | the tenant is over its token quota | no |
+| 503 | `kv_free`, `timeout_queue`, `p99_spread`, `queue_full` | the stack is short of KV or time | yes, unless restricted |
 
 1. **Guard.** A malformed body, streaming, or a client-supplied `kv_transfer_params` gets a 400.
 2. **Admit.** A tenant over its token quota gets a 429 (`tenant_tokens`). A request gets a 503 when its worker is
@@ -111,7 +159,11 @@ make demo                  # the gateway in front of two fake workers, golden se
 make report                # rebuild the results notebook and charts from metrics/
 ```
 
-On a Lambda GPU, billed from `make up` to `make down` (`make help` prints the session in order):
+> [!IMPORTANT]
+> A Lambda GPU is billed from `make up` to `make down`. `make help` prints the session in order, and `make down`
+> warns if the last bench was never exported.
+
+On a Lambda GPU:
 
 ```
 make preflight && make up  # first of H100, GH200, A100 with capacity
@@ -150,6 +202,9 @@ for Qwen3-8B, and scores 100% on the red herrings that fool rule-based tools (F1
 
 ## Repository
 
+<details>
+<summary>Where everything lives</summary>
+
 | Path | What |
 |---|---|
 | `gateway/` | the Go gateway: admission, placement, queue, metrics, KV hop |
@@ -161,6 +216,8 @@ for Qwen3-8B, and scores 100% on the red herrings that fool rule-based tools (F1
 | `report/` | the results notebook and its data loaders |
 | `design/` | decisions, findings, architecture, figures, test plan, slides |
 | `faults/`, `fixtures/` | injected faults and recorded cluster snapshots |
+
+</details>
 
 ## Documents
 
