@@ -72,6 +72,14 @@ def error_row(task: dict, e: Exception) -> dict:
             "completion_tokens": [], "cached_tokens": [], "latency_s": [], "headers": {}, "diagnosis": None, "finish_reasons": [], "calls": []}
 
 
+def result_paths(out: Path, tag: str, stamp: str) -> tuple[Path, Path]:
+    """The run's rows and summary files. The suffix is appended, never swapped: a tag such as
+    `sweep-qwen3.8-27b-fp8-c16` has a dot, and Path.with_suffix would cut it there, sending every level's rows to one
+    `golden-sweep-qwen3.jsonl` (it did, on 10-06 and 10-07)."""
+    base = out / f"golden-{tag}-{stamp}"
+    return Path(f"{base}.jsonl"), Path(f"{base}.summary.json")
+
+
 def _pct(xs, p):
     xs = sorted(x for x in xs if x is not None)
     return round(xs[min(len(xs) - 1, int(p * len(xs)))], 3) if xs else None
@@ -148,7 +156,7 @@ def main() -> int:
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    base = out / f"golden-{a.tag}-{stamp}"
+    rows_path, summary_path = result_paths(out, a.tag, stamp)
     lock = threading.Lock()
 
     def one(task: dict) -> dict:
@@ -157,7 +165,7 @@ def main() -> int:
         except Exception as e:  # one task must never lose the run
             row = error_row(task, e)
         with lock:                                  # written as each task finishes: an interrupted run keeps its rows
-            with base.with_suffix(".jsonl").open("a") as f:
+            with rows_path.open("a") as f:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
             print(f"{row['id']:22} {row['tier']:11} v1 {'PASS' if row['pass'] else 'FAIL'} v2 {'PASS' if row['pass_v2'] else 'FAIL'} "
                   f"steps={row['n_steps']:2} stop={row['stop']:13} {'; '.join(row['failed_v2'])[:100]}", flush=True)
@@ -173,11 +181,11 @@ def main() -> int:
                                "gpu_share": round(a.workers * topo["gpucores"] / 100, 2), "base_url": a.base_url,
                                "concurrency": a.concurrency, "repeat": a.repeat, "harness": not a.no_harness, "scorers": ["v1", "v2"],
                                "only": a.only, "git_commit": commit, "wall_s": round(time.time() - t0, 1), "timestamp": stamp})
-    Path(f"{base}.summary.json").write_text(json.dumps(summary, indent=2))
+    summary_path.write_text(json.dumps(summary, indent=2))
     print(json.dumps({k: summary[k] for k in ("pass_rate", "pass_rate_v2", "pass_rate_v2_ci95", "pass_rate_by_tier_v2", "parts_v2",
                                               "stop_reasons", "inconclusive", "abstained", "http_refusals", "refusal_reasons",
                                               "runs_that_waited_out_a_refusal", "top_failed_rules_v2")}, indent=2))
-    print(f"wrote {base}.jsonl and .summary.json")
+    print(f"wrote {rows_path} and {summary_path.name}")
     return 0
 
 

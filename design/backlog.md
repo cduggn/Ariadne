@@ -13,10 +13,11 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   the scores, so re-run the golden set afterwards.
 
 ## Gateway
-- [ ] **Re-run the knee with KV-sized admission (D-43) and refusal retries (D-44).** On two H100 halves with
-  Qwen3.8: `make gateway-image` (commit the digest), then `make bringup`, then `make sweep WORKERS=2 LEVELS="16 32"
-  REPEAT=1`, and compare with F24's table. Expect vLLM preemptions at 0, refusals waited out (`refusal_reasons`,
-  `runs_that_waited_out_a_refusal`) and pass rates held up at 16 and 32, with step latency rising instead.
+- [ ] **Tune the KV-sized cap (D-43, findings F36).** Cap 4 kept vLLM healthy but finished fewer runs than cap 16 at 16
+  and 32 concurrent runs, because queued requests hit the queue deadline. Try a cap of 6–8 on an H100 half (or size
+  `gateway_env` for a small preemption budget instead of none), or keep 4 with a longer interactive queue deadline.
+  Experiment on one node: `make sweep WORKERS=2 LEVELS="16 32" REPEAT=1` per setting, comparing pass rate,
+  preemptions, cached share and step p95 with F36's table. About 15 min of GPU per setting.
 - [ ] **Overflow to Superlinked's hosted API** (stay or leave, end to end). The course's
   `class-code/class10/router/overflow.py` posts OpenAI chat completions to `https://api.superlinked.com/v1` with a
   Bearer key, leaves only on 503/529, and caps requests with `OVERFLOW_MAX_REQS`. Our `MayLeave` already makes the

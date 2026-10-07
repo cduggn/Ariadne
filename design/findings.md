@@ -183,6 +183,34 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{16,32}-20261007-*.summary.json
   metric, and the forced-hop run failed because the tunnel was down after the gateway restarted. (measured protocol;
   the transfer itself unverified)
 
+### Same-node control: cap 4 against cap 16 (10-07, both on the SXM5, both with D-44 retries)
+
+| | Cap 4 (D-43) | Cap 16 (old) |
+|---|---|---|
+| c=16 v2 pass [95% CI] | 69.2% [50.0–83.5] | 84.6% [66.5–93.9] |
+| c=32 v2 pass [95% CI] | 53.8% [35.5–71.2] | 61.5% [42.5–77.6] |
+| vLLM preemptions added (c=16 / c=32) | 1 / 2 | 9 / 34 |
+| Cached share (c=16 / c=32) | 81.3% / 81.6% | 73.3% / 72.7% |
+| Step latency p95 (c=16 / c=32) | 21.8 s / 21.7 s | 25.3 s / 26.9 s |
+| Refusals | `timeout_queue` 42 / 83 | `kv_free` 58 / 132 |
+| Runs that waited out a refusal | 10 / 13 | 22 / 19 |
+
+Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{16,32}-20261007-{151105,151406,160229,160543}.summary.json`,
+`metrics/{gateway,vllm-0,vllm-1}-sweep-c{16,32}-20261007-{151105,160229}.prom`; Grafana on 10-07 showed vLLM running up
+to 10 requests per worker with up to 10 waiting and KV at 100% during the cap-16 run, against at most 4 under cap 4.
+(measured)
+
+- **F36. Sizing admission to KV is a trade, not a free win.** On the same node, cap 4 cut vLLM preemptions by ~95%, kept
+  8 points more of the prompt cached and lowered tail latency by ~15%: the engine stayed healthy. But fewer runs
+  finished: queued requests hit the gateway's queue deadline, and the doctor's ~15 s of retries ran out first. Under cap
+  16 the retries outlasted `kv_free` sheds while vLLM absorbed the overload by preempting, slower and with more
+  recomputation, but completing more runs. The pass-rate intervals overlap, so the completion gap is suggestive at 26
+  runs per level. F31's improvement over 10-06 came mostly from the retries (D-44) and the faster GPU, not from the cap.
+  (measured)
+- **F37. Every Qwen3.8 sweep level's rows went to one file,** `metrics/golden-sweep-qwen3.jsonl`: the runner used
+  `Path.with_suffix`, which cut the tag at the dot in `qwen3.8`. The rows are all there, appended, but not split by
+  level; summaries were unaffected. Fixed in the runner (`result_paths`, with a test). (measured)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
@@ -202,7 +230,7 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{16,32}-20261007-*.summary.json
 
 ## Still to measure
 
-- A same-node control for F31: the old cap (`GW_MAX_INFLIGHT=16`) on the same GPU type, concurrency 16 and 32.
+- The tuned cap (backlog): somewhere between 4 and 16, or cap 4 with a longer queue deadline, against F36's table.
 - Whether a hop's destination really pulls the KV: its `cached_tokens` on the hopped step (gateway log `hop`, the
   step's `cached_tokens`), since vLLM 0.29 has no transfer metric.
 - Time series (KV usage, power, placement over time) were not kept on 10-06: the node's Prometheus keeps nothing after

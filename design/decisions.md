@@ -331,6 +331,12 @@ exemption keeps runs alive mid-investigation without overfilling KV.
 instead of being preempted inside vLLM, where it costs recomputation and throughput for everyone.
 **Revisit when:** the re-run of the knee (backlog) still shows vLLM preemptions with the sized cap (then tighten the
 continuing-run exemption), or runs grow well past the 12k-token app length (size to a larger typical run).
+**Measured 2026-10-07 (findings F36), revisit triggered:** on the same H100 SXM5 node, the sized cap (4) cut vLLM
+preemptions by ~95% and kept the cache and tail latency better than the old 16, but fewer runs finished at 16 and 32
+concurrent runs, because queued requests hit the gateway's queue deadline before the doctor's retries outlasted the
+queue. The formula sizes for "no preemption", which is stricter than the workload needs. Next: size for a small
+preemption budget (e.g. a cap of about 6–8 on a half), or keep 4 and lengthen the queue deadline for interactive work,
+and choose by pass rate and preemptions together.
 
 ### D-44 — The doctor waits out gateway refusals, and a client that leaves is not a worker failure (2026-10-06)
 **Context:** a 429 or 503 ended the run at once: the client ran with `max_retries 0` (SPEC, the agent's client) so that

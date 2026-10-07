@@ -155,3 +155,10 @@ def test_warmup_body_is_the_doctors_first_request_with_one_output_token():
     warm = json.loads(warmup.warm_body("qwen3-8b-awq"))
     assert warm["max_completion_tokens"] == 1 and live["max_completion_tokens"] == 768
     assert {**warm, "max_completion_tokens": 768} == live
+
+
+def test_result_files_keep_a_dotted_tag_whole(tmp_path):
+    from evals.run_golden import result_paths
+    rows, summary = result_paths(tmp_path, "sweep-qwen3.8-27b-fp8-c16", "20261007-151105")
+    assert rows.name == "golden-sweep-qwen3.8-27b-fp8-c16-20261007-151105.jsonl"
+    assert summary.name == "golden-sweep-qwen3.8-27b-fp8-c16-20261007-151105.summary.json"
