@@ -126,3 +126,4 @@ The full session plan is in [`design/lambda-test-plan.md`](design/lambda-test-pl
 | [`design/decisions.md`](design/decisions.md) | why each choice was made |
 | [`report/report.ipynb`](report/report.ipynb) | the results notebook, answering the brief's questions |
 | [`design/course-objectives.md`](design/course-objectives.md) | each part of the brief mapped to its evidence |
+| [`design/slides.md`](design/slides.md) | the presentation (Marp Markdown) |
