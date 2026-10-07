@@ -201,14 +201,20 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
   tier and type, a 95 % Wilson interval, `parts_v2`, `abstained`, and run metadata (profile, model, topology, workers,
   `gpu_share`, git commit, `only`, `unique_tasks`).
 
-### C10 — Serving and node ✅ written · 🟡 not yet run for this repo
-- `deploy/cloud-init.yaml`: k3s v1.36.4+k3s1, Helm v3.22.0, HAMi 2.9.0 (split 4), Prometheus chart 29.33.0
-  (5 s scrape), Grafana (grafana-community) 13.2.5, DCGM exporter 4.5.2-4.8.1, OpenCost 2.5.32 (GPU $1.99/h),
-  vLLM `v0.29.0-cu129` by digest, `Qwen/Qwen3-8B-AWQ @ 4da05a8…` prefetched; `KUBECONFIG` via `/etc/environment`.
+### C10 — Serving and node ✅ (run on A100 and H100, 2026-09-27 … 10-07)
+- `make up` (`lab/up.sh`) launches the first of H100 PCIe, H100 SXM5, GH200 and A100 with capacity in any region,
+  never a second node, and writes `.cache/node.env` (GPU, model, topology, hop) for the other targets; `make resume`
+  finishes a node Lambda booted slowly.
+- `deploy/cloud-init.yaml`, one file for every GPU: k3s v1.36.4+k3s1, Helm v3.22.0 (amd64 or arm64), HAMi 2.9.0
+  (split 4), Prometheus chart 29.33.0 (5 s scrape, the alert rules of C21), Grafana (grafana-community) 13.2.5, DCGM
+  exporter 4.5.2-4.8.1, OpenCost 2.5.32 (GPU $1.99/h), vLLM `v0.29.0-cu129` by digest. It reads the GPU's memory and
+  fetches that class's boot model before `ready.json` (A100: Qwen3-8B-AWQ; H100 and GH200: Qwen3.8-27B-FP8) and the
+  next model in the background; `KUBECONFIG` via `/etc/environment`.
 - `deploy/k8s/vllm.yaml`: **generated** by `serving/profiles.py` for the default pair (qwen3-8b-awq, sliced) and kept equal
   by a test; other pairs are rendered to `.cache/deploy/<model>-<topo>/` by `make render|deploy`. StatefulSet vllm-0/1,
-  headless Service, `hami-scheduler`, `nvidia.com/gpumem` and `gpucores` from the topology (20480/50 sliced,
-  40960/100 full), labels `doctor.serving/model|topology`; shared flags from `deploy/serving.json` (`--max-model-len 24576
+  headless Service, `hami-scheduler`, `nvidia.com/gpumem` and `gpucores` from the topology (A100: 20480/50 `sliced`,
+  40960/100 `full`; H100: 39936/50 `h100-half`, 79872/100 `h100-full`; GH200 halves and full), labels
+  `doctor.serving/model|topology`; `HOP=1` adds vLLM's MooncakeConnector (`kv_both`, tcp, port 8998) and a NetworkPolicy; shared flags from `deploy/serving.json` (`--max-model-len 24576
   --gpu-memory-utilization 0.9 --max-num-seqs 32 --max-num-batched-tokens 8192 --enable-prefix-caching
   --enable-auto-tool-choice --enable-prompt-tokens-details --enable-request-id-headers`) plus the profile's args (e.g.
   `--tool-call-parser hermes`); startup probe allows 15 min.
@@ -283,17 +289,45 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
   correct diagnoses per GPU-hour (v2 passes ÷ wall hours ÷ (workers × SM share)); ranking with "clearly ahead" only when
   intervals do not overlap; unrun profiles with plan and fit; every run on file (pre-D-40 summaries mapped by served
   name, marked assumed). No date in the output; CI regenerates it and fails on a diff.
-- **Make:** `models`, `fit`, `fit-all`, `gate`, `render`, `prefetch` (push + `sudo bash prefetch.sh`, same marker as
-  cloud-init), `deploy` (gate → render → prefetch → apply), `scale` (refuses N > `max_replicas`), `kv` (tees the log to
-  `metrics/kv-…`), `golden`/`sweep` (`--profile $(MODEL) --topology $(TOPO) --workers $(WORKERS)`), `watch`, `matrix`.
+- **Make:** `make help` prints the GPU session in order: `preflight`, `up`, `bringup` (`deploy` → `scale` to the
+  topology's workers → `kv` → `gateway` → `dashboards`), `tunnel`, `grafana`, `check`, `bench TAG=…`, `down`. Also
+  `models`, `fit`, `fit-all`, `gate`, `render`, `prefetch`, `deploy`, `scale` (refuses N > `max_replicas`), `kv` (tees
+  the log to `metrics/kv-…`), `golden`/`sweep`, `metrics`, `watch`, `matrix`, `report` (C14), `alerts-test` (C21).
+
+### C11 — Inference gateway ✅ (`gateway/`, Go, D-42, D-43, D-44; design `design/gateway.md`)
+- **Decisions,** pure and tested in `decide`: guard (400; refuses client `kv_transfer_params`), tenant token quota
+  (429, stays), KV shed at the 0.80 line, queue deadline and p99 spread (503), placement `prefix_then_load` (keep a run
+  on the worker holding its history unless it is 0.25 load units busier; `least_loaded` and `p2c` for the A/B), a
+  per-worker priority queue with deadlines (interactive 10 s, batch 30 s).
+- **Admission sized to KV** (D-43): `make gateway` sets the in-flight cap per worker from the measured KV pool
+  (`serving.fit --gateway-env`): 9 on an A100 slice with the 8B, 4 on an H100 half with Qwen3.8, 16 on a whole card.
+- **Warm-up** (C13): a worker is routable only after two probes replay the doctor's real first request
+  (`serving/warmup.py`), which also caches the shared prefix; `/readyz` needs one warm worker.
+- **Stay or leave:** only a 503 may overflow and a restricted request never does (`MayLeave` + fuzz test); the
+  overflow backend is null. **KV hop** (`hop`, opt-in, `HOP=1`): a run moved off a worker that holds its history has its
+  KV copied over vLLM's MooncakeConnector when the history is long enough and the copy is cheaper than the prefill;
+  random transfer ids, at most `GW_HOP_MAX_INFLIGHT` hops, any failure recomputes.
+- **Telemetry:** `orch_*` metrics, the `cluster-doctor gateway` dashboard (contract-tested), one log line per request;
+  a client that leaves is `client_gone`, not a 502 (D-44).
+- **Delivery:** `docker.io/cdugga/cluster-doctor-gateway`, public, amd64 + arm64, pinned by digest in
+  `deploy/k8s/gateway.yaml` (`make gateway-image`); one replica, because the run table lives in memory.
+
+### C14 — Results notebook ✅ (`report/`, D-46)
+`make report` builds and runs `report/report.ipynb` from the committed `metrics/` and saves its charts to
+`design/figures/`: shared against unique tokens per step, model quality with intervals, KV fit against measured, the
+routing A/B, the knee across admission settings, what was shed and why, tokens per engine step, the alerts, and
+recommendations for 10× traffic. Findings with evidence: `design/findings.md`.
+
+### C21 — Production alerts ✅ (`deploy/observability/alerts.yaml`, D-45)
+`KVCacheSaturated` (above the 0.80 shed line), `GatewayQueueWaitHigh` (queue p95 above half the 10 s interactive
+deadline), `VLLMPreempting`, `DoctorInconclusiveRateHigh` (over 20% in an hour), `RestrictedRequestOffBox`
+(critical). Embedded in the node's Prometheus values (tested); `make alerts-test` runs promtool tests that each fires
+on its condition and stays quiet below it.
 
 ### Planned ⬜
 | Id | Component | Summary |
 |---|---|---|
-| C11 | Gateway (Go, `cduggn/inference-gateway`) | guard, admit (KV 0.80, deadline, tenant quota), pick (pack:cluster affinity + per-run stickiness, bounded, P2C), per-worker queue, overflow never for restricted, class-9 `orch_*` metrics |
 | C12 | Live fixtures | record the 4 live-only scenarios on the Lambda cluster / AWS |
-| C13 | Warm-up proof | vllm-1 not routable until warm; TTFT re-quoted |
-| C14 | Notebook + plots + DESIGN.md | concurrency sweep, sheds by reason, pod A/B, DCGM power, results per tier, recommendations |
 | C15 | CVE rehydration (batch tenant) | post-course |
 | C16 | Self-healing of vLLM and the gateway (stretch, D-35) | separate write-scoped identity, approval interrupt, dry-run diff, post-action verification; the read-only path never gains write access |
 | C17 | Multi-agent roles | orchestrator (code) → parallel collectors → diagnoser → reviewer → approval → solutioner, as graph nodes over the same tools |
@@ -321,27 +355,29 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
 ## 4. Pins and key numbers
 | Item | Value |
 |---|---|
-| Model / engine | Qwen/Qwen3-8B-AWQ @ `4da05a8edb55c6046cce958586c33b61da07bb79` (40,960 positions) · vLLM `v0.29.0-cu129` @ `sha256:7ef5a35d…` |
+| Model / engine | A100: Qwen/Qwen3-8B-AWQ @ `4da05a8…` · H100/GH200: Qwen/Qwen3.8-27B-FP8 @ `017b9c7…` · vLLM `v0.29.0-cu129` @ `sha256:7ef5a35d…` (v0.30.0-cu129 crash-loops, F19) |
+| Gateway | `docker.io/cdugga/cluster-doctor-gateway` by digest (`deploy/k8s/gateway.yaml`) · Go 1.27.0 · promtool 3.14.0 for the alert tests |
 | Lab | kind v0.33.0 · kubectl v1.37.1 · node v1.36.4 · metrics-server v0.9.0 · cryptography 50.0.1 (lab only) |
 | Tokens (measured) | prefix 3,787 · card 112 · unique per task median: easy 2,459, multi-hop 3,570, red herring 4,768, rightsize 5,200, audits 7.7k–11.2k · max context 15.1k |
-| KV (paper) | 144 KiB/token · ≈ 79,700 tokens per 20 GiB slice · 0.80 line ≈ 24 easy / 17 multi-hop / 6 audits |
-| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · 67 offline tests |
-| Model profiles | 7 (`make models`): baseline qwen3-8b-awq; round 1 qwen3-14b-awq, qwen3-30b-a3b-2507-awq; round 2 qwen3.5-9b; paper-only qwen3-coder-30b-a3b-awq, qwen3.6-35b-a3b-awq, ministral-3-14b — fits in `design/model-matrix.md` |
-| Agent stack | langgraph 1.2.12 · langchain-core 1.6.5 · langchain-openai 1.6.6 (locked in `uv.lock`); dev pytest 9.1.1 |
+| KV (measured) | 8B on an A100 slice: 79,056 tokens (paper 79,699) · Qwen3.8 on an H100 half: 51,092 (paper 77,926) · whole H100: 525,797 |
+| Golden set / tests | 26 tasks (14 easy, 7 multi-hop, 4 red-herring, 1 right-sizing) · `make test`: Python, Go (`-race` in CI) and alert-rule tests |
+| Model profiles | 9 (`make models`): baseline qwen3-8b-awq; round 1 qwen3-14b-awq, qwen3-30b-a3b-2507-awq; round 2 qwen3.5-9b, qwen3.8-27b-fp8, gemma-4-31b-it-fp8; paper-only qwen3-coder-30b-a3b-awq, qwen3.6-35b-a3b-awq, ministral-3-14b. Best measured: qwen3.8-27b-fp8, 86.5% v2 (F1) |
+| Agent stack | langgraph 1.2.12 · langchain-core 1.6.5 · langchain-openai 1.6.6 (locked in `uv.lock`); dev pytest 9.1.1; `report` group (notebook only, D-46): matplotlib 3.11.2, nbformat 5.11.1, nbclient 0.11.0, ipykernel 7.4.0 |
 
 ## 5. How to verify
 ```
-make tools                 # pinned kind + kubectl into .bin/
+make tools                 # pinned kind, kubectl and promtool into .bin/
 uv sync                    # pinned agent stack (LangGraph, LangChain) from uv.lock
-make preflight             # before paying for a GPU: lint, 67 tests, golden references committed, fit gate, lam API key
-make lint test             # ruff + 67 offline tests over recorded snapshots
+make preflight             # before paying for a GPU: lint, tests, gateway linux build, golden references, fit gate, lam API key
+make lint test             # ruff + Python tests over recorded snapshots + gateway go vet/test + promtool alert tests
+make report                # rebuild report/report.ipynb and design/figures/ from metrics/
 make fit-all / make matrix # every model × topology on paper; regenerate design/model-matrix.md
 uv run python -m doctor watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # autonomous mode, one cycle
 uv run python -m doctor investigate -n orders --snapshot crashloop   # needs a model at DOCTOR_BASE_URL
 make golden-build          # rebuild the golden set; fails if any reference diagnosis fails its checker
 make lab-up lab-record     # re-record fixtures on kind (~25 min, batches of 4), then make golden-build
-make up deploy kv          # Lambda A100 (costs money: ask first) — full sequence in design/lambda-test-plan.md
-make golden TAG=… / make sweep   # golden set; concurrency sweep with a vLLM /metrics scrape per level
+make up && make bringup    # a Lambda GPU (costs money: ask first); make help prints the session in order
+make bench TAG=…           # golden set + concurrency sweep + metrics, through the gateway
 make kubeconfig k8s-tunnel record-live ONLY=gpu-unavailable   # live-only faults on the Lambda k3s cluster
 ```
 
@@ -349,7 +385,9 @@ make kubeconfig k8s-tunnel record-live ONLY=gpu-unavailable   # live-only faults
 Read-only RBAC; no Secrets; ConfigMap values dropped except public certificates; redaction at record and
 read; injection-flagged log lines; lab private keys only in a temp dir and lab Secrets; AWS keys only in the
 environment or a Kubernetes Secret; endpoints ClusterIP behind SSH tunnels; `restricted` never leaves
-self-hosted inference; CI has `contents: read` only.
+self-hosted inference (fuzz-tested, and alerted on: C21); the gateway refuses client-supplied `kv_transfer_params`, and
+with the KV hop on a NetworkPolicy lets workers accept only the gateway, Prometheus and each other; hop transfer ids are
+random; the gateway image is public and holds no secrets; CI has `contents: read` only.
 
 ## 7. Porting notes (re-implementing in another language)
 Preserve exactly: ref formats (including `lg-<pod>-<container>-<c|p><i>` and `rz-<ns>-<owner>-<container>`)
@@ -360,14 +398,17 @@ identical arguments map to identical keys); budgets × namespace count; validati
 prefixes (tests key on them); the fail-closed shape; the DER walk order in `doctor/x509.py`.
 
 ## 8. Open issues
-1. No model run yet for this app — first run planned in `design/lambda-test-plan.md` (D-34), direct to vLLM; the gateway follows.
+1. The KV-sized cap (D-43) kept vLLM healthy but finished fewer runs than cap 16 at high concurrency (F36): tune it
+   (6–8 on an H100 half, or a longer interactive deadline); backlog.
 2. Live-only scenarios need recording on the Lambda cluster and AWS (C12).
 3. OpenCost pricing units and HAMi half-GPU attribution unverified (D-26).
 4. Live logs are longer than lab logs: re-measure tokens (D-29).
 5. In cascade-db the client's error line has no reason text (busybox prints nothing on refused-after-timeout); the database's `OOMKilled` status carries the proof.
 6. crashloop and job-failed `echo` their error instead of failing for real, so the stated fix would not repair them (D-41, deferred).
 7. The ruleset and tool schemas grew with D-41 (about +200 tokens): re-measure the 3,787-token prefix on the next GPU run.
-8. Hybrid-model recurrent state in the fit is an estimate until a hybrid profile is served (D-40).
+8. The fit is 20–34% optimistic for the hybrid Qwen3.8 (F5): correct it before it sizes a hybrid deployment.
+9. The KV hop completed the Mooncake protocol 8 times on hardware but vLLM 0.29 exposes no transfer metric, so a real
+   pull is unconfirmed (F35); HAMi slicing on GH200 is untested.
 
 ## 9. Change log
 | Date | Change | Decisions |
@@ -380,3 +421,6 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-09-27 | Autonomous mode (`watch`): cheap scan → change filter → diagnose, schedules, JSON lines, /metrics; lab fault injector; prom/opencost targets | D-37 |
 | 2026-09-28 | Model profiles and topologies, fit calculator and gate, rendered manifests, model matrix; `--profile` on CLI, watch and golden | D-40 |
 | 2026-09-28 | Observation ledger, full schema validation, duplicates, `inconclusive` as an answer, coverage for healthy; v2 score with mechanism facts; reference trajectories | D-41 |
+| 2026-10-01 … 10-04 | The Go gateway (guard, admit, place, queue, warm-up, overflow decision, `orch_*`, dashboard); GPU fallback launch and per-GPU cloud-init; Qwen3.8 and Gemma-4 profiles; gateway image on Docker Hub; vLLM kept on v0.29.0 | D-42 |
+| 2026-10-06 | KV hop over MooncakeConnector (opt-in) with its security fixes; H100 boots HAMi-sliced; Makefile playbook; the H100 session (Qwen3.8 86.5%, routing A/B, the knee); findings F1–F30 | D-42 |
+| 2026-10-07 | Admission sized to KV; refusal retries; `client_gone`; same-node control (F36); five alerts with promtool tests; results notebook and figures | D-43 … D-46 |
