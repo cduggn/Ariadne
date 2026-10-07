@@ -17,6 +17,7 @@
 #   make deploy MODEL=… TOPO=…      render, fetch weights, serve that model on that topology (fit gate first)
 #   make golden TAG=… [BASE=…]      run the golden set against a model endpoint (vLLM or the gateway); v1 + v2 scores
 #   make matrix                     design/model-matrix.md: fit + results + ranking from deploy/ and metrics/
+#   make report                     report/report.ipynb + design/figures/: the results notebook, rebuilt from metrics/
 #   make sweep [LEVELS="1 4 8 16 32"] REPEAT=2   golden set at each concurrency + a /metrics scrape per level (gateway + pods)
 #   make preflight                  everything that must be true before paying for a GPU
 #   make kubeconfig / k8s-tunnel / record-live ONLY=gpu-unavailable   live-only faults on the Lambda k3s cluster
@@ -77,7 +78,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench resume alerts-test demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 .DEFAULT_GOAL := help
 
@@ -113,6 +114,10 @@ test: alerts-test
 	cd gateway && go vet ./... && go test ./...
 
 # The production alert rules (D-45): valid, and each fires on its condition and stays quiet below it.
+# The results notebook and its charts (D-46), rebuilt from metrics/: report/report.ipynb, design/figures/*.png.
+report:
+	uv run -q --group report python -m report.build
+
 alerts-test: .bin/promtool
 	.bin/promtool check rules deploy/observability/alerts.yaml
 	cd deploy/observability && ../../.bin/promtool test rules alerts_test.yaml
@@ -121,7 +126,7 @@ alerts-test: .bin/promtool
 	bash lab/get-tools.sh promtool
 
 lint:
-	$(RUFF) check doctor evals lab serving tests
+	$(RUFF) check doctor evals lab serving tests report
 
 models:
 	$(PY) -m serving.profiles list

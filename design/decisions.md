@@ -374,3 +374,16 @@ below it, with a pinned, checksum-verified `promtool` 3.14.0 (the node's Prometh
 from the gateway's own limits move with them when those are retuned.
 **Revisit when:** Alertmanager gets a receiver (route the critical alert to a pager), or the KV cap is retuned (D-43)
 and the queue alert starts firing in normal operation.
+
+### D-46 — The results notebook is built from committed metrics, as code (2026-10-07)
+**Context:** the brief asks for a notebook answering its questions. The evidence is spread over golden summaries and
+rows, saved `/metrics` scrapes and KV logs in `metrics/`, and the numbers had so far been copied into findings by hand.
+**Choice:** `report/build.py` holds the notebook's cells as code; `make report` builds `report/report.ipynb`, runs it
+in a kernel over a local socket, and saves each chart to `design/figures/` for the README. `report/results.py` loads
+every number from `metrics/` (stdlib only, tested), so the notebook can be rebuilt from the repo and no figure is typed
+by hand. Its packages (matplotlib, nbformat, nbclient, ipykernel) are a separate `report` dependency group, pinned
+exactly; they are not runtime dependencies (D-33) and `uv sync` and CI never install them. Charts use the reference
+palette's first three categorical slots, which validate for every pair, on a light surface.
+**Because:** a notebook rebuilt from the data cannot drift from it, and reviewing cells as code catches the same
+mistakes code review does.
+**Revisit when:** a run's raw time series need charting (they are lost at `make down` until `make export` exists).
