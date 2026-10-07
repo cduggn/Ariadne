@@ -5,7 +5,7 @@ The brief is "Design the cluster and serve an app" (AI Inference Engineering & S
 presentation shows the repo, an architecture diagram, the dashboards, and a notebook answering the questions.
 
 Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not built. The measurements are in
-`design/findings.md` (F-numbers) and the charts in `report/report.ipynb` (sections §1–§9).
+`design/findings.md` (F-numbers) and the charts in `report/report.ipynb` (sections §1–§10).
 
 ## Parts of the brief
 
@@ -13,10 +13,10 @@ Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not bu
 |---|---|---|---|---|
 | 0 App | Track A or B; app-shaped traffic | Track B: Ariadne, a read-only cluster doctor. Investigations are interactive; audits and right-sizing are batch. Faults are tiered so the model's value over rules is measurable (D-31) | `doctor/`, `faults/`, golden set (26 tasks) | ✅ |
 | 1 Capacity on paper | max sequences at max length and at app length; bytes per token; first limiter | `serving/fit.py` for every model × topology; vLLM's measured pool beside it. KV binds first: two full-length runs per H100 half | F5, F6; report §3; `design/model-matrix.md` | ✅ |
-| 2 Cluster design | GPU, model, topology, concurrency, hop backend, overflow target, scaling pool | H100 halves (or A100 slices) under HAMi, Qwen3.8-27B-FP8 (86.5% v2), the in-flight cap sized to KV, an opt-in Mooncake KV hop, overflow decided but no backend (Superlinked blocked on billing), scale by adding workers | `design/architecture.md`; D-40, D-42, D-43; F1, F22 | ✅ (overflow backend ⬜) |
+| 2 Cluster design | GPU, model, topology, concurrency, hop backend, overflow target, scaling pool | H100 halves (or A100 slices) under HAMi, Qwen3.8-27B-FP8 (86.5% v2), the in-flight cap sized to KV, an opt-in Mooncake KV hop, overflow decided but no backend (Superlinked blocked on billing), a KEDA-scaled vLLM pool, one to two workers (D-49) | `design/architecture.md`; D-40, D-42, D-43, D-49; F1, F22, F38 | ✅ (overflow backend ⬜) |
 | 3 Guard, admit, stay vs leave | `inspect`, `should_shed`; 429/500/slice_oom stay, 503/529 may leave | The gateway's `decide` package: guard 400, tenant 429, KV / deadline / spread 503; only a 503 may leave and a restricted request never does (fuzz test) | `gateway/internal/decide`; F24, F32; report §6 | ✅ |
 | 4 Place | `pick` + policy | `prefix_then_load` (bounded stickiness), with `least_loaded` and `p2c` for the A/B | F29; report §4 | ✅ |
-| 5 Queue | who waits where; preemption; chunked prefill flags; abort on disconnect | Per-worker priority queue with deadlines; the in-flight cap sized to KV moves waiting from vLLM to the gateway; preemptions and chunked prefill measured; a client abort cancels the upstream call (`client_gone`) | F14, F15, F25, F32, F36; report §5, §7 | ✅ |
+| 5 Queue | who waits where; preemption; chunked prefill flags; abort on disconnect | Per-worker priority queue with deadlines; the in-flight cap sized to KV moves waiting from vLLM to the gateway; preemptions and chunked prefill measured; a client abort cancels the upstream call (`client_gone`) | F14, F15, F25, F32, F36; report §5, §7, §10 | ✅ |
 | 6 Hop and warm | record a hop, or prove warm-up and re-quote TTFT | Warm-up: a worker takes traffic only after two probes replay the real first request (`orch_warmup_probe_seconds`). Hop: 8 KV hops completed the Mooncake protocol on hardware, transfer itself unconfirmed | D-42; F35 | ✅ warm-up · 🟡 hop |
 | 7 Wire the app | smoke the engine first | `make bringup`, then a one-task golden run | Makefile; `design/lambda-test-plan.md` | ✅ |
 | 8 Proof under app traffic | real app traffic, mixes | The doctor itself is the traffic: the golden set at concurrency 4–32 through the gateway, mixing interactive investigations and batch audits | F24–F36; report §5 | ✅ |
@@ -36,7 +36,7 @@ Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not bu
 | Engine scheduler vs my admit, place and queue? | vLLM orders execution within a batch (32 sequences, 8,192 tokens per step); the gateway decides who gets in and where (F14, F17) |
 | What limited concurrency? | KV: about two full-length runs per H100 half; the knee is between 8 and 16 concurrent runs (F6, F24) |
 | Production alerts | five rules, each tested to fire: KV saturated, queue wait high, vLLM preempting, inconclusive rate, restricted off-box (D-45; report §8) |
-| Which pool scales? | KV per worker is the limiter, so add workers rather than slots (report §9) |
+| Which pool scales? | The vLLM pool. KV per worker is the limiter, so KEDA adds workers, not slots: workers wanted = demand ÷ the cap of 4, plus a trigger on capacity sheds (D-49; rehearsed on kind, F38; measured in session 5) |
 | 10× traffic: what changes, which knobs are wrong? | report §9: more workers, a shared run table for a second gateway, an overflow backend, the KV hop; the 768-token cap never bound (F30) and chunked prefill rarely does (F15) |
 
 ## Office-hours telemetry rows

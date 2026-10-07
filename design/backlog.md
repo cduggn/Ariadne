@@ -4,6 +4,8 @@ Ideas and fixes found while running the project. None of these block the submiss
 roughly what it costs. Remove an item when it lands, and record it in `decisions.md` if it changes a decision.
 
 ## Agent quality (likely to lift the pass rate)
+- [ ] **Make `crashloop` and `job-failed` repairable (SPEC open issue 6).** Both manifests `echo` an error and `exit`,
+  so the fix the golden set names would not repair them. Diagnosis is unaffected.
 - [ ] **`describe` accepts any case for `kind`.** The model sends `Deployment`, but the tool accepts only `deployment`.
   The 8B baseline on 2026-09-28 had 101 such rejections across 52 runs, and the 30B-A3B had 18. Normalise to
   lowercase in the tool. About 15 min, plus a test.
@@ -35,6 +37,8 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   clean folder.
 
 ## Serving and infrastructure
+- [ ] **A hybrid-model correction in `serving/fit.py` (SPEC open issue 8, F5).** The paper estimate was 20–34%
+  optimistic for Qwen3.8. Until it is corrected, size a hybrid model from vLLM's measured pool, as `make preflight` does.
 - [ ] **vLLM v0.30.0.** The `-cu129` image crashes on start (vllm-project/vllm#59157: torch cu130 with a cu129
   torchvision). Upgrade once a fixed image is out, or try the cu130 image after checking the node driver.
 - [ ] **OpenCost prices every node at $1.99/hr** (the A100). Set the price per GPU class at boot.

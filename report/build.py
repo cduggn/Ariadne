@@ -291,7 +291,7 @@ table(["Alert", "Condition", "Severity"], [[n, f"`{e}`", s] for (n, e), s in zip
 - **Placement.** Keep `prefix_then_load`. It cost nothing at low load and saved 10% of prefill at concurrency 4.
 - **At 10× traffic:**
   - add workers, not bigger slices. KV per worker is the limiter, so add halves or whole cards and let the gateway
-    spread runs;
+    spread runs. KEDA already scales `statefulset/vllm` on demand per worker and on capacity sheds (D-49, F38);
   - a second gateway replica needs the run table shared or runs partitioned by id (D-42);
   - an overflow backend for non-restricted work (Superlinked serves the same model, F22) turns refusals into slower
     answers;

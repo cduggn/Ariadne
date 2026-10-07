@@ -169,6 +169,6 @@ The code behind each one is in `design/walkthrough.md`.
 ## Evidence
 
 - `report/report.ipynb` rebuilds every chart from `metrics/` (`make report`).
-- `design/findings.md` gives F1–F37 with the file behind each number.
-- `design/decisions.md` records why each choice was made (D-1 to D-46).
+- `design/findings.md` gives F1–F38 with the file behind each number.
+- `design/decisions.md` records why each choice was made (D-1 to D-50).
 - `make lint test` covers Python, Go and the alert rules; CI runs the same.
