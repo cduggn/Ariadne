@@ -4,6 +4,7 @@ these functions, so the notebook can be rebuilt from the repo alone (`make repor
     summary("gw-38-20261006-131640")          golden summary → dict
     rows("gw-38-20261006-131640")             golden rows (one per run) → list[dict]
     prom("gateway-sweep-c32-20261007-151105")  a saved /metrics scrape → {(name, labels): value}
+    timeseries("run1")                        the newest Prometheus export (lab/export.py) → dict, or None
 """
 from __future__ import annotations
 
@@ -78,3 +79,18 @@ def kv_measured(model: str, topology: str) -> int | None:
         if m:
             return int(m.group(1).replace(",", ""))
     return None
+
+
+def timeseries(tag: str | None = None) -> dict | None:
+    """The newest metrics/ts-<tag>-<stamp>.json (any tag when None), parsed; None when there is none."""
+    name = re.compile(rf"ts-{re.escape(tag) if tag else '.+'}-(\d{{8}}-\d{{6}})\.json")
+    found = [(m.group(1), f) for f in METRICS.glob("ts-*.json") if (m := name.fullmatch(f.name))]
+    return json.loads(max(found)[1].read_text()) if found else None
+
+
+def series(ts: dict, name: str) -> list[tuple[dict, list[float], list[float]]]:
+    """One query's results as (labels, seconds since the window's start, values); empty when missing or errored."""
+    if name in ts.get("errors", {}):
+        return []
+    return [(r["labels"], [t - ts["start"] for t, _ in r["values"]], [v for _, v in r["values"]])
+            for r in ts["series"].get(name, {}).get("results", [])]

@@ -164,3 +164,38 @@ If something goes wrong:
   read `kubectl logs deploy/gateway` for the warm-up probe result.
 - Many 429s: the tenant quota scales with the worker count (`gateway/internal/fleet/gate.go`); `kubectl logs deploy/gateway`
   prints one line per request with its pod, sticky outcome and refusal reason.
+
+## Session 4: what runs next, measured (Part 5, D-48)
+
+This session answers the brief's Part 5 with time series. Until now each run saved `/metrics` once at the end, so every
+gauge (queue depth, vLLM waiting and running, KV usage) read 0. The node's Prometheus scrapes every 5 s and keeps two
+days, so `make export` pulls that history into `metrics/ts-*.json` before `make down`. The probes put known events in
+it: three ~14k-token batch prompts, three clients that leave mid-request, and one worker deleted and left to return.
+Each probe writes its time to `metrics/events-*.jsonl`. Notebook section 10 plots the series with the probes marked.
+
+About 1–1.5 h of H100 time. Use `HOP=1` so the KV hop panel gets data in the same run.
+
+| # | Command | What it proves |
+|---|---|---|
+| Q0 | `make preflight && make up`, `make bringup`, terminals 2 and 3 | as before; `make check` shows both workers ready |
+| Q1 | `make bench TAG=q1` | the golden set, the sweep, then `make probes` and `make export`. The probes run against a golden run at concurrency 4 (`TAG=q1-probes`) |
+| Q2 | watch the gateway dashboard during the probes | queue depth per pod rises and drains; `kv_free` or `queue_full` sheds when a big prompt lands; the deleted worker goes down → warming → ready |
+| Q3 | screenshot each dashboard row while the sweep runs | the presentation's fallback if the live demo fails |
+| Q4 | `make report`, then commit `metrics/` and the notebook | section 10 draws from `metrics/ts-q1-*.json` |
+| Q5 | `make down` | it warns if the last bench was never exported |
+
+What each probe should show:
+- **A ~14k batch prompt** (Part 5, "32k RAG vs short agent decode"). A 32k prompt doesn't fit: `max_model_len` is
+  24,576. A ~21k prompt would fit the model but usually not the door: the gateway counts 1 token per 3.5 bytes and
+  refuses a request bigger than the worker's free KV, which golden runs already share. ~14k takes two 8,192-token
+  prefill chunks and still passes. Expected: tokens per engine step rise toward 8,192 for a few steps while the prefill is chunked, and the
+  agents' inter-token latency rises but doesn't stop. The prompt waits in the batch lane if the pod is at its cap.
+- **A client that leaves** (Part 5, "who frees the KV"). Expected: the gateway logs `client_gone`, vLLM's
+  `request_success_total{finished_reason="abort"}` rises by one per probe, and KV usage falls.
+- **A worker deleted under load** (Part 5, "slam or ramp"). Expected: placement moves to the other pod, p99 rises
+  while one worker carries the load, and the returning worker gets traffic only after its warm-up probes. There is
+  no ramp beyond warm-up and the in-flight cap.
+
+If `make export` fails (the node is busy, or `lam ssh` drops), rerun it: it writes a new file each time and reads the
+window from `.cache/bench.json`. `make prom` in another terminal plus `make export PROM=http://127.0.0.1:9090` reads
+through the port-forward instead.

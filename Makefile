@@ -35,9 +35,11 @@
 #   make tunnel                     terminal 2: the gateway at localhost:8000
 #   make grafana                    terminal 3: Grafana at localhost:3000
 #   make check                      pods, both workers Ready through the gateway, KV hop on or off
-#   make bench TAG=…                golden set + concurrency sweep + metrics, all through the gateway
+#   make bench TAG=…                golden set + concurrency sweep + metrics + queue probes + export, through the gateway
+#                                   (PROBES=0 skips the probes; make export alone re-pulls the time series: D-48)
 #   make gateway POLICY=least_loaded && make bench TAG=…-ll   the control arm of the stickiness A/B
-#   git add metrics && git commit   before make down: the node's Prometheus keeps nothing
+#   git add metrics && git commit   before make down: the node's Prometheus keeps nothing (make down warns if the
+#                                   last bench was never exported)
 #   make down                       billing stops
 # `make up` writes the node it got (GPU, ARCH, MODEL, TOPO, HOP) here; anything on the make line still wins.
 -include .cache/node.env
@@ -57,6 +59,7 @@ REPEAT ?= 2
 CTX    ?= lambda
 TUNNEL ?= svc/gateway
 POLICY ?= prefix_then_load
+PROBES ?= 1
 HOP    ?= 0
 MAXREP  = $(shell $(PY) -c "import json; print(json.load(open('deploy/serving.json'))['topologies']['$(TOPO)']['max_replicas'])")
 FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
@@ -81,7 +84,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck probes export golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 .DEFAULT_GOAL := help
 
@@ -105,9 +108,24 @@ check:
 
 bench:
 	@test "$(TAG)" != baseline || (echo "set TAG=… to name this run"; exit 1)
+	@mkdir -p .cache && printf '{"tag": "%s", "start": %s}\n' "$(TAG)" "$$(date +%s)" > .cache/bench.json
 	$(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=2 TAG=$(TAG)
 	$(MAKE) sweep WORKERS=$(MAXREP)
 	$(MAKE) metrics TAG=$(TAG)
+	$(if $(filter 1,$(PROBES)),$(MAKE) probes TAG=$(TAG))
+	$(MAKE) export
+
+# Part 5 of the brief, measured (D-48): a golden run at concurrency 4 as background load, with three ~14k-token batch
+# prompts, three clients that leave mid-request, and one worker deleted and left to return. Each probe's time goes to
+# metrics/events-*.jsonl; make export pairs them with the node's time series.
+probes:
+	$(PY) -m lab.probes session --tag $(TAG)-probes --profile $(MODEL) --base-url $(BASE) --node $(NAME) \
+	  --load-cmd "$(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=2 TAG=$(TAG)-probes"
+
+# The node's Prometheus history over the last bench window (.cache/bench.json) as metrics/ts-*.json, before make down
+# destroys it. SINCE=<unix seconds> sets the window by hand; PROM=http://127.0.0.1:9090 reads through make prom.
+export:
+	$(PY) -m lab.export --node $(NAME) $(if $(SINCE),--start $(SINCE)) $(if $(PROM),--prom-url $(PROM))
 
 tools:
 	bash lab/get-tools.sh
@@ -265,8 +283,11 @@ metrics:
 	done; fi
 
 down:
+	@if [ -f .cache/bench.json ] && ! grep -q '"exported"' .cache/bench.json; then \
+	  echo "WARNING: the last make bench was never exported, and its time series die with the node. Run make export first."; \
+	  echo "Continuing in 15 s (Ctrl-C to stop)."; sleep 15; fi
 	lam rm $(NAME)
-	rm -f .cache/node.env .cache/ready.json
+	rm -f .cache/node.env .cache/ready.json .cache/bench.json
 	lam ls
 
 preflight: lint test
