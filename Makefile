@@ -119,9 +119,12 @@ bench:
 # Part 5 of the brief, measured (D-48): a golden run at concurrency 4 as background load, with three ~14k-token batch
 # prompts, three clients that leave mid-request, and one worker deleted and left to return. Each probe's time goes to
 # metrics/events-*.jsonl; make export pairs them with the node's time series.
+# The load command lives in a variable: a recipe line that names $(MAKE) directly runs even under make -n, which would
+# start real probes (and delete a worker) during a dry run.
+PROBE_LOAD = $(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=2 TAG=$(TAG)-probes
 probes:
 	$(PY) -m lab.probes session --tag $(TAG)-probes --profile $(MODEL) --base-url $(BASE) --node $(NAME) \
-	  --load-cmd "$(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=2 TAG=$(TAG)-probes"
+	  --load-cmd "$(PROBE_LOAD)"
 
 # The node's Prometheus history over the last bench window (.cache/bench.json) as metrics/ts-*.json, before make down
 # destroys it. SINCE=<unix seconds> sets the window by hand; PROM=http://127.0.0.1:9090 reads through make prom.
