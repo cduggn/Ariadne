@@ -1,134 +1,128 @@
 # cluster-doctor
 
-An autonomous, read-only **root-cause detector for Kubernetes**. It watches a cluster continuously. A cheap
-scan with no model call looks at pod and controller status, Services without endpoints, warning events and
-error counts in logs. When something changes, a tool-using agent investigates it. The agent follows the
-causal chain from the symptom to the object that actually has to change: the frontend's 502 turns out to
-be an expired certificate upstream, and the crash-looping API turns out to be an OOM-killed database. It
-reports one grounded finding per root cause, naming the victims and citing the tool results. It suggests
-fixes but never applies them. Scheduled audits and right-sizing catch what never fails loudly. Inference is
-self-hosted (vLLM on HAMi-sliced GPUs behind a Go inference gateway), so cluster data never leaves your
-infrastructure.
+**A read-only root-cause detector for Kubernetes, served on self-hosted GPUs.**
 
-```
- every 60 s   scan (no model)  ──new or changed symptom──►  investigate (agent, interactive)  ──►  JSON line + /metrics
- nightly      audit (batch, 4 namespaces per task)                                             ──►  JSON line + /metrics
- weekly       right-sizing (batch)                                                              ──►  JSON line + /metrics
+The doctor watches a cluster. When something breaks, an agent follows the chain from the symptom to the object that
+actually has to change: a frontend's 502 turns out to be an expired certificate upstream, a crash-looping API an
+OOM-killed database. It reports one grounded finding per root cause, cites the evidence it read, and never changes the
+cluster. The model runs on vLLM behind a Go gateway on the team's own GPUs, so cluster data stays on them.
+
+Final project for *AI Inference Engineering & Systems Design* (Track B).
+
+## Results at a glance
+
+![v2 pass rate per model with 95% intervals](design/figures/model_quality.png)
+
+| | |
+|---|---|
+| **Best model** | Qwen3.8-27B FP8 on two H100 halves: **86.5%** of 26 recorded faults diagnosed correctly (v2 score), against 52% for Qwen3-8B |
+| **Prefix caching** | The prefix cache serves 88% of prompt tokens. Keeping a run on its worker saves **10%** of prefill and makes steps **8–11%** faster |
+| **Capacity** | KV memory runs out first. Each H100 half holds about two full-length runs, so the pass rate falls between 8 and 16 concurrent runs |
+| **Admission sized to KV** | Cuts vLLM preemptions by **~95%** and lowers tail latency. At the highest loads fewer runs finish, so the cap needs tuning |
+| **Restricted data** | **0** requests routed off the box. A fuzz test and an alert guard the rule |
+
+Every number comes from a committed run in `metrics/`. The notebook [`report/report.ipynb`](report/report.ipynb)
+rebuilds them (`make report`) and [`design/findings.md`](design/findings.md) gives the evidence for each.
+
+## How it works
+
+```mermaid
+flowchart LR
+    doctor["<b>cluster doctor</b><br/>agent over read-only tools"]
+    k8s[("Kubernetes API<br/>read-only")]
+    subgraph node["GPU node · k3s · HAMi"]
+        gw["<b>gateway</b> (Go)<br/>guard → admit → place → queue"]
+        v0["vLLM worker 0"]
+        v1["vLLM worker 1"]
+        obs["Prometheus · Grafana<br/>DCGM · alerts"]
+    end
+    doctor -- "5–16 chained calls per run" --> gw
+    doctor -- "get · list · logs" --> k8s
+    gw -- "keeps a run on its worker" --> v0
+    gw --> v1
+    v0 -. "KV hop (opt-in)" .- v1
+    obs -. scrapes .-> gw
 ```
 
-Final project for *AI Inference Engineering & Systems Design* (Track B), and the seed of a product.
-Start with [`SPEC.md`](SPEC.md). Decisions are in [`design/decisions.md`](design/decisions.md), measured findings in
-[`design/findings.md`](design/findings.md), and how
-the project answers the brief is in [`design/course-objectives.md`](design/course-objectives.md).
+1. A scan that calls no model finds changed symptoms. The **agent** then investigates with read-only tools. It may cite
+   only evidence it was shown, or it answers `inconclusive`.
+2. The **gateway** refuses bad requests (400), enforces tenant quotas (429), sheds load when KV is short (503), keeps
+   each run on the worker that holds its cached history, and queues by priority.
+3. **vLLM** serves the model on GPU slices. Prometheus scrapes the gateway and both workers, Grafana charts them, and
+   five tested alert rules fire on overload or a broken invariant.
 
-## Run it autonomously
-```
-uv run python -m doctor watch --context <ctx>              # scan every 60 s, diagnose what changed, /metrics on :9109
-uv run python -m doctor watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # recorded faults, one cycle
-```
-What it does:
-- **Filter.** Each symptom is fingerprinted as `namespace|Kind/name`. A namespace is diagnosed only when
-  a fingerprint is new since its last diagnosis. Each namespace has a 15-minute cool-down, and a relapse
-  after recovery triggers again.
-- **Retries.** A gateway refusal (429/503) or an unreachable model is retried on the next scan.
-- **Coverage.** The scan detects 21 of the 23 recorded faults and stays quiet on the healthy namespace.
-  Over-provisioning is left to the schedule.
-- **Safety.** Only CamelCase status reasons and counts reach the prompt, never free text from the cluster.
-- **Output.** One JSON line per diagnosis goes to stdout and `--out`. Prometheus metrics include
-  `doctor_detections_total`, `doctor_diagnoses_total{mode,status,stop}`, `doctor_findings_total{category}`,
-  diagnosis seconds, and prompt/cached/completion tokens.
+The full design is in [`design/architecture.md`](design/architecture.md) and [`design/gateway.md`](design/gateway.md).
 
-## Ask it directly
+### Why the cache matters
+
+Each agent step resends the whole conversation, but only its newest tool result is new. By step 10 the median prompt
+is 9,337 tokens, and the prefix cache leaves only 713 of them to compute.
+
+![Prompt tokens per agent step, cached against computed](design/figures/prompt_per_step.png)
+
+### Where it breaks
+
+With two workers the pass rate holds to 8 concurrent runs and falls past that, as KV runs out. Sizing admission to the
+measured KV pool stops vLLM from preempting, but at these loads it finished fewer runs than the old fixed cap.
+
+![Pass rate against concurrent runs for three admission settings](design/figures/knee.png)
+
+## Quick start
+
+**Offline, no GPU:**
+```
+make tools && uv sync      # pinned kind, kubectl, promtool; the locked Python stack
+make lint test             # Python, Go and alert-rule tests over recorded faults
+make demo                  # the gateway in front of two fake workers, golden set at concurrency 8
+make report                # rebuild the results notebook and charts from metrics/
+```
+
+**Ask the doctor** (model at `DOCTOR_BASE_URL`, default `http://127.0.0.1:8000/v1`):
 ```
 uv run python -m doctor investigate -n inventory "stock-api keeps restarting"
-uv run python -m doctor audit -n orders,pricing,finance --context lambda
-uv run python -m doctor rightsize -n analytics --json --out run.json
+uv run python -m doctor watch --context <ctx>       # autonomous: scan every 60 s, /metrics on :9109
 ```
-Exit codes are 0 healthy, 1 issue, 2 no grounded diagnosis. The model is at `DOCTOR_BASE_URL` (default
-`http://127.0.0.1:8000/v1`).
+Exit codes: 0 healthy, 1 issue, 2 no grounded diagnosis.
 
-## Offline (no GPU)
+**On a Lambda GPU** (billed from `make up` to `make down`; `make help` prints this):
 ```
-make tools && uv sync          # pinned kind + kubectl; pinned LangGraph/LangChain (uv.lock)
-make lint test                 # Python tests over recorded fault snapshots, gateway go vet + Go tests, ruff
-make golden-build              # 26 golden tasks (easy, multi-hop, red-herring, right-sizing); references must pass both scores
-make lab-up lab-record lab-down   # re-record the fault lab on kind (~25 min)
-make demo                      # the gateway in front of two fake vLLM workers, golden set at concurrency 8
+make preflight && make up  # first of H100, GH200, A100 with capacity
+make bringup               # workers on HAMi slices, KV measured, gateway, dashboards
+make tunnel                # terminal 2: the gateway at localhost:8000
+make grafana               # terminal 3: dashboards at localhost:3000
+make bench TAG=run1        # golden set + concurrency sweep + metrics
+git add metrics && git commit && make down
 ```
+The full session plan is in [`design/lambda-test-plan.md`](design/lambda-test-plan.md).
 
-## Models, GPUs and topologies
-Two independent settings choose which model serves and how the card is carved (D-40). A topology names its GPU, so a
-run's results record the hardware too.
+## Repository
 
-| GPU | Topologies (HAMi) | Boots with (`make up`) |
-|---|---|---|
-| A100 40 GB | `sliced` 2 × 20 GiB · `full` | Qwen3-8B-AWQ on `sliced`, KV hop off (the measured gateway A/B) |
-| H100 80 GB | `h100-half` 2 × 39 GiB · `h100-full` | Qwen3.8-27B-FP8 on `h100-half`, KV hop on |
-| GH200 96 GB | `gh200-half` 2 × 46 GiB (HAMi unverified) · `gh200-full` | Qwen3.8-27B-FP8 on `gh200-full` |
-
-```
-make models                                    # the profiles in deploy/models/ (pinned checkpoint, vLLM args, sampling)
-make fit-all                                   # every model × every topology: KV pool, sequences at 24k, gate
-make fit MODEL=qwen3.8-27b-fp8 TOPO=h100-half  # one pair with the derivation
-make deploy MODEL=qwen3-14b-awq TOPO=sliced    # render, fetch weights, serve (refuses pairs that cannot start)
-make golden MODEL=qwen3-14b-awq TOPO=sliced TAG=14b REPEAT=3 CONC=4
-make matrix                                    # design/model-matrix.md: fit, results with 95 % intervals, ranking
-```
-Every golden row is scored twice (D-41). v1 is the original score. v2 differs in four ways:
-- a cited ref must have been shown to the model in that run;
-- a category that the evidence supports equally well also counts;
-- the explanation must state the real mechanism, so a port-mismatch answer that reverses the ports fails;
-- a missing required tool call is reported as a warning instead of failing the task.
-
-## On the Lambda GPU
-The full test plan is in [`design/lambda-test-plan.md`](design/lambda-test-plan.md). The node is billed
-from `make up` to `make down`.
-
-`make up` takes the first with capacity in any region of H100 PCIe, H100 SXM5, GH200 and A100 (`TYPES=…` to choose). One cloud-init
-serves every GPU: it reads the hardware, fetches that GPU's boot model and starts the next one in the background.
-`make up` then writes `.cache/node.env` (GPU, model, topology, hop), so the commands below need no flags; anything on
-the make line overrides it.
-`make help` prints this playbook.
-```
-make preflight && make up                # prints node: GPU=… MODEL=… TOPO=… HOP=…
-make bringup                             # deploy → scale to the topology's workers → kv → gateway → dashboards
-make tunnel                              # terminal 2: the gateway at localhost:8000
-make grafana                             # terminal 5: Grafana at localhost:3000
-make check                               # pods, both workers Ready through the gateway, KV hop on or off
-make kubeconfig && make k8s-tunnel       # terminal 3: k3s API at localhost:6443
-make watch                               # terminal 4: the doctor, autonomous
-make inject FAULTS=crashloop,cascade-db,port-mismatch,tls-truststore STAGGER=60   # break things, watch it find them
-make bench TAG=gw                        # golden set + concurrency sweep + metrics, through the gateway
-make gateway POLICY=least_loaded && make bench TAG=gw-ll   # control arm of the stickiness A/B
-git add metrics && git commit            # before make down: the node's Prometheus keeps nothing
-make heal && make down
-```
-The gateway guards, admits, places and queues every request: tenant quotas (429), KV and queue shedding (503),
-priority, per-run stickiness for the prefix cache, warm-up before a worker is Ready, and restricted data never leaving
-the box. With the KV hop on, a run moved off its worker has its cache copied over vLLM's MooncakeConnector instead of
-recomputed ([`design/gateway.md`](design/gateway.md)). After changing gateway code, run `make gateway-image` and
-commit the new digest.
-
-## Layout
 | Path | What |
 |---|---|
-| `doctor/` | watcher; agent (LangGraph over LangChain tools); read-only tools with evidence refs; backends (kubectl, snapshots); validation; redaction; certificates; CLI |
-| `faults/` | 27 injected faults in tiers (easy, multi-hop, red-herring, right-sizing, live-only) with answer keys |
-| `lab/` | kind config, pinned tool fetcher, snapshot recorder, fault injector, GPU launcher with fallback (`up.sh`), gateway demo |
-| `fixtures/` | recorded, redacted cluster snapshots |
-| `evals/` | golden-set builder with reference solver and trajectories, v1 + v2 checker, runner (also the load generator) |
-| `gateway/` | the Go inference gateway: guard, admit, place, queue (`decide`, `fleet`), proxy (`serve`), `orch_*` metrics, KV hop (`hop`), fake vLLM for tests and `make demo` |
-| `serving/` | model profiles → manifests, fit calculator, model matrix, gateway warm-up body |
-| `deploy/` | Lambda bootstrap for any GPU (k3s, HAMi, Prometheus, Grafana, DCGM, OpenCost), model profiles, GPUs and topologies, vLLM and gateway manifests, dashboards, doctor RBAC, AWS lab scripts |
-| `design/` | decisions, architecture, capacity, test plan, course mapping |
+| `doctor/` | the agent, read-only tools, scan and watch loop, validation, redaction, CLI |
+| `gateway/` | the Go gateway: admission, placement, queue, metrics, KV hop |
+| `evals/` | the golden set (26 faults), scorer and load runner |
+| `serving/` | model profiles, fit calculator, model matrix |
+| `deploy/` | GPU bootstrap, manifests, dashboards, alert rules |
+| `report/` | the results notebook and its data loaders |
+| `design/` | decisions, findings, architecture, figures, test plan |
+| `faults/`, `fixtures/`, `lab/` | injected faults, recorded snapshots, the kind lab and GPU launcher |
 
 ## Safety
-- **Read-only.** The doctor is read-only by construction: the only kubectl verbs it uses are
-  `get|logs|top|version`, and its RBAC has no Secrets and no writes. Only `lab/` writes, and only to lab
-  clusters.
-- **Secrets.** Secrets are redacted before anything is stored or shown to a model.
-- **Prompt injection.** Log lines that try to instruct the model are flagged, not obeyed.
-- **Grounding.** Every tool result the model receives goes into an observation ledger. A diagnosis that cites a ref
-  the model was never shown is rejected, even if the object exists. After two repairs the answer is `inconclusive`,
-  never a guess. A model that cannot ground a diagnosis may also say so (`inconclusive`), and "healthy" requires
-  having checked every namespace.
+
+- **Read-only.** The doctor's only kubectl verbs are `get`, `logs`, `top` and `version`; its RBAC has no Secrets and no
+  writes.
+- **Grounded.** A diagnosis that cites evidence the model was never shown is rejected; after two repairs the answer is
+  `inconclusive`, never a guess.
+- **Private.** Secrets are redacted before storage, log lines that try to instruct the model are flagged, and
+  restricted data never leaves self-hosted inference.
+
+## Documents
+
+| Read | For |
+|---|---|
+| [`SPEC.md`](SPEC.md) | the source of truth: components, invariants, pins |
+| [`design/findings.md`](design/findings.md) | what the measurements showed, with evidence |
+| [`design/decisions.md`](design/decisions.md) | why each choice was made |
+| [`report/report.ipynb`](report/report.ipynb) | the results notebook, answering the brief's questions |
+| [`design/course-objectives.md`](design/course-objectives.md) | each part of the brief mapped to its evidence |

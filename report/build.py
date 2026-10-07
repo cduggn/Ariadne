@@ -74,9 +74,9 @@ def ci(s):
     md("""## 1. What the app sends: shared tokens against unique ones
 
 Every call starts with the same ~3.8k-token prefix: the triage ruleset, the tool schemas and the cluster card. Each step
-then appends the previous answer and a new tool result, so step *n*'s prompt is step *n−1*'s plus a little more. The
-prefix cache only has to compute that new tail, provided the step runs on the worker that served the last one, which is
-what the gateway's stickiness is for (F8–F11)."""),
+then appends the previous answer and a new tool result, so step *n*'s prompt is step *n−1*'s plus a little more. vLLM
+computes only that new tail, as long as the step runs on the worker that served the last one. The gateway's stickiness
+keeps it there (F8–F11)."""),
     code("""r = rows("gw-38-20261006-131640")
 steps = range(1, 11)
 def median(xs):
@@ -99,9 +99,9 @@ display(Markdown(f"Over every step of the run, **{pct(s['cached_share_of_prompt'
 
     md("""## 2. Which model: quality on the golden set
 
-The same 26 tasks, twice each, scored v2 with 95% Wilson intervals. Qwen3.8-27B (FP8, Aug 2026) is clearly above the 8B
-and probably above the 30B-A3B, whose interval overlaps it slightly (F1). Through the gateway or not, the 8B scores the
-same: routing changes where a call runs, not what it answers (F2)."""),
+The same 26 tasks, twice each, scored v2 with 95% Wilson intervals. Qwen3.8-27B (FP8, Aug 2026)'s interval sits above the
+8B's, and it is probably better than the 30B-A3B, whose interval overlaps it slightly (F1). The 8B scores the same
+through the gateway as direct, so routing changes where a call runs and not what it answers (F2)."""),
     code("""models = [
     ("Qwen3-8B AWQ · A100 slice", "baseline-20260928-161531"),
     ("Qwen3-8B AWQ · 2 slices, via gateway", "gw-ptl-20261004-162326"),
@@ -157,8 +157,8 @@ table(["Pair", "paper", "measured", "gap"],
     md("""## 4. Placement: does keeping a run on its worker matter?
 
 The same golden workload twice on two Qwen3.8 halves at concurrency 4, changing only the gateway's pick policy:
-`prefix_then_load` keeps a run on the worker that holds its history, `least_loaded` ignores history. Answers are the same.
-Without stickiness, 10% more prompt tokens were recomputed and steps were 8–11% slower (F29). The gap is modest at this
+`prefix_then_load` keeps a run on the worker that holds its history, and `least_loaded` ignores history. Answers are
+the same. Without stickiness, vLLM recomputed 10% more prompt tokens and steps were 8–11% slower (F29). The gap is modest at this
 load because the two workers are evenly loaded, so `least_loaded` often picks the run's previous worker anyway."""),
     code("""arms = [("prefix_then_load", "gw-38-20261006-131640"), ("least_loaded", "gw-38-ll-20261006-140918")]
 def uncached(run):
@@ -190,13 +190,13 @@ display(Markdown(f"Under `least_loaded`, **{g.get('hit', 0) / cont:.0%}** of con
 
     md("""## 5. Under load: the knee, and sizing admission to KV
 
-The golden set at rising concurrency on two Qwen3.8 halves (26 tasks per level). On 10-06, with the gateway allowing 16
-requests in flight per worker, runs failed past 8 concurrent: each refused step ended its run, and at 32 vLLM preempted
-(F24, F25). On 10-07 (a faster H100 SXM5) two changes were tested on the same node: the doctor now waits out a refusal
-(D-44), and the in-flight cap is sized to the measured KV pool, 4 per half (D-43). The cap kept vLLM healthy, with ~95%
-fewer preemptions, a warmer cache and lower tail latency, but fewer runs finished, because queued requests hit the
-gateway's deadline before the retries outlasted the queue (F36). Sizing for zero preemption is stricter than the workload
-needs; the next step is a cap of 6–8 (backlog)."""),
+This section runs the golden set at rising concurrency on two Qwen3.8 halves, 26 tasks per level. On 10-06 the gateway
+allowed 16 requests in flight per worker, and runs failed past 8 concurrent. Each refused step ended its run, and at 32
+vLLM preempted (F24, F25). On 10-07 we tested two changes on one faster node (an H100 SXM5). The doctor now waits out a
+refusal (D-44), and the gateway sizes the in-flight cap to the measured KV pool, 4 per half (D-43). The cap cut vLLM
+preemptions by ~95%, kept more of the cache and lowered tail latency. But fewer runs finished, because queued requests
+hit the gateway's deadline before the retries ran out (F36). Sizing for zero preemption is stricter than the workload
+needs, so the next step is a cap of 6–8 (backlog)."""),
     code("""curves = [
     ("10-06 PCIe · cap 16 · no retries", ORANGE,
      {4: "gw-38-20261006-131640", 8: "sweep-qwen3.8-27b-fp8-c8-20261006-135139",
@@ -232,7 +232,7 @@ table(["Run", "vLLM preemptions at c=16", "added at c=32"], rows_t)"""),
 
     md("""## 6. What dies where: guard, admit, place, queue
 
-The gateway names every refusal (`orch_shed_total{reason}`); the client sees only 429 (tenant over quota, stays local)
+The gateway names every refusal (`orch_shed_total{reason}`). The client sees only 429 (tenant over quota, stays local)
 or 503 (capacity, may overflow). Up to 16 concurrent runs the KV shed (`kv_free`) protected vLLM from preemption (F25).
 With admission sized to KV the overload moved into the gateway's queue, so refusals became `timeout_queue` (F32).
 No restricted request ever left the box."""),
@@ -251,8 +251,8 @@ display(Markdown("Counters run from each gateway start, and `kubectl set env` re
 
 vLLM rebuilds one batch per worker on every forward pass (an engine step), capped at 32 requests and 8,192 tokens. The
 histogram of tokens per step shows both effects: single-token steps are decode with a batch of one, 2–32 tokens are
-several requests decoding together, and larger steps carry a prefill. Steps near 8,192 are long prompts split by chunked
-prefill; they are rare because the prefix cache keeps each step's uncached tail to a few hundred tokens (F14, F15)."""),
+several requests decoding together, and larger steps carry a prefill. Steps near 8,192 are long prompts that chunked
+prefill split. They are rare because the prefix cache keeps each step's uncached tail to a few hundred tokens (F14, F15)."""),
     code("""h = histogram(prom("vllm-0-kv-control-20261007-160843"), "vllm:iteration_tokens_total")
 labels, counts, lo = [], [], 0
 for le, n in h:
@@ -275,8 +275,8 @@ display(Markdown(f"Of **{sum(counts):,.0f}** steps, **{big:,.0f}** processed mor
 
     md("""## 8. Production alerts
 
-Five rules in `deploy/observability/alerts.yaml`, each threshold taken from the system and each tested with promtool to
-fire on its condition and stay quiet below it (D-45)."""),
+`deploy/observability/alerts.yaml` holds five rules. Each threshold comes from the system, and a promtool test checks
+that each rule fires on its condition and stays quiet below it (D-45)."""),
     code("""text = (ROOT / "deploy" / "observability" / "alerts.yaml").read_text()
 names = [(n, " ".join(e.split())) for n, e in
          re.findall(r"- alert: (\\w+)\\n\\s+expr: >?(.*?)\\n\\s+(?:for|labels):", text, re.S)]
@@ -285,19 +285,19 @@ table(["Alert", "Condition", "Severity"], [[n, f"`{e}`", s] for (n, e), s in zip
 
     md("""## 9. Recommendations, and what changes at 10× traffic
 
-- **Model:** serve Qwen3.8-27B FP8 for diagnosis quality; keep the 8B as the fallback that fits an A100 slice.
-- **Admission:** keep sizing the in-flight cap from the measured KV pool, but for a small preemption budget rather than
-  none (a cap of 6–8 on an H100 half); lengthen the interactive queue deadline if completion matters more than latency.
-- **Placement:** keep `prefix_then_load`. It costs nothing at low load and saves prefill as load grows uneven.
+- **Model.** Serve Qwen3.8-27B FP8 for diagnosis quality, and keep the 8B as the fallback that fits an A100 slice.
+- **Admission.** Keep sizing the in-flight cap from the measured KV pool, but for a small preemption budget rather than
+  none (a cap of 6–8 on an H100 half). Lengthen the interactive queue deadline if completion matters more than latency.
+- **Placement.** Keep `prefix_then_load`. It cost nothing at low load and saved 10% of prefill at concurrency 4.
 - **At 10× traffic:**
-  - more workers, not bigger slices: KV per worker is the limiter, so add halves or whole cards and let the gateway
+  - add workers, not bigger slices. KV per worker is the limiter, so add halves or whole cards and let the gateway
     spread runs;
   - a second gateway replica needs the run table shared or runs partitioned by id (D-42);
   - an overflow backend for non-restricted work (Superlinked serves the same model, F22) turns refusals into slower
     answers;
   - the KV hop starts paying off once contexts grow and moves become common (F35).
-- **Knobs that are wrong for this workload:** the 768-token output cap never bound (F30); chunked prefill rarely binds
-  (F15); the fit calculator needs a hybrid-model correction before it sizes a Qwen3.8 deployment (F5)."""),
+- **Settings that do not fit this workload.** The 768-token output cap never bound (F30), and chunked prefill rarely
+  binds (F15). The fit calculator needs a hybrid-model correction before it sizes a Qwen3.8 deployment (F5)."""),
 ]
 
 

@@ -3,11 +3,11 @@
 What we measured or learned, with the evidence for each. `decisions.md` records what we chose and why; this file
 records what the system showed us. Revise both together before the presentation.
 
-Each finding has a label:
-- **measured**: from a file in `metrics/` or a live scrape, named next to it;
-- **estimate**: from `serving/fit.py` or arithmetic, not yet measured;
-- **observed**: seen on a dashboard or in logs during a session, not saved as a file;
-- **unverified**: a likely explanation nobody has checked.
+Each finding carries one of four labels:
+- **measured** means it comes from a file in `metrics/` or a live scrape, named next to it;
+- **estimate** means it comes from `serving/fit.py` or arithmetic and has not been measured;
+- **observed** means someone saw it on a dashboard or in logs during a session, and no file holds it;
+- **unverified** marks a likely explanation that nobody has checked.
 
 ## 1. Model quality
 
@@ -46,30 +46,31 @@ Each finding has a label:
   a smaller slice. (measured; the cause is unverified)
 - **F6. On a half H100, Qwen3.8 holds about two full-length requests.** vLLM reports a maximum concurrency of 2.08 at
   24,576 tokens, against the fit's 2.9. KV, not the 32-sequence cap, is the first limiter. (measured)
-- **F7. The A100 KV pool is stable across sessions and engine attempts:** 79,056 tokens on 09-27, 09-28 and twice on
-  10-04. (measured)
+- **F7. The A100 KV pool is stable across sessions and engine attempts.** vLLM reported 79,056 tokens on 09-27, 09-28
+  and twice on 10-04. (measured)
 
 ## 3. Prefix caching and the gateway
 
-- **F8. Prefix caching carries most of the prompt.** Cached share of prompt tokens: 94.9% for the 8B direct, 94.6%
+- **F8. The prefix cache serves most of the prompt.** Cached share of prompt tokens: 94.9% for the 8B direct, 94.6%
   through the gateway, 96.9% for the 30B-A3B. (measured, golden summaries)
-- **F9. Qwen3.8 caches less: 87.8%.** Its hybrid Gated DeltaNet layers can only resume from block-boundary checkpoints
-  (vLLM's `align` mode), so some tail tokens are recomputed that a standard-attention model would reuse. (measured; the
-  cause is the likely explanation, unverified)
-- **F10. On the gateway dashboard during the Qwen3.8 run, about 97% of prompt tokens per second were cache hits:**
-  shared prefix ~4–6k tokens/s, run history ~2–4k, uncached a few hundred. (observed, `orch_prompt_tokens_total`.) This
+- **F9. Qwen3.8 caches less of its prompt, 87.8%.** Its hybrid Gated DeltaNet layers can only resume from
+  block-boundary checkpoints (vLLM's `align` mode), so vLLM recomputes some tail tokens that a standard-attention model
+  would reuse. (measured; the cause is the likely explanation, unverified)
+- **F10. On the gateway dashboard during the Qwen3.8 run, about 97% of prompt tokens per second were cache hits.** The
+  shared prefix ran at ~4–6k tokens/s, run history at ~2–4k and uncached tokens at a few hundred. (observed,
+  `orch_prompt_tokens_total`.) This
   is higher than F9's 87.8% because the dashboard showed a stretch mid-run, while the summary covers every step,
   including each run's first.
 - **F11. Stickiness is what keeps run history cached.** `run_hit` is each run's own history served from cache; without
-  stickiness it would turn into `miss`. The A/B (F29) measured it: 10% more prefill without stickiness. (measured)
+  stickiness it would turn into `miss`. The A/B (F29) measured 10% more prefill without stickiness. (measured)
 
 ## 4. Latency, batching and chunked prefill
 
 - **F12. Qwen3.8 on half an H100 is decode-bound.** Step latency p50 2.9 s and p95 24.2 s (`golden-gw-38` summary),
   against 0.44 s and 6.5 s for the 8B direct. The fit's decode limit is about 32 tokens/s per stream on half the card,
   so a 300–768-token diagnosis takes 10–25 s on its own. (measured latency; the decode limit is an estimate)
-- **F13. A spike to ~40 s end-to-end on vllm-1 with TTFT and queue time falling** is one long decode, not a fault: one
-  request writing a long answer while few others ran. (observed; not yet tied to a specific request)
+- **F13. A spike to ~40 s end-to-end on vllm-1, with TTFT and queue time falling, is one long decode.** One request
+  wrote a long answer while few others ran. It was not a fault. (observed; not yet tied to a specific request)
 - **F14. Continuous batching only appears when requests overlap.** Of vllm-0's 44,121 engine steps, 31,169 processed a
   single token (decode with a batch of one, from the concurrency-1 sweep level) and 12,507 processed 2–8 tokens (2–8
   requests decoding together, mostly the concurrency-4 golden run). (measured, live `vllm:iteration_tokens_total`
@@ -101,13 +102,15 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{8,16,32}-20261006-*.summary.js
 - **F24. The knee is between 8 and 16 concurrent runs, and KV is the limiter.** Each half holds ~51k tokens (F6), about
   two full contexts, while 16 runs put ~8 per worker at 5–15k tokens each. Every refusal was the gateway's `kv_free`
   shed. (measured)
-- **F25. Up to 16, admission control protected KV: the gateway shed new runs and vLLM preempted nothing.** At 32 it was
-  overrun: vLLM preempted 3 requests per worker, and the vLLM dashboard showed the thrashing pattern (waiting up,
-  prefix hit rate and throughput down, TTFT, ITL and queue time up). (measured preemptions; observed dashboards)
+- **F25. Up to 16 concurrent runs, admission control protected KV.** The gateway shed new runs and vLLM preempted
+  nothing. At 32 the load overran it. vLLM preempted 3 requests per worker, and the vLLM dashboard showed thrashing,
+  with waiting requests, TTFT, ITL and queue time up, and the prefix hit rate and throughput down. (measured
+  preemptions; observed dashboards)
 - **F26. The gateway's in-flight cap is sized for the A100, not the H100 half.** 16 in flight per worker suited a
   79k-token slice holding the 8B; a 51k-token half holding the 27B fits far fewer. Continuing runs are also exempt from
   the KV line down to 5% free, so at high concurrency most requests skip it. Both let more work into vLLM than its KV
-  holds. Fix and experiment: `design/backlog.md`, "KV-sized admission". (measured cause; fix pending)
+  holds. D-43 now sizes the cap from the measured pool (4 on an H100 half), and F36 measures the trade. (measured
+  cause)
 - **F27. A refused run fails outright.** The gateway's 503 carries the reason (`kv_free`) and `Retry-After`, but the
   doctor neither retries nor records the reason, so each shed shows as a failed, undiagnosed run. That is why pass
   rates fall at the knee rather than latency rising. (measured; fixed by D-44)
@@ -134,11 +137,11 @@ Evidence: `metrics/golden-gw-38-20261006-131640.*`, `metrics/golden-gw-38-ll-202
 gateway counters were saved after the sweep as well, so they include the overloaded levels and understate stickiness at
 concurrency 4. (measured)
 
-- **F29. Stickiness saves prefill and time without changing answers.** Without it, 10% more prompt tokens were
-  recomputed and steps were 8–11% slower, at the same pass rate. The gap is modest at concurrency 4 because load is low
-  and even, so `least_loaded` often picks the run's previous worker anyway (77% of the time), and both workers hold the
-  shared 3.9k prefix from warm-up; only each run's own history is at stake. It should widen under uneven or heavier
-  load. (measured)
+- **F29. Stickiness saves prefill and time without changing answers.** Without it, vLLM recomputed 10% more prompt
+  tokens and steps were 8–11% slower, at the same pass rate. The gap is modest at concurrency 4 because load is low and
+  even. `least_loaded` then often picks the run's previous worker anyway (77% of the time). Both workers also hold the
+  shared 3.9k prefix from warm-up, so only each run's own history is at stake. We expect the gap to widen under uneven
+  or heavier load, which no run has tested. (measured gap; the widening is a guess)
 
 - **F30. The 768-token output cap never bound in the A/B.** All 901 steps across both arms finished with `tool_calls`;
   none with `length`. The ~40 s end-to-end spike seen on vllm-1 (F13) was a long answer that still fit under the cap.
@@ -155,7 +158,7 @@ with the hardware.
 |---|---|---|
 | c=16 v2 pass [95% CI] | 50.0% [32.1–67.9] | 69.2% [50.0–83.5] |
 | c=32 v2 pass [95% CI] | 38.5% [22.4–57.5] | 53.8% [35.5–71.2] |
-| Runs that waited out a refusal (c=16 / c=32) | — | 10 / 13 |
+| Runs that waited out a refusal (c=16 / c=32) | none (no retries) | 10 / 13 |
 | Refusals by reason (c=16 / c=32) | `kv_free` 13 / 14 (each ended a run) | `timeout_queue` 42 / 83, `kv_free` 4 / 0 |
 | vLLM preemptions, both workers, after c=32 | 6 | 3 |
 | Golden at c=4 (×2): v2 pass, step p50 / p95 | 86.5%, 2.9 s / 24.2 s | 88.5%, 1.9 s / 15.7 s |
@@ -165,23 +168,22 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{16,32}-20261007-*.summary.json
 `.cache/ready.json` for the GPU. The gateway log confirmed `"max_inflight":4`. (measured)
 
 - **F31. Pass rates held up better under load, with the cause not separable from the faster GPU.** Each interval still
-  overlaps its 10-06 counterpart. A same-node control (the old cap of 16 on the SXM5) is needed to attribute the gain
-  to D-43 and D-44. (measured; attribution open)
+  overlaps its 10-06 counterpart. The same-node control in F36 settles the attribution. (measured)
 - **F32. Overload moved from inside vLLM to the gateway's queue.** Refusals are now almost all `timeout_queue` (a
   request waited in the gateway's queue past its deadline) instead of `kv_free`, and 10–13 runs per level waited out a
-  refusal and finished. That is the intended shape: waiting in priority order at the gateway rather than being
-  preempted in the engine. (measured)
+  refusal and finished. That is the intended behaviour. Requests wait in priority order at the gateway instead of
+  being preempted in the engine. (measured)
 - **F33. Preemptions halved but did not reach 0** (3 against 6, all on vllm-1). This is D-43's revisit trigger: the
   continuing-run exemption (down to 5% free KV) still lets a run's next step in when its worker is nearly full.
   (measured; the cause is the likely explanation, unverified)
 - **F34. At 32 concurrent runs, ~15 s of retries is shorter than the queue's wait.** The runs that still failed (4 at
   c=16, 8 at c=32) ran out of retries while requests timed out in the queue. Longer retries or a longer queue deadline
   would trade more latency for more completed runs. (measured)
-- **F35. The KV hop fired on real hardware without being forced:** 8 hops completed the Mooncake protocol (the source
-  held the KV, the destination was told to pull it), 0 failed, and 26 moves were below the 8,192-token threshold.
-  Whether the destination actually pulled the KV rather than recomputing is unconfirmed: vLLM 0.29 exposes no KV-transfer
-  metric, and the forced-hop run failed because the tunnel was down after the gateway restarted. (measured protocol;
-  the transfer itself unverified)
+- **F35. The KV hop fired on real hardware without being forced.** 8 hops completed the Mooncake protocol (the source
+  held the KV and the gateway told the destination to pull it), 0 failed, and 26 moves were below the 8,192-token
+  threshold. Nobody has confirmed that the destination pulled the KV rather than recomputing it. vLLM 0.29 exposes no
+  KV-transfer metric, and the forced-hop run failed because the tunnel was down after the gateway restarted.
+  (measured protocol; the transfer itself unverified)
 
 ### Same-node control: cap 4 against cap 16 (10-07, both on the SXM5, both with D-44 retries)
 
@@ -200,14 +202,14 @@ Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{16,32}-20261007-{151105,151406
 to 10 requests per worker with up to 10 waiting and KV at 100% during the cap-16 run, against at most 4 under cap 4.
 (measured)
 
-- **F36. Sizing admission to KV is a trade, not a free win.** On the same node, cap 4 cut vLLM preemptions by ~95%, kept
-  8 points more of the prompt cached and lowered tail latency by ~15%: the engine stayed healthy. But fewer runs
-  finished: queued requests hit the gateway's queue deadline, and the doctor's ~15 s of retries ran out first. Under cap
+- **F36. Sizing admission to KV trades completed runs for engine health.** On the same node, cap 4 cut vLLM
+  preemptions by ~95%, kept 8 points more of the prompt cached and lowered tail latency by ~15%. But fewer runs
+  finished, because queued requests hit the gateway's queue deadline before the doctor's ~15 s of retries ran out. Under cap
   16 the retries outlasted `kv_free` sheds while vLLM absorbed the overload by preempting, slower and with more
   recomputation, but completing more runs. The pass-rate intervals overlap, so the completion gap is suggestive at 26
   runs per level. F31's improvement over 10-06 came mostly from the retries (D-44) and the faster GPU, not from the cap.
   (measured)
-- **F37. Every Qwen3.8 sweep level's rows went to one file,** `metrics/golden-sweep-qwen3.jsonl`: the runner used
+- **F37. Every Qwen3.8 sweep level's rows went to one file, `metrics/golden-sweep-qwen3.jsonl`.** The runner used
   `Path.with_suffix`, which cut the tag at the dot in `qwen3.8`. The rows are all there, appended, but not split by
   level; summaries were unaffected. Fixed in the runner (`result_paths`, with a test). (measured)
 
@@ -216,22 +218,22 @@ to 10 requests per worker with up to 10 waiting and KV at 100% during the cap-16
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
   on 10-06, and cloud-init detected it and booted Qwen3.8. The H100 reported 81,559 MiB, exactly what `serving.json`
   assumed. (measured, `.cache/ready.json`)
-- **F19. vLLM v0.30.0-cu129 crash-loops on start:** the image ships torch cu130 with a cu129 torchvision
+- **F19. vLLM v0.30.0-cu129 crash-loops on start.** The image ships torch cu130 with a cu129 torchvision
   (vllm-project/vllm#59157). We stay on v0.29.0. (measured on 10-04)
 - **F20. A slow Lambda boot once produced three billed `cluster-doctor` nodes**, because `make up` retried a launch
-  that had created the instance. Fixed: it now refuses while one exists and stops after a launch that leaves one behind;
-  `make resume` finishes a slow boot. (observed on 10-06)
+  that had created the instance. `make up` now refuses while one exists and stops after a launch that leaves one
+  behind, and `make resume` finishes a slow boot. (observed on 10-06)
 - **F21. Lambda can hold a node in `booting` for over 15 minutes** before it becomes active. (observed on 10-06)
 - **F22. Superlinked overflow is blocked on their billing.** Their API serves `Qwen/Qwen3.8-27B-FP8`, the same model,
   but returns HTTP 402 `INSUFFICIENT_CREDITS` for every operation while the console shows a $520 grant; an EU-pinned
   key has no reachable EU endpoint. (measured on 10-04; reported to their support)
-- **F23. The KV hop is built and tested but not yet measured on hardware.** Copy bandwidth between two HAMi halves and
-  Qwen3.8's hybrid state through the connector are unverified. Test plan H1–H3. (status)
+- **F23. The KV hop's copy bandwidth between two HAMi halves is unmeasured,** and so is whether Qwen3.8's hybrid state
+  passes through the connector. F35 shows the protocol working; test plan H1–H3 covers the rest. (status)
 
 ## Still to measure
 
 - The tuned cap (backlog): somewhere between 4 and 16, or cap 4 with a longer queue deadline, against F36's table.
 - Whether a hop's destination really pulls the KV: its `cached_tokens` on the hopped step (gateway log `hop`, the
   step's `cached_tokens`), since vLLM 0.29 has no transfer metric.
-- Time series (KV usage, power, placement over time) were not kept on 10-06: the node's Prometheus keeps nothing after
-  `make down`. Build `make export` before the next session so they are saved as data.
+- No time series (KV usage, power, placement over time) survive from 10-06 or 10-07, because the node's Prometheus
+  keeps nothing after `make down`. `make export` would save them as data before the next session.

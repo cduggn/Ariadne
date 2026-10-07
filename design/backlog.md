@@ -22,14 +22,14 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   `class-code/class10/router/overflow.py` posts OpenAI chat completions to `https://api.superlinked.com/v1` with a
   Bearer key, leaves only on 503/529, and caps requests with `OVERFLOW_MAX_REQS`. Our `MayLeave` already makes the
   same decision; the backend is null. First check whether the endpoint accepts `tools` and which models it serves (the
-  course uses Qwen3.5-4B). Then: `forwardOverflow` with model rewrite, a key from a Kubernetes Secret the user
+  course uses Qwen3.5-4B). Then build `forwardOverflow` with model rewrite, a key from a Kubernetes Secret the user
   creates, a run that has left stays remote, `orch_overflow_total{result=sent|failed|capped}`, Go tests against a fake
-  remote, and a saturation demo. About half a day. Uses the account's ~$540 credit.
-- [ ] **Measure the KV hop on hardware** (built, off by default; `design/gateway.md` "KV hop"). One GPU session:
-  `make deploy HOP=1 && make scale N=2 && make gateway HOP=1`, then force moves (a sweep at CONC=16 or more) and read
-  `orch_hop_total`, the `hop` latency stage and the destination's `cached_tokens`. Replace the guessed
-  `GW_HOP_TRANSFER_BYTES_PER_S` and the paper prefill rate with the measured ones. Check Qwen3.8 separately (hybrid
-  state).
+  remote, and a saturation demo. About half a day. Blocked until Superlinked fixes billing (findings F22).
+- [ ] **Confirm the KV hop moves the KV** (`design/gateway.md` "KV hop"). On 2026-10-07, 8 hops completed the
+  protocol on an H100 with none failed (findings F35), but nothing showed the destination pulling the KV instead of
+  recomputing it. Next session, force moves with the tunnel up and compare the hopped step's `cached_tokens` with its
+  `prompt_tokens`, and read the `hop` latency stage. Then replace the guessed `GW_HOP_TRANSFER_BYTES_PER_S` and the
+  paper prefill rate with measured ones.
 - [ ] **`make gateway` restarts the pod twice when the policy changes** (`set env` and `rollout restart`), and it
   uploads stale files left in `.cache/gateway/`. Restart only when nothing else changed, and stage the upload in a
   clean folder.
@@ -38,8 +38,8 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
 - [ ] **vLLM v0.30.0.** The `-cu129` image crashes on start (vllm-project/vllm#59157: torch cu130 with a cu129
   torchvision). Upgrade once a fixed image is out, or try the cu130 image after checking the node driver.
 - [ ] **OpenCost prices every node at $1.99/hr** (the A100). Set the price per GPU class at boot.
-- [ ] **First H100 or GH200 boot.** Check the card's memory size (`nvidia-smi`) against `serving.json`, check that HAMi
-  registers the GPU (untested on GH200), and check the arm64 OS image (`lam images`).
+- [ ] **First GH200 boot.** The H100 matched `serving.json` (findings F18). On a GH200, check the card's memory size
+  (`nvidia-smi`) against `serving.json`, check that HAMi registers the GPU, and check the arm64 OS image (`lam images`).
 - [ ] **Qwen3.8 NaN after a prefix-cache hit** (vllm-project/vllm#55766, open on 2026-10-03). Watch the smoke run for
   runs of "!" tokens.
 

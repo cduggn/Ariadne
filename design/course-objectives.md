@@ -1,10 +1,10 @@
 # Course objectives: how the cluster doctor answers the final-project brief
 
-Brief: "Design the cluster and serve an app" (AI Inference Engineering & Systems Design). Office-hours guidance
-(2026-09-27): graded on **instrumentation and explanation under stress**, not app polish; present the repo, an
-architecture diagram, the dashboards, and a notebook answering the questions.
+The brief is "Design the cluster and serve an app" (AI Inference Engineering & Systems Design). At office hours on
+2026-09-27 the course said grading rewards instrumentation and explanation under stress more than app polish. The
+presentation shows the repo, an architecture diagram, the dashboards, and a notebook answering the questions.
 
-Status: ✅ built and measured · 🟡 built, evidence partial · ⬜ not built. The measurements are in
+Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not built. The measurements are in
 `design/findings.md` (F-numbers) and the charts in `report/report.ipynb` (sections §1–§9).
 
 ## Parts of the brief
@@ -21,7 +21,7 @@ Status: ✅ built and measured · 🟡 built, evidence partial · ⬜ not built.
 | 7 Wire the app | smoke the engine first | `make bringup`, then a one-task golden run | Makefile; `design/lambda-test-plan.md` | ✅ |
 | 8 Proof under app traffic | real app traffic, mixes | The doctor itself is the traffic: the golden set at concurrency 4–32 through the gateway, mixing interactive investigations and batch audits | F24–F36; report §5 | ✅ |
 
-## The presentation questions → where the answer is
+## Where each presentation question is answered
 
 | Question | Answer and evidence |
 |---|---|

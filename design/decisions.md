@@ -294,23 +294,23 @@ fix, grounded in what the model actually saw. It shouldn't penalise a different 
 abstentions on faults the tools can observe (tighten the nudge).
 
 ### D-42 — The inference gateway (C11): guard, admit, place, queue in Go (2026-10-01, recorded 2026-10-06)
-**Context:** the doctor's agent makes 5–16 chained calls per run, and each step's prompt extends the last, so a run's
-history is cached only on the worker that served it (95% of prompt tokens on one worker). The brief asks for a
+**Context:** the doctor's agent makes 5–16 chained calls per run, and each step's prompt extends the last, so only the
+worker that served a run's last step holds its history in cache (95% of prompt tokens on one worker). The brief asks for a
 gateway that decides what is refused, where work goes and who waits, with `orch_*` telemetry, and that never sends
 restricted data off the box.
 **Choice:** a Go gateway in front of the vLLM workers (`gateway/`, design in `design/gateway.md`):
 - **Four ordered decisions,** pure and tested in `decide`: guard (400), tenant token quota (429, stays), KV and queue
   shedding (503, may leave), placement, then a per-worker priority queue with deadlines.
-- **Placement `prefix_then_load`:** keep a run on the worker holding its history unless that worker is more than 0.25
-  load units busier; `least_loaded` and `p2c` are the A/B controls.
-- **Warm-up before Ready:** a worker takes traffic only after two probes replay the doctor's real first request, which
+- **Placement.** `prefix_then_load` keeps a run on the worker holding its history unless that worker is more than
+  0.25 load units busier. `least_loaded` and `p2c` are the A/B controls.
+- **Warm-up before Ready.** A worker takes traffic only after two probes replay the doctor's real first request, which
   also puts the shared prefix in its cache.
-- **Stay or leave:** only a 503 may overflow, a restricted request never does (a value only `MayLeave` builds, plus a
-  fuzz test), and the overflow backend is null until one is configured.
-- **Delivery:** a public, digest-pinned Docker Hub image (`make gateway-image`); one replica, because the run table,
-  reservations and quotas live in memory.
-**Because:** the client only understands 429 and 503, so the gateway is where admission, placement and priority can
-be decided and measured; keeping a run on its worker is what keeps its history cached.
+- **Stay or leave.** Only a 503 may overflow, and a restricted request never does (a value only `MayLeave` builds,
+  plus a fuzz test). The overflow backend is null until someone configures one.
+- **Delivery.** A public, digest-pinned Docker Hub image (`make gateway-image`) runs as one replica, because the run
+  table, reservations and quotas live in memory.
+**Because:** the client only understands 429 and 503, so the gateway is the one place that can decide and measure
+admission, placement and priority. Keeping a run on its worker keeps its history cached.
 **Measured:** routing changes placement, not answers (F2, F29); stickiness saves 10% of prefill and 8–11% of step
 time at concurrency 4 (F29); up to 16 concurrent runs the KV shed protected vLLM from preemption (F25).
 **Revisit when:** more than one gateway replica is needed (partition runs by id, or share the run table), or an
@@ -319,50 +319,51 @@ overflow backend becomes available (Superlinked, F22).
 ### D-43 — Admission sized to each worker's measured KV pool (2026-10-06)
 **Context:** the gateway allowed 16 requests in flight per worker, a constant that suited the 8B on an A100 slice
 (79,056 tokens of KV). On H100 halves Qwen3.8-27B has 51,092 tokens per worker, about two full contexts, and at 32
-concurrent runs vLLM preempted 3 requests per worker and thrashed (findings F24–F26). The constant described the
-first card we used, not the one serving.
-**Choice:** `make gateway` sets `GW_MAX_INFLIGHT` per model and topology from `serving.fit --gateway-env`: the number of
-typical runs (the 12k-token app length, with the 3.8k shared prefix held once) one worker's KV pool holds, between 1
-and 16. The pool is vLLM's own measurement once `make kv` has recorded one, the paper estimate before that. That gives
+concurrent runs vLLM preempted 3 requests per worker and thrashed (findings F24–F26). The constant fitted the first
+card we used, and it did not fit the one now serving.
+**Choice:** `make gateway` sets `GW_MAX_INFLIGHT` per model and topology from `serving.fit --gateway-env`. The cap is
+the number of typical runs (the 12k-token app length, with the 3.8k shared prefix held once) that one worker's KV pool
+holds, between 1 and 16. The pool is vLLM's own measurement once `make kv` has recorded one, the paper estimate before that. That gives
 9 for the 8B on an A100 slice, 4 for Qwen3.8 on an H100 half, and the ceiling of 16 on a whole card. The KV shed line
-(0.80) and the continuing-run exemption (down to 5% free) are unchanged: with the cap sized to the pool, the
+(0.80) and the continuing-run exemption (down to 5% free) are unchanged. With the cap sized to the pool, the
 exemption keeps runs alive mid-investigation without overfilling KV.
-**Because:** the gateway should hold back what vLLM cannot fit, so overload waits in the gateway's priority queue
-instead of being preempted inside vLLM, where it costs recomputation and throughput for everyone.
+**Because:** the gateway should hold back what vLLM cannot fit, so overload waits in the gateway's priority queue.
+Otherwise vLLM preempts it, which costs recomputation and throughput for everyone.
 **Revisit when:** the re-run of the knee (backlog) still shows vLLM preemptions with the sized cap (then tighten the
 continuing-run exemption), or runs grow well past the 12k-token app length (size to a larger typical run).
 **Measured 2026-10-07 (findings F36), revisit triggered:** on the same H100 SXM5 node, the sized cap (4) cut vLLM
 preemptions by ~95% and kept the cache and tail latency better than the old 16, but fewer runs finished at 16 and 32
 concurrent runs, because queued requests hit the gateway's queue deadline before the doctor's retries outlasted the
-queue. The formula sizes for "no preemption", which is stricter than the workload needs. Next: size for a small
-preemption budget (e.g. a cap of about 6–8 on a half), or keep 4 and lengthen the queue deadline for interactive work,
-and choose by pass rate and preemptions together.
+queue. The formula sizes for no preemption at all, which is stricter than the workload needs. The next step is to
+size for a small preemption budget (a cap of about 6–8 on a half), or to keep 4 and lengthen the queue deadline for
+interactive work, choosing by pass rate and preemptions together.
 
 ### D-44 — The doctor waits out gateway refusals, and a client that leaves is not a worker failure (2026-10-06)
-**Context:** a 429 or 503 ended the run at once: the client ran with `max_retries 0` (SPEC, the agent's client) so that
-"a gateway refusal must surface, not be hidden". So at the knee every shed counted as a failed, undiagnosed run (F27),
-and pass rates measured how often the gateway said
-"not now" rather than how well the model diagnosed. Separately, cancelling a client mid-request was logged as a worker
-`upstream_error` 502, which overstated worker faults (F28).
+**Context:** a 429 or 503 ended the run at once. The client ran with `max_retries 0` (SPEC, the agent's client) so
+that "a gateway refusal must surface, not be hidden". So at the knee every shed counted as a failed, undiagnosed run
+(F27), and pass rates measured how often the gateway said "not now" rather than how well the model diagnosed.
+Separately, the gateway logged a client cancelling mid-request as a worker `upstream_error` 502, which overstated
+worker faults (F28).
 **Choice:**
 - **Retry refusals, visibly.** The agent retries a 429 or 503 on the same step after `max(Retry-After, 1, 2, 4, 8 s)`,
   up to `DOCTOR_REFUSAL_RETRIES` (default 4, about 15 s at most), with the same request id, so the gateway still sees
-  the same run and step. Every refusal is recorded on its step with the gateway's reason (`kv_free`, `queue_full`,
-  `tenant_tokens`, …) and the wait; the golden summary reports `refusal_reasons` and how many runs waited one out.
-  Other errors are not retried. `DOCTOR_REFUSAL_RETRIES=0` restores failing on the first refusal.
+  the same run and step. The agent records every refusal on its step with the gateway's reason (`kv_free`,
+  `queue_full`, `tenant_tokens`, …) and the wait, and the golden summary reports `refusal_reasons` and how many runs
+  waited one out. The agent does not retry other errors. `DOCTOR_REFUSAL_RETRIES=0` restores failing on the first
+  refusal.
 - **Client gone.** When the forward fails because the client's own request was cancelled, the gateway records
   `client_gone` with no status (its documented meaning), not `upstream_error` 502.
-**Because:** the gateway's refusal already says why and when to come back; an agent that honours it rides out a spike,
-and the results keep the refusal visible instead of either hiding it or turning it into a lost run.
+**Because:** the gateway's refusal already says why and when to come back. An agent that honours it waits through a
+load spike, and the results keep the refusal visible instead of hiding it or turning it into a lost run.
 **Revisit when:** waits of ~15 s are too long for interactive use (lower the retries for interactive priority), or a
 refusal storm suggests retries are amplifying load (add jitter or a per-tenant retry budget).
 
 ### D-45 — Five production alerts, thresholds from the system, tested with promtool (2026-10-07)
-**Context:** the brief asks for production alerts. The measurements gave each one a reason: KV is the first limiter
-(F6, F24), queueing moved into the gateway once admission was sized (F32), vLLM preempted when admission let in too
-much (F25, F36), and the restricted-data invariant must never break.
-**Choice:** `deploy/observability/alerts.yaml`, embedded verbatim in the node's Prometheus values (a test keeps the copy
-equal), with Alertmanager off so firing alerts show on Prometheus's Alerts page:
+**Context:** the brief asks for production alerts, and the measurements give each one a reason. KV is the first
+limiter (F6, F24), queueing moved into the gateway once admission was sized (F32), vLLM preempted when admission let in
+too much (F25, F36), and the restricted-data invariant must never break.
+**Choice:** the rules live in `deploy/observability/alerts.yaml`. The node's Prometheus values embed them verbatim (a
+test keeps the copy equal), and Alertmanager is off, so firing alerts show on Prometheus's Alerts page:
 - `KVCacheSaturated`: KV usage above 0.80, the gateway's own shed line, for 5 minutes;
 - `GatewayQueueWaitHigh`: queue wait p95 above 5 s, half the 10 s interactive deadline, for 5 minutes;
 - `VLLMPreempting`: any preemption rate for 5 minutes;
@@ -370,20 +371,21 @@ equal), with Alertmanager off so firing alerts show on Prometheus's Alerts page:
 - `RestrictedRequestOffBox` (critical): any restricted request routed off the box, at once.
 Each carries the action to take. `alerts_test.yaml` checks that every alert fires on its condition and stays quiet just
 below it, with a pinned, checksum-verified `promtool` 3.14.0 (the node's Prometheus version) in `make test` and CI.
-**Because:** an alert is only useful if its threshold means something and it has been seen to fire; thresholds taken
-from the gateway's own limits move with them when those are retuned.
+**Because:** an alert is only useful if its threshold means something and we have seen it fire. Thresholds taken
+from the gateway's own limits move with them when someone retunes those limits.
 **Revisit when:** Alertmanager gets a receiver (route the critical alert to a pager), or the KV cap is retuned (D-43)
 and the queue alert starts firing in normal operation.
 
 ### D-46 — The results notebook is built from committed metrics, as code (2026-10-07)
 **Context:** the brief asks for a notebook answering its questions. The evidence is spread over golden summaries and
-rows, saved `/metrics` scrapes and KV logs in `metrics/`, and the numbers had so far been copied into findings by hand.
+rows, saved `/metrics` scrapes and KV logs in `metrics/`, and until now we copied the numbers into findings by hand.
 **Choice:** `report/build.py` holds the notebook's cells as code; `make report` builds `report/report.ipynb`, runs it
 in a kernel over a local socket, and saves each chart to `design/figures/` for the README. `report/results.py` loads
-every number from `metrics/` (stdlib only, tested), so the notebook can be rebuilt from the repo and no figure is typed
-by hand. Its packages (matplotlib, nbformat, nbclient, ipykernel) are a separate `report` dependency group, pinned
+every number from `metrics/` (stdlib only, tested), so anyone can rebuild the notebook from the repo and nobody types
+a figure by hand. Its packages (matplotlib, nbformat, nbclient, ipykernel) are a separate `report` dependency group, pinned
 exactly; they are not runtime dependencies (D-33) and `uv sync` and CI never install them. Charts use the reference
 palette's first three categorical slots, which validate for every pair, on a light surface.
 **Because:** a notebook rebuilt from the data cannot drift from it, and reviewing cells as code catches the same
 mistakes code review does.
-**Revisit when:** a run's raw time series need charting (they are lost at `make down` until `make export` exists).
+**Revisit when:** a run's raw time series need charting (the node loses them at `make down` until `make export`
+exists).

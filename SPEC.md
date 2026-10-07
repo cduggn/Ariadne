@@ -295,34 +295,35 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
   the log to `metrics/kv-…`), `golden`/`sweep`, `metrics`, `watch`, `matrix`, `report` (C14), `alerts-test` (C21).
 
 ### C11 — Inference gateway ✅ (`gateway/`, Go, D-42, D-43, D-44; design `design/gateway.md`)
-- **Decisions,** pure and tested in `decide`: guard (400; refuses client `kv_transfer_params`), tenant token quota
+- **Decisions,** pure and tested in `decide`: guard (400, which also refuses client `kv_transfer_params`), tenant token quota
   (429, stays), KV shed at the 0.80 line, queue deadline and p99 spread (503), placement `prefix_then_load` (keep a run
   on the worker holding its history unless it is 0.25 load units busier; `least_loaded` and `p2c` for the A/B), a
   per-worker priority queue with deadlines (interactive 10 s, batch 30 s).
-- **Admission sized to KV** (D-43): `make gateway` sets the in-flight cap per worker from the measured KV pool
+- **Admission sized to KV** (D-43). `make gateway` sets the in-flight cap per worker from the measured KV pool
   (`serving.fit --gateway-env`): 9 on an A100 slice with the 8B, 4 on an H100 half with Qwen3.8, 16 on a whole card.
-- **Warm-up** (C13): a worker is routable only after two probes replay the doctor's real first request
+- **Warm-up** (C13). The gateway routes to a worker only after two probes replay the doctor's real first request
   (`serving/warmup.py`), which also caches the shared prefix; `/readyz` needs one warm worker.
-- **Stay or leave:** only a 503 may overflow and a restricted request never does (`MayLeave` + fuzz test); the
-  overflow backend is null. **KV hop** (`hop`, opt-in, `HOP=1`): a run moved off a worker that holds its history has its
-  KV copied over vLLM's MooncakeConnector when the history is long enough and the copy is cheaper than the prefill;
-  random transfer ids, at most `GW_HOP_MAX_INFLIGHT` hops, any failure recomputes.
-- **Telemetry:** `orch_*` metrics, the `cluster-doctor gateway` dashboard (contract-tested), one log line per request;
-  a client that leaves is `client_gone`, not a 502 (D-44).
-- **Delivery:** `docker.io/cdugga/cluster-doctor-gateway`, public, amd64 + arm64, pinned by digest in
+- **Stay or leave.** Only a 503 may overflow, and a restricted request never does (`MayLeave` and a fuzz test). The
+  overflow backend is null.
+- **KV hop** (`hop`, opt-in, `HOP=1`). When the gateway moves a run off a worker that holds its history, it copies the
+  KV over vLLM's MooncakeConnector if the history is long enough and the copy is cheaper than the prefill. Transfer ids
+  are random, at most `GW_HOP_MAX_INFLIGHT` hops run at once, and any failure falls back to recomputing.
+- **Telemetry.** `orch_*` metrics, the `cluster-doctor gateway` dashboard (contract-tested) and one log line per
+  request. A client that leaves is `client_gone`, not a 502 (D-44).
+- **Delivery.** `docker.io/cdugga/cluster-doctor-gateway`, public, amd64 + arm64, pinned by digest in
   `deploy/k8s/gateway.yaml` (`make gateway-image`); one replica, because the run table lives in memory.
 
 ### C14 — Results notebook ✅ (`report/`, D-46)
 `make report` builds and runs `report/report.ipynb` from the committed `metrics/` and saves its charts to
 `design/figures/`: shared against unique tokens per step, model quality with intervals, KV fit against measured, the
 routing A/B, the knee across admission settings, what was shed and why, tokens per engine step, the alerts, and
-recommendations for 10× traffic. Findings with evidence: `design/findings.md`.
+recommendations for 10× traffic. `design/findings.md` gives the evidence for each finding.
 
 ### C21 — Production alerts ✅ (`deploy/observability/alerts.yaml`, D-45)
 `KVCacheSaturated` (above the 0.80 shed line), `GatewayQueueWaitHigh` (queue p95 above half the 10 s interactive
 deadline), `VLLMPreempting`, `DoctorInconclusiveRateHigh` (over 20% in an hour), `RestrictedRequestOffBox`
-(critical). Embedded in the node's Prometheus values (tested); `make alerts-test` runs promtool tests that each fires
-on its condition and stays quiet below it.
+(critical). The node's Prometheus values embed the rules, and a test keeps the copy equal. `make alerts-test` runs
+promtool tests that check each rule fires on its condition and stays quiet below it.
 
 ### Planned ⬜
 | Id | Component | Summary |
@@ -398,17 +399,17 @@ identical arguments map to identical keys); budgets × namespace count; validati
 prefixes (tests key on them); the fail-closed shape; the DER walk order in `doctor/x509.py`.
 
 ## 8. Open issues
-1. The KV-sized cap (D-43) kept vLLM healthy but finished fewer runs than cap 16 at high concurrency (F36): tune it
-   (6–8 on an H100 half, or a longer interactive deadline); backlog.
+1. The KV-sized cap (D-43) kept vLLM healthy but finished fewer runs than cap 16 at high concurrency (F36). The
+   backlog tunes it (6–8 on an H100 half, or a longer interactive deadline).
 2. Live-only scenarios need recording on the Lambda cluster and AWS (C12).
 3. OpenCost pricing units and HAMi half-GPU attribution unverified (D-26).
 4. Live logs are longer than lab logs: re-measure tokens (D-29).
 5. In cascade-db the client's error line has no reason text (busybox prints nothing on refused-after-timeout); the database's `OOMKilled` status carries the proof.
 6. crashloop and job-failed `echo` their error instead of failing for real, so the stated fix would not repair them (D-41, deferred).
 7. The ruleset and tool schemas grew with D-41 (about +200 tokens): re-measure the 3,787-token prefix on the next GPU run.
-8. The fit is 20–34% optimistic for the hybrid Qwen3.8 (F5): correct it before it sizes a hybrid deployment.
-9. The KV hop completed the Mooncake protocol 8 times on hardware but vLLM 0.29 exposes no transfer metric, so a real
-   pull is unconfirmed (F35); HAMi slicing on GH200 is untested.
+8. The fit is 20–34% optimistic for the hybrid Qwen3.8 (F5). Correct it before it sizes a hybrid deployment.
+9. The KV hop completed the Mooncake protocol 8 times on hardware, but vLLM 0.29 exposes no transfer metric, so nobody
+   has confirmed a real pull (F35). HAMi slicing on GH200 is untested.
 
 ## 9. Change log
 | Date | Change | Decisions |
