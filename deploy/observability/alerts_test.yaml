@@ -1,0 +1,123 @@
+# promtool unit tests for alerts.yaml: each alert fires on the condition it names and stays quiet just below it.
+#   make alerts-test     (promtool test rules deploy/observability/alerts_test.yaml)
+rule_files: [alerts.yaml]
+evaluation_interval: 1m
+
+tests:
+  - name: KV above the shed line for 5 minutes fires; at the line it does not
+    interval: 1m
+    input_series:
+      - series: 'vllm:kv_cache_usage_perc{pod="vllm-0"}'
+        values: "0.85x10"
+      - series: 'vllm:kv_cache_usage_perc{pod="vllm-1"}'
+        values: "0.80x10"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: KVCacheSaturated
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: KVCacheSaturated
+        exp_alerts:
+          - exp_labels: {severity: warning, pod: vllm-0}
+            exp_annotations:
+              summary: "vllm-0: KV cache above the gateway's 0.80 shed line for 5 minutes"
+              action: "New runs are being shed (orch_shed_total{reason=kv_free}). Check the in-flight cap (GW_MAX_INFLIGHT, D-43) against the worker's KV pool (make kv)."
+
+  - name: Queue wait p95 above 5 s fires; 2 s does not
+    interval: 1m
+    input_series:
+      # 60 queued requests a minute: all above 5 s, so the p95 lands in the (5, 10] bucket
+      - series: 'orch_request_duration_seconds_bucket{stage="queue",le="5"}'
+        values: "0x15"
+      - series: 'orch_request_duration_seconds_bucket{stage="queue",le="10"}'
+        values: "0+60x15"
+      - series: 'orch_request_duration_seconds_bucket{stage="queue",le="+Inf"}'
+        values: "0+60x15"
+      # a second, healthy stage that must not leak into the queue's quantile
+      - series: 'orch_request_duration_seconds_bucket{stage="e2e",le="5"}'
+        values: "0+60x15"
+      - series: 'orch_request_duration_seconds_bucket{stage="e2e",le="+Inf"}'
+        values: "0+60x15"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GatewayQueueWaitHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "Gateway queue wait p95 above 5 s, half the 10 s interactive deadline, for 5 minutes"
+              action: "Requests are close to timing out in the queue (orch_shed_total{reason=timeout_queue}). Add a worker, or check whether the in-flight cap is too strict (F36)."
+
+  - name: Queue wait under 2 s stays quiet
+    interval: 1m
+    input_series:
+      - series: 'orch_request_duration_seconds_bucket{stage="queue",le="2"}'
+        values: "0+60x15"
+      - series: 'orch_request_duration_seconds_bucket{stage="queue",le="5"}'
+        values: "0+60x15"
+      - series: 'orch_request_duration_seconds_bucket{stage="queue",le="+Inf"}'
+        values: "0+60x15"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GatewayQueueWaitHigh
+        exp_alerts: []
+
+  - name: Steady preemptions fire per pod; a pod that never preempts does not
+    interval: 1m
+    input_series:
+      - series: 'vllm:num_preemptions_total{pod="vllm-1"}'
+        values: "0+3x15"
+      - series: 'vllm:num_preemptions_total{pod="vllm-0"}'
+        values: "0x15"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: VLLMPreempting
+        exp_alerts:
+          - exp_labels: {severity: warning, pod: vllm-1}
+            exp_annotations:
+              summary: "vllm-1: vLLM has been preempting requests for 5 minutes"
+              action: "Admission is letting in more than the worker's KV holds; preempted requests recompute their prompts. Lower GW_MAX_INFLIGHT (D-43)."
+
+  - name: 30% inconclusive over an hour fires; 10% does not
+    interval: 5m
+    input_series:
+      - series: 'doctor_diagnoses_total{mode="investigate",status="inconclusive",stop="inconclusive"}'
+        values: "0+3x30"
+      - series: 'doctor_diagnoses_total{mode="investigate",status="issue",stop="submitted"}'
+        values: "0+7x30"
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: DoctorInconclusiveRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "More than 20% of the doctor's diagnoses in the last hour were inconclusive"
+              action: "About twice the measured rate. Check the gateway's refusals (refused steps that ran out of retries end inconclusive or undiagnosed) and the model's step budget."
+
+  - name: 10% inconclusive stays quiet
+    interval: 5m
+    input_series:
+      - series: 'doctor_diagnoses_total{mode="investigate",status="inconclusive",stop="inconclusive"}'
+        values: "0+1x30"
+      - series: 'doctor_diagnoses_total{mode="investigate",status="issue",stop="submitted"}'
+        values: "0+9x30"
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: DoctorInconclusiveRateHigh
+        exp_alerts: []
+
+  - name: One restricted request off the box fires at once; none stays quiet
+    interval: 1m
+    input_series:
+      - series: 'orch_restricted_offbox_total'
+        values: "0 0 0 1 1 1"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RestrictedRequestOffBox
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: RestrictedRequestOffBox
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: "A restricted request was routed off the box"
+              action: "This breaks the data-class invariant. Stop overflow (unset the overflow backend) and audit the gateway's request log for class=restricted with overflow set."

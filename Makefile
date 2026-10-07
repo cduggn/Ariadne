@@ -1,7 +1,7 @@
 # cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda GPU lifecycle (A100, H100 or GH200).
 #
-#   make tools                      fetch pinned kind + kubectl into .bin/ (checksums verified)
-#   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, ruff
+#   make tools                      fetch pinned kind, kubectl and promtool into .bin/ (checksums verified)
+#   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, alert rule tests, ruff
 #   make lab-up / lab-record / lab-down   kind cluster, inject faults, record fixtures/  (lab only mutates kind)
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
 #   make gateway-image              build + push the gateway image (Docker Hub, public), pin its digest
@@ -77,7 +77,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench resume demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench resume alerts-test demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
 
 .DEFAULT_GOAL := help
 
@@ -108,9 +108,17 @@ bench:
 tools:
 	bash lab/get-tools.sh
 
-test:
+test: alerts-test
 	uv run -q python -m pytest
 	cd gateway && go vet ./... && go test ./...
+
+# The production alert rules (D-45): valid, and each fires on its condition and stays quiet below it.
+alerts-test: .bin/promtool
+	.bin/promtool check rules deploy/observability/alerts.yaml
+	cd deploy/observability && ../../.bin/promtool test rules alerts_test.yaml
+
+.bin/promtool:
+	bash lab/get-tools.sh promtool
 
 lint:
 	$(RUFF) check doctor evals lab serving tests

@@ -163,6 +163,53 @@ write_files:
             - targets:
                 - hami-device-plugin-monitor.kube-system.svc.cluster.local:31992
                 - hami-scheduler.kube-system.svc.cluster.local:31993
+      # Alert rules: a verbatim copy of deploy/observability/alerts.yaml from `groups:` on (tests/test_serving.py
+      # keeps them equal). Alertmanager is off; firing alerts show on Prometheus's Alerts page (D-45).
+      serverFiles:
+        alerting_rules.yml:
+          groups:
+            - name: cluster-doctor-serving
+              rules:
+                - alert: KVCacheSaturated
+                  expr: max by (pod) (vllm:kv_cache_usage_perc) > 0.8
+                  for: 5m
+                  labels: {severity: warning}
+                  annotations:
+                    summary: "{{ $labels.pod }}: KV cache above the gateway's 0.80 shed line for 5 minutes"
+                    action: "New runs are being shed (orch_shed_total{reason=kv_free}). Check the in-flight cap (GW_MAX_INFLIGHT, D-43) against the worker's KV pool (make kv)."
+
+                - alert: GatewayQueueWaitHigh
+                  expr: histogram_quantile(0.95, sum by (le) (rate(orch_request_duration_seconds_bucket{stage="queue"}[5m]))) > 5
+                  for: 5m
+                  labels: {severity: warning}
+                  annotations:
+                    summary: "Gateway queue wait p95 above 5 s, half the 10 s interactive deadline, for 5 minutes"
+                    action: "Requests are close to timing out in the queue (orch_shed_total{reason=timeout_queue}). Add a worker, or check whether the in-flight cap is too strict (F36)."
+
+                - alert: VLLMPreempting
+                  expr: sum by (pod) (rate(vllm:num_preemptions_total[5m])) > 0
+                  for: 5m
+                  labels: {severity: warning}
+                  annotations:
+                    summary: "{{ $labels.pod }}: vLLM has been preempting requests for 5 minutes"
+                    action: "Admission is letting in more than the worker's KV holds; preempted requests recompute their prompts. Lower GW_MAX_INFLIGHT (D-43)."
+
+                - alert: DoctorInconclusiveRateHigh
+                  expr: >
+                    sum(increase(doctor_diagnoses_total{status="inconclusive"}[1h]))
+                      / sum(increase(doctor_diagnoses_total[1h])) > 0.2
+                  for: 15m
+                  labels: {severity: warning}
+                  annotations:
+                    summary: "More than 20% of the doctor's diagnoses in the last hour were inconclusive"
+                    action: "About twice the measured rate. Check the gateway's refusals (refused steps that ran out of retries end inconclusive or undiagnosed) and the model's step budget."
+
+                - alert: RestrictedRequestOffBox
+                  expr: increase(orch_restricted_offbox_total[5m]) > 0
+                  labels: {severity: critical}
+                  annotations:
+                    summary: "A restricted request was routed off the box"
+                    action: "This breaks the data-class invariant. Stop overflow (unset the overflow backend) and audit the gateway's request log for class=restricted with overflow set."
       alertmanager: {enabled: false}
       prometheus-pushgateway: {enabled: false}
       kube-state-metrics: {enabled: true}

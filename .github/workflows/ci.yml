@@ -22,3 +22,4 @@ jobs:
         with: {go-version-file: gateway/go.mod, cache-dependency-path: gateway/go.sum}
       - run: go vet ./... && go test ./...
         working-directory: gateway
+      - run: bash lab/get-tools.sh promtool && make alerts-test   # pinned promtool, checksum in the script (D-45)

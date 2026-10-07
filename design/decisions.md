@@ -356,3 +356,21 @@ and pass rates measured how often the gateway said
 and the results keep the refusal visible instead of either hiding it or turning it into a lost run.
 **Revisit when:** waits of ~15 s are too long for interactive use (lower the retries for interactive priority), or a
 refusal storm suggests retries are amplifying load (add jitter or a per-tenant retry budget).
+
+### D-45 — Five production alerts, thresholds from the system, tested with promtool (2026-10-07)
+**Context:** the brief asks for production alerts. The measurements gave each one a reason: KV is the first limiter
+(F6, F24), queueing moved into the gateway once admission was sized (F32), vLLM preempted when admission let in too
+much (F25, F36), and the restricted-data invariant must never break.
+**Choice:** `deploy/observability/alerts.yaml`, embedded verbatim in the node's Prometheus values (a test keeps the copy
+equal), with Alertmanager off so firing alerts show on Prometheus's Alerts page:
+- `KVCacheSaturated`: KV usage above 0.80, the gateway's own shed line, for 5 minutes;
+- `GatewayQueueWaitHigh`: queue wait p95 above 5 s, half the 10 s interactive deadline, for 5 minutes;
+- `VLLMPreempting`: any preemption rate for 5 minutes;
+- `DoctorInconclusiveRateHigh`: more than 20% inconclusive over an hour, about twice the measured rate;
+- `RestrictedRequestOffBox` (critical): any restricted request routed off the box, at once.
+Each carries the action to take. `alerts_test.yaml` checks that every alert fires on its condition and stays quiet just
+below it, with a pinned, checksum-verified `promtool` 3.14.0 (the node's Prometheus version) in `make test` and CI.
+**Because:** an alert is only useful if its threshold means something and it has been seen to fire; thresholds taken
+from the gateway's own limits move with them when those are retuned.
+**Revisit when:** Alertmanager gets a receiver (route the critical alert to a pager), or the KV cap is retuned (D-43)
+and the queue alert starts firing in normal operation.

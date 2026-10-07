@@ -162,3 +162,11 @@ def test_result_files_keep_a_dotted_tag_whole(tmp_path):
     rows, summary = result_paths(tmp_path, "sweep-qwen3.8-27b-fp8-c16", "20261007-151105")
     assert rows.name == "golden-sweep-qwen3.8-27b-fp8-c16-20261007-151105.jsonl"
     assert summary.name == "golden-sweep-qwen3.8-27b-fp8-c16-20261007-151105.summary.json"
+
+
+def test_cloud_init_embeds_the_alert_rules_verbatim():
+    import textwrap
+    rules = (ROOT / "deploy" / "observability" / "alerts.yaml").read_text()
+    groups = rules[rules.index("groups:"):]
+    boot = (ROOT / "deploy" / "cloud-init.yaml").read_text()
+    assert "        alerting_rules.yml:\n" + textwrap.indent(groups, " " * 10).rstrip() + "\n" in boot
