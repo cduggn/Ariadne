@@ -5,7 +5,7 @@
 #
 # Which pool: the decode workers, the only pool here. A new worker loads the model and warms up for minutes before the
 # gateway routes to it (C13), so this follows sustained load, not bursts: scale up after 1 minute of demand, scale down
-# one worker at most every 5 minutes after 10 quiet minutes. It never scales to zero, because an investigation is interactive.
+# one worker at most every 5 minutes after 15 quiet minutes (D-51). It never scales to zero, because an investigation is interactive.
 # The signals are recording rules in deploy/observability/alerts.yaml, tested with promtool.
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -23,7 +23,7 @@ spec:
           stabilizationWindowSeconds: 60
           policies: [{type: Pods, value: 1, periodSeconds: 60}]
         scaleDown:
-          stabilizationWindowSeconds: 600
+          stabilizationWindowSeconds: 900
           policies: [{type: Pods, value: 1, periodSeconds: 300}]
   triggers:
     # Workers needed = ceil(demand / per-worker cap): 4 in flight and 3 queued on a cap of 4 asks for 2 workers.

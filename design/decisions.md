@@ -455,7 +455,7 @@ needs a series not in the table (add one row).
   does not count. One formula sizes both admission and scaling.
 - **Signals as recording rules.** Both live in `deploy/observability/alerts.yaml` and have promtool tests, so the
   numbers KEDA acts on are tested like the alerts. A test keeps the shed signal's reasons equal to the gateway's.
-- **Slow down, never to zero.** Scale up after 60 s, down one worker per 5 minutes after 10 quiet minutes. A new worker
+- **Slow down, never to zero.** Scale up after 60 s, down one worker per 5 minutes after 15 quiet minutes (D-51; 10 until then). A new worker
   loads the model and warms up for minutes before the gateway routes to it (C13), and an investigation is interactive.
 - **No gateway change.** The gateway already knows both worker addresses, treats a missing one as down and routes to it
   only once it is warm.
@@ -480,3 +480,16 @@ and renaming the image, metrics or resources would break the pinned digest, the 
 scrapes for no gain to a reader. Dashboard uids are unchanged, so links keep working.
 **Revisit when:** the GitHub repo is renamed (then update the badge, module path and image together), or a fresh model
 run happens anyway (then the prompt can say Ariadne at no cost to comparability).
+
+### D-51 — KEDA waits 15 quiet minutes before removing a worker (2026-10-07)
+**Context:** on the H100 (F39) a Qwen3.8 worker took 8 min 21 s from creation to ready. A golden run resumed about 9.7
+minutes after the previous one ended, and KEDA removed the second worker 40 s into it: the 10-minute window had run out
+before the new load reached the 2-minute averages. The shed trigger re-created the worker a minute later, at the cost of
+another cold start while one worker carried everything.
+**Choice:** the scale-down stabilization window is 900 s. Scale-up (60 s) and the one-worker-per-5-minutes step are
+unchanged.
+**Because:** holding an idle H100 half for 5 more minutes costs less than a second cold start, during which the gateway
+sheds on the one remaining worker. 15 minutes covers the measured gap between bursts with 50% to spare and is still
+under two cold starts.
+**Revisit when:** worker start-up gets much faster (weights on a local volume, a smaller model), or traffic has longer
+quiet gaps than bursts, where the window would hold a worker that is never used.

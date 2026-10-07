@@ -132,7 +132,7 @@ promtool tests check that each rule fires on its condition and stays quiet just 
 - KEDA scales `statefulset/vllm` from 1 to 2 workers, the two halves of one H100 (D-49).
 - Workers wanted = ⌈(in flight + queued) ÷ the per-worker cap of 4⌉, the same cap admission uses (D-43).
 - A second trigger adds a worker on any capacity shed. A tenant over quota doesn't count.
-- It scales up after a minute and down after 10 quiet minutes, never to zero, because a new worker takes minutes to load.
+- It scales up after a minute and down after 15 quiet minutes, never to zero, because a new worker takes 8 minutes to load (F39).
 
 Both signals are recording rules with promtool tests. Rehearsed on kind (F38); measured on the H100 in session 5.
 
@@ -169,6 +169,6 @@ The code behind each one is in `design/walkthrough.md`.
 ## Evidence
 
 - `report/report.ipynb` rebuilds every chart from `metrics/` (`make report`).
-- `design/findings.md` gives F1–F38 with the file behind each number.
-- `design/decisions.md` records why each choice was made (D-1 to D-50).
+- `design/findings.md` gives F1–F39 with the file behind each number.
+- `design/decisions.md` records why each choice was made (D-1 to D-51).
 - `make lint test` covers Python, Go and the alert rules; CI runs the same.

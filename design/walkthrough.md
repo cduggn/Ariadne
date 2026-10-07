@@ -115,7 +115,7 @@ in `deploy/observability/alerts.yaml` that promtool tests:
 
 **Why.** The only pool is the vLLM worker pool, and KV per worker is the limit (F6, F24), so more workers is the lever.
 A new worker loads the model and warms up for minutes, so scaling follows sustained load. It scales up after a minute
-of demand and down only after 10 quiet minutes, never to zero. The gateway needs no change: it already knows both
+of demand and down only after 15 quiet minutes, never to zero. The gateway needs no change: it already knows both
 worker addresses and routes to a worker only once it is warm.
 
 **Dashboard.** `Ariadne · cluster`, row *Scaling*: KEDA's desired workers against ready ones, demand per ready

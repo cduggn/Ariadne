@@ -36,7 +36,7 @@ Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not bu
 | Engine scheduler vs my admit, place and queue? | vLLM orders execution within a batch (32 sequences, 8,192 tokens per step); the gateway decides who gets in and where (F14, F17) |
 | What limited concurrency? | KV: about two full-length runs per H100 half; the knee is between 8 and 16 concurrent runs (F6, F24) |
 | Production alerts | five rules, each tested to fire: KV saturated, queue wait high, vLLM preempting, inconclusive rate, restricted off-box (D-45; report §8) |
-| Which pool scales? | The vLLM pool. KV per worker is the limiter, so KEDA adds workers, not slots: workers wanted = demand ÷ the cap of 4, plus a trigger on capacity sheds (D-49; rehearsed on kind, F38; measured in session 5) |
+| Which pool scales? | The vLLM pool. KV per worker is the limiter, so KEDA adds workers, not slots: workers wanted = demand ÷ the cap of 4, plus a trigger on capacity sheds (D-49, D-51; rehearsed on kind, F38; on the H100 a new worker took 8 minutes to arrive, F39) |
 | 10× traffic: what changes, which knobs are wrong? | report §9: more workers, a shared run table for a second gateway, an overflow backend, the KV hop; the 768-token cap never bound (F30) and chunked prefill rarely does (F15) |
 
 ## Office-hours telemetry rows

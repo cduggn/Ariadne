@@ -549,19 +549,35 @@
           "unit": "short",
           "mappings": [
             {
-              "type": "value",
+              "type": "range",
               "options": {
-                "0": {
+                "from": -0.5,
+                "to": 0.5,
+                "result": {
                   "text": "down",
                   "color": "red",
                   "index": 0
-                },
-                "1": {
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.5,
+                "to": 1.5,
+                "result": {
                   "text": "warming",
                   "color": "yellow",
                   "index": 1
-                },
-                "2": {
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1.5,
+                "to": 2.5,
+                "result": {
                   "text": "ready",
                   "color": "green",
                   "index": 2
@@ -578,9 +594,19 @@
               {
                 "color": "red",
                 "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
               }
             ]
-          }
+          },
+          "min": 0,
+          "max": 2
         },
         "overrides": []
       },

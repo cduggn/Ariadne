@@ -226,6 +226,16 @@ these are the scaler's own timings, not a worker's load time.
   both recording rules from the chart's Prometheus service with no extra configuration. On hardware, the model load
   and warm-up add minutes to every scale-up. (measured, kind lab; HPA events at 20:42:54 and 20:54:24 UTC)
 
+- **F39. On the H100 the scaler acts in about a minute, but a worker takes 8 minutes to arrive.** A golden run at
+  concurrency 8 on one worker shed `timeout_queue` and `kv_free` at about 0.4 a second. The capacity-shed trigger asked
+  for 2 workers about 80 s after the load began (the demand trigger never fired: the cap held in-flight at 4 and the
+  queue drained by shedding, so demand sat at the threshold). `vllm-1` was created at 23:30:49 and ready at 23:39:10,
+  8 min 21 s later, about 2 minutes after the run had ended. A second run started 9.7 minutes after the first ended;
+  KEDA removed `vllm-1` 40 s into it, because the 10-minute window ran out before the new load reached the 2-minute
+  averages, then re-created it at 23:47:33. No request failed (vLLM `error` and `abort` both 0), but one worker carried
+  the run with KV free under 20%. The window is now 15 minutes (D-51). (measured, H100; HPA events, pod timestamps,
+  dashboard screenshots)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3

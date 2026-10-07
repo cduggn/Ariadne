@@ -104,7 +104,7 @@ bringup:
 
 check:
 	$(REMOTE) "kubectl get pods -o wide; kubectl logs deploy/gateway 2>/dev/null | grep -m1 -o 'kv hop on' || echo 'kv hop: off'"
-	@curl -sf http://127.0.0.1:$(PORT)/debug/workers | python3 -c 'import json,sys; [print(w["pod"], w["phase"]) for w in json.load(sys.stdin)]' \
+	@curl -sf http://127.0.0.1:$(PORT)/debug/workers | python3 -c 'import json,sys; [print(w["pod"], w["phase"]) for w in json.load(sys.stdin)]' 2>/dev/null \
 	  || echo "no gateway at localhost:$(PORT): start make tunnel in another terminal"
 
 bench:

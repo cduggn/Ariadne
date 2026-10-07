@@ -182,6 +182,8 @@ def test_autoscaling_reads_the_tested_signals_and_scales_only_on_capacity():
     assert queried and queried <= recorded, queried - recorded
     assert "__MAX_REPLICAS__" in so and "__WORKER_CAP__" in so
     assert "kind: StatefulSet, name: vllm" in so and "minReplicaCount: 1" in so
+    scale_down = int(re.search(r"scaleDown:\n\s+stabilizationWindowSeconds: (\d+)", so).group(1))
+    assert scale_down > 501, "D-51: hold a worker longer than the 8 min 21 s it takes to start one (F39)"
 
     gateway_reasons = set(re.findall(r'Reason\w* *= *"([a-z0-9_]+)"', "".join(
         f.read_text() for f in (ROOT / "gateway" / "internal" / "decide").glob("*.go") if not f.name.endswith("_test.go"))))

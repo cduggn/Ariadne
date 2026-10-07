@@ -1,0 +1,120 @@
+{
+  "tag": "as-up",
+  "profile": "qwen3.8-27b-fp8",
+  "model": "Qwen/Qwen3.8-27B-FP8",
+  "topology": "h100-half",
+  "workers": 1,
+  "gpu_share": 0.5,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 8,
+  "repeat": 2,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "d0b5e73",
+  "wall_s": 377.8,
+  "timestamp": "20261007-232935",
+  "tasks": 52,
+  "unique_tasks": 26,
+  "passed": 27,
+  "pass_rate": 0.519,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.591,
+    "rightsize": 0.5
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.393,
+    "multi_hop": 0.714,
+    "red_herring": 0.625,
+    "rightsizing": 0.5
+  },
+  "passed_v2": 31,
+  "pass_rate_v2": 0.596,
+  "pass_rate_v2_ci95": [
+    0.461,
+    0.718
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.333,
+    "investigate": 0.636,
+    "rightsize": 0.5
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.5,
+    "multi_hop": 0.786,
+    "red_herring": 0.625,
+    "rightsizing": 0.5
+  },
+  "parts_v2": {
+    "submitted": 0.596,
+    "grounded": 0.596,
+    "status": 0.596,
+    "root": 0.596,
+    "category": 0.596,
+    "mechanism": 0.596,
+    "chain": 0.596,
+    "no_false_positive": 0.596
+  },
+  "top_failed_rules_v2": [
+    [
+      "no-diagnosis",
+      18
+    ],
+    [
+      "inconclusive",
+      3
+    ]
+  ],
+  "advisory_v2": [
+    [
+      "tools-called",
+      1
+    ]
+  ],
+  "stop_reasons": {
+    "submitted": 31,
+    "http_503": 18,
+    "inconclusive": 3
+  },
+  "inconclusive": 3,
+  "abstained": 0,
+  "http_refusals": {
+    "503": 18
+  },
+  "refusal_reasons": {
+    "503 timeout_queue": 89,
+    "503 kv_free": 94
+  },
+  "runs_that_waited_out_a_refusal": 26,
+  "top_failed_rules": [
+    [
+      "no-diagnosis",
+      18
+    ],
+    [
+      "category",
+      3
+    ],
+    [
+      "inconclusive",
+      3
+    ],
+    [
+      "tools-called",
+      1
+    ]
+  ],
+  "repairs": 20,
+  "tool_errors": 15,
+  "steps_per_task_mean": 7.12,
+  "prompt_tokens_last_step_p50": 7999,
+  "prompt_tokens_last_step_max": 14645,
+  "completion_tokens_per_step_p50": 52,
+  "cached_share_of_prompt": 0.713,
+  "step_latency_s_p50": 3.576,
+  "step_latency_s_p95": 17.013
+}

@@ -327,12 +327,12 @@ deadline), `VLLMPreempting`, `DoctorInconclusiveRateHigh` (over 20% in an hour),
 (critical). The node's Prometheus values embed the rules, and a test keeps the copy equal. `make alerts-test` runs
 promtool tests that check each rule fires on its condition and stays quiet below it.
 
-### C22 — Worker autoscaling 🟡 (`deploy/autoscale/keda-vllm.yaml`, D-49; rehearsed on kind (F38), not yet on a GPU)
+### C22 — Worker autoscaling 🟡 (`deploy/autoscale/keda-vllm.yaml`, D-49, D-51; rehearsed on kind (F38), scaled on the H100 (F39))
 A KEDA ScaledObject on `statefulset/vllm`, opt-in with `make autoscale` (`make autoscale-off` deletes it; `make scale`
 refuses while it exists). Between 1 and the topology's `max_replicas`. Workers wanted = ceil(demand / `GW_MAX_INFLIGHT`),
 where demand is the recording rule `doctor:vllm_demand_requests` (in flight plus queued, averaged over 2 minutes); a
 second trigger asks for one more worker on any capacity shed (`doctor:gateway_capacity_sheds_per_minute`; not
-`tenant_tokens`). Scale up after 60 s, scale down one worker per 5 minutes after 10 quiet minutes, never to zero. Both
+`tenant_tokens`). Scale up after 60 s, scale down one worker per 5 minutes after 15 quiet minutes (D-51), never to zero. Both
 rules are promtool-tested, and a test keeps the shed signal equal to the gateway's capacity reasons. The
 `Ariadne · cluster` dashboard shows the cluster, request outcomes and scaling (desired against ready workers,
 demand per worker, sheds, worker phase).
@@ -443,6 +443,7 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-06 | KV hop over MooncakeConnector (opt-in) with its security fixes; H100 boots HAMi-sliced; Makefile playbook; the H100 session (Qwen3.8 86.5%, routing A/B, the knee); findings F1–F30 | D-42 |
 | 2026-10-07 | Admission sized to KV; refusal retries; `client_gone`; same-node control (F36); five alerts with promtool tests; results notebook and figures | D-43 … D-46 |
 | 2026-10-07 | Code-quality gates: git hooks, golangci-lint on the gateway, gitleaks in hooks and CI, race tests, weekly govulncheck | D-47 |
+| 2026-10-07 | KEDA scale-down window 10 → 15 minutes after the H100 run showed a remove-then-recreate race (F39) | D-51 |
 | 2026-10-07 | Part 5 evidence: time-series export, queue probes (big prompt, client gone, worker return), notebook section 10 | D-48 |
 | 2026-10-07 | The product is named Ariadne; README rebuilt around the inference stack; identifiers unchanged | D-50 |
 | 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |

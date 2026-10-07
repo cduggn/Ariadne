@@ -215,7 +215,7 @@ with one worker, then session 4 from step 8 on.
 | 3 | `make tunnel` (terminal 2), `make grafana` (terminal 3) | `Ariadne · cluster`: the Cluster row shows one node Ready and the pods, Outcomes is empty, Scaling shows 1 ready of 2 allowed |
 | 4 | `date +%s`, then `make autoscale` | `kubectl get scaledobject vllm` READY True; `kubectl get hpa keda-hpa-vllm` TARGETS `0/4 (avg), 0/1 (avg)` |
 | 5 | `make golden TAG=as-up WORKERS=1 CONC=8 REPEAT=2` | Demand passes 4 and KEDA asks for 2 workers. Record four times: demand above 4, KEDA desired 2, `vllm-1` Running, `vllm-1` Ready in the gateway (`curl -s localhost:8000/debug/workers`). Expect the first two about 2 minutes apart (as on kind) and the load to take several more |
-| 6 | Keep `make golden TAG=as-down WORKERS=1 CONC=1 REPEAT=1` running and wait | Demand falls under 4; after 10 quiet minutes KEDA removes `vllm-1`. Check the Outcomes panel and `orch_upstream_errors_total` for requests cut off on `vllm-1` as it stops: the open risk of this design |
+| 6 | Keep `make golden TAG=as-down WORKERS=1 CONC=1 REPEAT=1` running and wait | Demand falls under 4; after 15 quiet minutes KEDA removes `vllm-1`. Check the Outcomes panel and `orch_upstream_errors_total` for requests cut off on `vllm-1` as it stops: the open risk of this design |
 | 7 | `uv run python -m lab.export --tag autoscale --start <the time from step 4>` | The whole window as time series (D-48): workers wanted and ready, KEDA's desired count, demand, sheds and worker phase, for the notebook and the slides |
 | 8 | `make autoscale-off && make scale N=2` | Back to a fixed two workers for session 4 (Q1 on), the tuned cap (backlog, F36) and the KV hop check (F35) |
 | 9 | commit `metrics/` and screenshots, then `make down` | Billing stops |
