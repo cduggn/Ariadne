@@ -36,7 +36,7 @@ spec:
       securityContext: {runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532}
       containers:
         - name: gateway
-          image: docker.io/cdugga/cluster-doctor-gateway@sha256:bbeb7aad6eb557027e0c8b622b2d162c03633da256157ebdcb1407ccf8cf55a9   # make gateway-image rewrites this line
+          image: docker.io/cdugga/cluster-doctor-gateway@sha256:a0b7c8a5832c0bad3ec4c074b2c9828a2bf223cf00990beb7f6f9d3275f91c5a   # make gateway-image rewrites this line
           imagePullPolicy: IfNotPresent
           env:
             - {name: GW_LISTEN, value: ":8000"}
