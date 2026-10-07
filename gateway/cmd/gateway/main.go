@@ -23,6 +23,7 @@ import (
 
 	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
 	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
+	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
 	"github.com/cduggn/cluster-doctor/gateway/internal/metrics"
 	"github.com/cduggn/cluster-doctor/gateway/internal/serve"
 )
@@ -40,7 +41,18 @@ func main() {
 	pool := flag.String("pool", env("pool", "sliced"), "pool label on the replica metrics")
 	sharedPrefix := flag.Int("shared-prefix-tokens", envInt("shared-prefix-tokens", 3899), "tokens every prompt shares, which split cached tokens into shared_hit and run_hit")
 	logLevel := flag.String("log-level", env("log-level", "info"), "log level: debug, info, warn or error")
+	hopCfg := hop.DefaultConfig
+	hopOn := flag.Bool("hop", envBool("hop", false), "copy a moved run's KV to its new worker through vLLM's MooncakeConnector (workers must run it)")
+	flag.IntVar(&hopCfg.MinTokens, "hop-min-tokens", envInt("hop-min-tokens", hopCfg.MinTokens), "shortest run history worth a hop, in tokens")
+	flag.IntVar(&hopCfg.KVBytesPerToken, "hop-kv-bytes-per-token", envInt("hop-kv-bytes-per-token", hopCfg.KVBytesPerToken), "the served model's KV bytes per token")
+	flag.Float64Var(&hopCfg.TransferBytesPerS, "hop-transfer-bytes-per-s", envFloat("hop-transfer-bytes-per-s", hopCfg.TransferBytesPerS), "measured KV copy bandwidth between two workers")
+	flag.Float64Var(&hopCfg.PrefillTokensPerS, "hop-prefill-tokens-per-s", envFloat("hop-prefill-tokens-per-s", hopCfg.PrefillTokensPerS), "measured uncached prefill rate of one worker")
+	flag.DurationVar(&hopCfg.Overhead, "hop-overhead", envDuration("hop-overhead", hopCfg.Overhead), "fixed cost of one hop")
+	flag.DurationVar(&hopCfg.Timeout, "hop-timeout", envDuration("hop-timeout", hopCfg.Timeout), "longest wait for the old worker before recomputing instead")
+	flag.IntVar(&hopCfg.MaxInflight, "hop-max-inflight", envInt("hop-max-inflight", hopCfg.MaxInflight), "hops running at once; past this a moved run recomputes")
+	hopPort := flag.Int("hop-bootstrap-port", envInt("hop-bootstrap-port", hop.DefaultBootstrapPort), "workers' Mooncake bootstrap port (VLLM_MOONCAKE_BOOTSTRAP_PORT)")
 	flag.Parse()
+	hopCfg.SharedPrefixTokens = *sharedPrefix
 
 	urls, err := parseWorkers(*workers)
 	if err != nil {
@@ -75,7 +87,19 @@ func main() {
 	gate := fleet.NewGate(cfg, time.Now, rand.IntN)
 	workersLoop := fleet.NewFleet(gate, urls, fleet.DefaultWorkerConfig(warm), nil, time.Now)
 	m := metrics.New(gate, workersLoop, *pool, *sharedPrefix)
-	server := serve.New(gate, workersLoop, urls, serve.Options{Log: log, OnRequest: m.Observe, Metrics: m.Handler()})
+	opts := serve.Options{Log: log, OnRequest: m.Observe, Metrics: m.Handler()}
+	if *hopOn {
+		hopper, err := newHopper(hopCfg, urls, *hopPort)
+		if err != nil {
+			fatal(err.Error())
+		}
+		opts.Hop = hopper
+		log.Info("kv hop on", "min_tokens", hopCfg.MinTokens, "kv_bytes_per_token", hopCfg.KVBytesPerToken,
+			"transfer_bytes_per_s", hopCfg.TransferBytesPerS, "prefill_tokens_per_s", hopCfg.PrefillTokensPerS,
+			"overhead", hopCfg.Overhead.String(), "timeout", hopCfg.Timeout.String(), "max_inflight", hopCfg.MaxInflight,
+			"bootstrap_port", *hopPort)
+	}
+	server := serve.New(gate, workersLoop, urls, opts)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -106,6 +130,20 @@ func main() {
 	stop()
 	<-fleetDone
 	log.Info("gateway stopped")
+}
+
+// newHopper builds the KV hop over the workers, each reached for Mooncake on
+// its own host at the bootstrap port.
+func newHopper(cfg hop.Config, urls map[string]string, port int) (*hop.Hopper, error) {
+	endpoints := make(map[string]hop.Endpoint, len(urls))
+	for pod, base := range urls {
+		bootstrap, err := hop.BootstrapURL(base, port)
+		if err != nil {
+			return nil, fmt.Errorf("hop endpoint for %s: %w", pod, err)
+		}
+		endpoints[pod] = hop.Endpoint{BaseURL: strings.TrimSuffix(base, "/"), BootstrapURL: bootstrap}
+	}
+	return hop.New(cfg, endpoints, &http.Client{}, time.Now)
 }
 
 // parseWorkers reads "pod=url,pod=url" into a map. A missing "=" or a
@@ -157,6 +195,45 @@ func envInt(flagName string, def int) int {
 		fatal(envName(flagName) + "=" + strconv.Quote(v) + " is not an integer")
 	}
 	return n
+}
+
+// envBool is env for a boolean flag, accepting what strconv.ParseBool does.
+func envBool(flagName string, def bool) bool {
+	v, ok := os.LookupEnv(envName(flagName))
+	if !ok {
+		return def
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		fatal(envName(flagName) + "=" + strconv.Quote(v) + " is not a boolean")
+	}
+	return b
+}
+
+// envFloat is env for a float flag.
+func envFloat(flagName string, def float64) float64 {
+	v, ok := os.LookupEnv(envName(flagName))
+	if !ok {
+		return def
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		fatal(envName(flagName) + "=" + strconv.Quote(v) + " is not a number")
+	}
+	return f
+}
+
+// envDuration is env for a duration flag, in time.ParseDuration's form.
+func envDuration(flagName string, def time.Duration) time.Duration {
+	v, ok := os.LookupEnv(envName(flagName))
+	if !ok {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		fatal(envName(flagName) + "=" + strconv.Quote(v) + " is not a duration")
+	}
+	return d
 }
 
 func fatal(msg string) {

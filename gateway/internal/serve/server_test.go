@@ -16,6 +16,7 @@ import (
 	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
 	"github.com/cduggn/cluster-doctor/gateway/internal/fakevllm"
 	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
+	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
 )
 
 // doctorBody is a step-1 request shaped like the doctor's, and the body the
@@ -29,11 +30,13 @@ var doctorStep2 = strings.Replace(doctorBody, `],"tools"`,
 
 var pods = []string{"vllm-0", "vllm-1"}
 
-// tuning is what one test changes from the shipped shape.
+// tuning is what one test changes from the shipped shape. hop, when set,
+// turns on the KV hop over the two fakes.
 type tuning struct {
 	config  func(*fleet.Config)
 	options Options
 	fakes   func(*fakevllm.Settings)
+	hop     *hop.Config
 }
 
 // harness is two fake workers, a Gate, a Fleet and a Server, all live
@@ -92,6 +95,17 @@ func start(t *testing.T, tn tuning) *harness {
 	})
 
 	opt := tn.options
+	if tn.hop != nil {
+		endpoints := map[string]hop.Endpoint{}
+		for pod, u := range urls {
+			endpoints[pod] = hop.Endpoint{BaseURL: u, BootstrapURL: u}
+		}
+		hopper, err := hop.New(*tn.hop, endpoints, http.DefaultClient, time.Now)
+		if err != nil {
+			t.Fatalf("hop.New() error = %v", err)
+		}
+		opt.Hop = hopper
+	}
 	opt.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	opt.OnRequest = func(ev Event) {
 		h.mu.Lock()
@@ -518,4 +532,132 @@ func TestMetricsRouteServesTheHandlerWhenSet(t *testing.T) {
 	if got := start(t, tuning{}).get("/metrics").status; got != 404 {
 		t.Errorf("/metrics without Options.Metrics = %d, want 404", got)
 	}
+}
+
+// eagerHop hops any moved history, so the test exercises the transport
+// rather than the cost rule.
+var eagerHop = hop.Config{
+	MinTokens:         1,
+	KVBytesPerToken:   1,
+	TransferBytesPerS: 1e12,
+	PrefillTokensPerS: 1,
+	Timeout:           time.Second,
+	MaxInflight:       4,
+}
+
+func TestMovedRunHopsItsKVAndTheNewWorkerPullsIt(t *testing.T) {
+	h := start(t, tuning{hop: &eagerHop})
+	h.ready()
+
+	first := h.post("runA-s1", doctorBody)
+	if first.status != http.StatusOK {
+		t.Fatalf("step 1 status = %d", first.status)
+	}
+	from := first.header.Get("X-Pod")
+	to := "vllm-1"
+	if from == to {
+		to = "vllm-0"
+	}
+
+	// The run's worker is now 0.5 load units busier than the other, over the
+	// 0.25 slack but above the KV line, so step 2 moves for load.
+	h.fakes[from].Set(func(s *fakevllm.Settings) { s.KVUsage = 0.7 })
+	h.fakes[to].Set(func(s *fakevllm.Settings) { s.KVUsage = 0.2 })
+	eventually(t, "the gate to see the new load", func() bool {
+		v := map[string]float64{}
+		for _, ws := range h.gate.View() {
+			v[ws.View.Pod] = ws.View.FreeRatio()
+		}
+		return v[from] < 0.35 && v[to] > 0.75
+	})
+
+	second := h.post("runA-s2", doctorStep2)
+	if second.status != http.StatusOK || second.header.Get("X-Pod") != to || second.header.Get("X-Hop") != string(hop.Hopped) {
+		t.Fatalf("step 2 = %d on %q with X-Hop %q, want 200 on %s hopped",
+			second.status, second.header.Get("X-Pod"), second.header.Get("X-Hop"), to)
+	}
+	ev := h.event("runA-s2")
+	if ev.Sticky != decide.StickyBrokenLoad || ev.Hop != string(hop.Hopped) || ev.HopTime <= 0 {
+		t.Errorf("event sticky %q hop %q took %v, want broken_load, hopped and a hop time", ev.Sticky, ev.Hop, ev.HopTime)
+	}
+	if ev.CachedTokens != ev.PromptTokens || ev.PromptTokens == 0 {
+		t.Errorf("cached %d of %d prompt tokens, want the whole pulled history", ev.CachedTokens, ev.PromptTokens)
+	}
+
+	reqs := h.fakes[from].Requests()
+	hold := reqs[len(reqs)-1]
+	if strings.Contains(hold.Header.Get("X-Request-Id"), "runA") {
+		t.Errorf("source request id %q carries the client's request id", hold.Header.Get("X-Request-Id"))
+	}
+	var held struct {
+		Params    map[string]any `json:"kv_transfer_params"`
+		MaxTokens int            `json:"max_tokens"`
+	}
+	json.Unmarshal(hold.Body, &held)
+	if held.Params["do_remote_decode"] != true || held.MaxTokens != 1 {
+		t.Errorf("source request params %v max_tokens %d, want do_remote_decode and a one-token cap", held.Params, held.MaxTokens)
+	}
+	var pulled struct {
+		Params map[string]any `json:"kv_transfer_params"`
+	}
+	json.Unmarshal(h.lastRecorded("runA-s2").Body, &pulled)
+	if pulled.Params["do_remote_prefill"] != true || pulled.Params["remote_engine_id"] != "fake-engine" ||
+		pulled.Params["transfer_id"] != held.Params["transfer_id"] {
+		t.Errorf("destination params %v, want do_remote_prefill from fake-engine under the source's transfer id", pulled.Params)
+	}
+	eventually(t, "both tickets settled", func() bool { return h.inFlight() == 0 })
+}
+
+func TestKeptRunDoesNotHop(t *testing.T) {
+	h := start(t, tuning{hop: &eagerHop})
+	h.ready()
+	h.post("runB-s1", doctorBody)
+	second := h.post("runB-s2", doctorStep2)
+	if second.header.Get("X-Sticky") != string(decide.StickyHit) || second.header.Get("X-Hop") != "" {
+		t.Fatalf("step 2 sticky %q hop %q, want hit and no hop", second.header.Get("X-Sticky"), second.header.Get("X-Hop"))
+	}
+	if got := string(h.lastRecorded("runB-s2").Body); got != doctorStep2 {
+		t.Errorf("a kept run's body changed on the way to the worker")
+	}
+}
+
+func TestClientKVTransferParamsAre400AndNeverReachAWorker(t *testing.T) {
+	h := start(t, tuning{hop: &eagerHop})
+	h.ready()
+	before := h.recordedCount()
+
+	spoofed := strings.Replace(doctorBody, `"temperature":0}`,
+		`"temperature":0,"kv_transfer_params":{"do_remote_prefill":true,"remote_bootstrap_addr":"http://attacker.example:8998","remote_engine_id":"x","transfer_id":"xfer-someone-else"}}`, 1)
+	resp := h.post("runC-s1", spoofed)
+	typ, code := errorCode(t, resp.body)
+	if resp.status != 400 || typ != "invalid_request_error" || code != "kv_transfer_params" {
+		t.Fatalf("got %d %s/%s, want 400 invalid_request_error/kv_transfer_params", resp.status, typ, code)
+	}
+	if h.recordedCount() != before {
+		t.Errorf("a worker saw a client's kv_transfer_params")
+	}
+}
+
+func TestClientThatLeavesMidRequestIsClientGoneNotAnUpstreamError(t *testing.T) {
+	h := start(t, tuning{})
+	h.ready()
+	for _, w := range h.fakes { // slow only after warm-up, which must answer within 50 ms
+		w.Set(func(s *fakevllm.Settings) { s.Latency = 2 * time.Second })
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, h.url+"/v1/chat/completions", strings.NewReader(doctorBody))
+	for k, v := range doctorHeaders("runD-s1") {
+		req.Header.Set(k, v)
+	}
+	if _, err := http.DefaultClient.Do(req); err == nil {
+		t.Fatal("request finished before the client gave up; the fake's latency should outlast the client")
+	}
+
+	ev := h.event("runD-s1")
+	if ev.Reason != "client_gone" || ev.Status != 0 {
+		t.Fatalf("event reason %q status %d, want client_gone with no status", ev.Reason, ev.Status)
+	}
+	eventually(t, "the ticket settled", func() bool { return h.inFlight() == 0 })
 }

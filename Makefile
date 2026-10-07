@@ -1,25 +1,42 @@
-# cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda A100 lifecycle.
+# cluster-doctor — local fault lab (kind), offline evaluation, and the Lambda GPU lifecycle (A100, H100 or GH200).
 #
-#   make tools                      fetch pinned kind + kubectl into .bin/ (checksums verified)
-#   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, ruff
+#   make tools                      fetch pinned kind, kubectl and promtool into .bin/ (checksums verified)
+#   make test / lint                offline: unit tests over recorded snapshots, gateway go vet + tests, alert rule tests, ruff
 #   make lab-up / lab-record / lab-down   kind cluster, inject faults, record fixtures/  (lab only mutates kind)
 #   make golden-build               rebuild evals/golden from faults/ + fixtures/ (references must pass)
+#   make gateway-image              build + push the gateway image (Docker Hub, public), pin its digest
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda GPU node via the `lam` CLI: up takes the first of TYPES with capacity (lab/up.sh)
-#   make gateway [POLICY=least_loaded]   build the Go gateway, install it on the node and roll it out (D-42)
+#   make scale [N=2]                workers on the topology's slices (at most its max_replicas)
+#   make gateway [POLICY=least_loaded]   apply the pinned gateway image + warm-up body on the node and roll it out (D-42)
+#   make deploy HOP=1 && make gateway HOP=1   workers run vLLM's MooncakeConnector and the gateway copies a moved
+#                                   run's KV instead of recomputing it (gateway/internal/hop). node.env turns it on
+#                                   for an H100 node; HOP=0 on the make line turns it off
 #   make tunnel [TUNNEL=pod/vllm-0]      localhost:8000 → the gateway (default) or one vLLM pod directly
 #   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
-#   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits sliced | full (D-40)
+#   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits each topology (D-40)
 #   make deploy MODEL=… TOPO=…      render, fetch weights, serve that model on that topology (fit gate first)
 #   make golden TAG=… [BASE=…]      run the golden set against a model endpoint (vLLM or the gateway); v1 + v2 scores
 #   make matrix                     design/model-matrix.md: fit + results + ranking from deploy/ and metrics/
-#   make sweep [LEVELS="1 4 8 16 32"] REPEAT=2   golden set at each concurrency + a vLLM /metrics scrape per level
+#   make report                     report/report.ipynb + design/figures/: the results notebook, rebuilt from metrics/
+#   make sweep [LEVELS="1 4 8 16 32"] REPEAT=2   golden set at each concurrency + a /metrics scrape per level (gateway + pods)
 #   make preflight                  everything that must be true before paying for a GPU
 #   make kubeconfig / k8s-tunnel / record-live ONLY=gpu-unavailable   live-only faults on the Lambda k3s cluster
 #   make watch [WATCH_ARGS=…]       the doctor, autonomous, against CTX (default lambda); /metrics on :9109
 #   make inject FAULTS=… [STAGGER=60] / heal   break the lab cluster on purpose / remove what inject created
 #   make faults                     list injectable faults by tier
 #   make prom / opencost            port-forward Prometheus (:9090) / the OpenCost API (:9003) from the Lambda node
-# `make up` writes the node it got (GPU, ARCH, MODEL, TOPO) here; anything on the make line still wins.
+# ---- playbook: a GPU session in order (make help prints this) ------------------------------------------------
+#   make preflight && make up       lint + tests + fit gate, then the first GPU with capacity; prints the node it got
+#   make resume                     if make up timed out while Lambda was still booting the node: wait, then finish
+#   make bringup                    deploy → scale to the topology's workers → kv → gateway → dashboards
+#   make tunnel                     terminal 2: the gateway at localhost:8000
+#   make grafana                    terminal 3: Grafana at localhost:3000
+#   make check                      pods, both workers Ready through the gateway, KV hop on or off
+#   make bench TAG=…                golden set + concurrency sweep + metrics, all through the gateway
+#   make gateway POLICY=least_loaded && make bench TAG=…-ll   the control arm of the stickiness A/B
+#   git add metrics && git commit   before make down: the node's Prometheus keeps nothing
+#   make down                       billing stops
+# `make up` writes the node it got (GPU, ARCH, MODEL, TOPO, HOP) here; anything on the make line still wins.
 -include .cache/node.env
 NAME   ?= cluster-doctor
 TAG    ?= baseline
@@ -28,7 +45,7 @@ PORT   ?= 8000
 MODEL  ?= qwen3-8b-awq
 TOPO   ?= sliced
 ARCH   ?= amd64
-TYPES  ?= gpu_1x_gh200 gpu_1x_h100_pcie gpu_1x_a100_sxm4
+TYPES  ?= gpu_1x_h100_pcie gpu_1x_h100_sxm5 gpu_1x_gh200 gpu_1x_a100_sxm4
 WORKERS ?= 1
 BASE   ?= http://127.0.0.1:$(PORT)/v1
 CONC   ?= 1
@@ -37,6 +54,8 @@ REPEAT ?= 2
 CTX    ?= lambda
 TUNNEL ?= svc/gateway
 POLICY ?= prefix_then_load
+HOP    ?= 0
+MAXREP  = $(shell $(PY) -c "import json; print(json.load(open('deploy/serving.json'))['topologies']['$(TOPO)']['max_replicas'])")
 FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
 STAGGER ?= 0
 WATCH_EXCLUDE ?= monitoring,opencost,doctor,default
@@ -51,20 +70,63 @@ PY      = uv run -q python
 RUFF    = uvx -q ruff@0.13.2
 KENV    = $(if $(filter lambda,$(CTX)),KUBECONFIG=$(KCFG))
 GWBUILD = .cache/gateway
+# The in-flight cap and the KV hop's rates for the deployed model and topology, from the fit (measured KV once make kv
+# has run): D-43.
+GWENV   = $(shell $(PY) -m serving.fit $(MODEL) $(TOPO) --gateway-env)
+GW_IMAGE ?= docker.io/cdugga/cluster-doctor-gateway
+GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- gateway || echo -dirty)
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: demo gateway models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+
+.DEFAULT_GOAL := help
+
+help:
+	@sed -n '/^# ---- playbook/,/^# .make up. writes/p' Makefile | sed '$$d' | sed 's/^# \{0,1\}//'
+	@echo "Node: GPU=$(GPU) MODEL=$(MODEL) TOPO=$(TOPO) HOP=$(HOP)   (.cache/node.env, or the defaults)"
+
+# One worker per slice of the topology (2 on sliced and the halves, 1 on a whole card), so the gateway, the A/B and
+# the KV hop always have workers to route between. kv needs vllm-0 up, which scale's rollout status waits for.
+bringup:
+	$(MAKE) deploy
+	@if [ "$(MAXREP)" -gt 1 ]; then $(MAKE) scale N=$(MAXREP); else echo "TOPO=$(TOPO) has one worker; not scaling"; fi
+	$(MAKE) kv
+	$(MAKE) gateway
+	$(MAKE) dashboards
+
+check:
+	$(REMOTE) "kubectl get pods -o wide; kubectl logs deploy/gateway 2>/dev/null | grep -m1 -o 'kv hop on' || echo 'kv hop: off'"
+	@curl -sf http://127.0.0.1:$(PORT)/debug/workers | python3 -c 'import json,sys; [print(w["pod"], w["phase"]) for w in json.load(sys.stdin)]' \
+	  || echo "no gateway at localhost:$(PORT): start make tunnel in another terminal"
+
+bench:
+	@test "$(TAG)" != baseline || (echo "set TAG=… to name this run"; exit 1)
+	$(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=2 TAG=$(TAG)
+	$(MAKE) sweep WORKERS=$(MAXREP)
+	$(MAKE) metrics TAG=$(TAG)
 
 tools:
 	bash lab/get-tools.sh
 
-test:
+test: alerts-test
 	uv run -q python -m pytest
 	cd gateway && go vet ./... && go test ./...
 
+# The production alert rules (D-45): valid, and each fires on its condition and stays quiet below it.
+# The results notebook and its charts (D-46), rebuilt from metrics/: report/report.ipynb, design/figures/*.png.
+report:
+	uv run -q --group report python -m report.build
+
+alerts-test: .bin/promtool
+	.bin/promtool check rules deploy/observability/alerts.yaml
+	cd deploy/observability && ../../.bin/promtool test rules alerts_test.yaml
+
+.bin/promtool:
+	bash lab/get-tools.sh promtool
+
 lint:
-	$(RUFF) check doctor evals lab serving tests
+	$(RUFF) check doctor evals lab serving tests report
 
 models:
 	$(PY) -m serving.profiles list
@@ -76,7 +138,7 @@ fit-all:
 	$(PY) -m serving.fit all
 
 render:
-	$(PY) -m serving.profiles render $(MODEL) $(TOPO) --out $(RENDER)
+	$(PY) -m serving.profiles render $(MODEL) $(TOPO) --out $(RENDER) $(if $(filter 1,$(HOP)),--hop)
 
 matrix:
 	$(PY) -m serving.matrix
@@ -98,6 +160,9 @@ lab-down:
 
 up:
 	NAME=$(NAME) TYPES="$(TYPES)" lab/up.sh
+
+resume:
+	NAME=$(NAME) lab/up.sh --resume
 
 status:
 	lam ls --uptime
@@ -127,16 +192,22 @@ kv:
 	$(REMOTE) "kubectl logs vllm-0 | grep -E 'GPU KV cache size|Maximum concurrency|Available KV cache memory'" \
 	  | tee metrics/kv-$(MODEL)-$(TOPO)-$(STAMP).log
 
-gateway:
+gateway-image:
 	@mkdir -p $(GWBUILD)
-	cd gateway && CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -o ../$(GWBUILD)/gateway ./cmd/gateway
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(GW_IMAGE):$(GW_TAG) --metadata-file $(GWBUILD)/image.json --push gateway
+	@d=$$(python3 -c "import json; print(json.load(open('$(GWBUILD)/image.json'))['containerimage.digest'])") && \
+	  sed -i.bak -E "s|image: .*cluster-doctor-gateway[@:][^ ]*|image: $(GW_IMAGE)@$$d|" deploy/k8s/gateway.yaml && rm -f deploy/k8s/gateway.yaml.bak && \
+	  echo "pinned $(GW_IMAGE)@$$d in deploy/k8s/gateway.yaml ($(GW_TAG)); commit it"
+
+gateway:
+	@grep -q "cluster-doctor-gateway@sha256:[0-9a-f]\{64\}" deploy/k8s/gateway.yaml || (echo "no pinned gateway image: run make gateway-image"; exit 1)
+	@mkdir -p $(GWBUILD)
 	$(PY) -m serving.warmup $(MODEL) > $(GWBUILD)/warm.json
 	cp deploy/k8s/gateway.yaml $(GWBUILD)/
 	lam push $(GWBUILD)/ '~/gateway/' --delete
-	$(REMOTE) "sudo install -D -m 0755 \$$HOME/gateway/gateway /opt/gateway/gateway && \
-	  kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
+	$(REMOTE) "kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
 	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
-	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) && \
+	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) $(GWENV) && \
 	  kubectl rollout restart deployment/gateway && kubectl rollout status deployment/gateway --timeout=5m"
 
 tunnel:

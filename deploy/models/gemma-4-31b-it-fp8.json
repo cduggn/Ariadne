@@ -46,6 +46,6 @@
   "caveats": [
     "The global layers set attention_k_eq_v; the fit counts K and V separately, so its KV per token may be up to 2× high",
     "The gemma4 tool parser was still getting fixes in v0.30 (malformed openers); check finish_reason and parse failures in the smoke run",
-    "The chat template path is inside the vLLM image (examples/ is copied to /vllm-workspace in v0.30.0)"
+    "The chat template path is inside the vLLM image (examples/ is copied to /vllm-workspace in v0.29.0 and v0.30.0)"
   ]
 }

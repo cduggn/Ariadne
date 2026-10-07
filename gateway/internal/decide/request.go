@@ -196,6 +196,14 @@ func Inspect(body []byte, h Headers, now time.Time, b Budgets, maxBody int) Guar
 		return reject("stream_unsupported", "stream is not supported; the gateway serves non-streaming only")
 	}
 
+	// kv_transfer_params is the gateway's own instruction to a worker running
+	// vLLM's MooncakeConnector (internal/hop). From a client it could make a
+	// worker connect to any address, or pull another request's KV under its
+	// transfer id, so the guard refuses it whether or not the hop is on.
+	if _, present := obj["kv_transfer_params"]; present {
+		return reject("kv_transfer_params", "kv_transfer_params is set by the gateway, never by a client")
+	}
+
 	maxOut := DefaultMaxOut
 	if v, present := obj["max_completion_tokens"]; present {
 		n, ok := positiveInt(v)

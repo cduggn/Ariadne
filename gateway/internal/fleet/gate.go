@@ -187,11 +187,16 @@ func (t *Ticket) Pod() string {
 
 // Decision is Admit's result. Placement says where the request goes, or why
 // it was refused. Est is the token estimate the decision used. Queued is
-// the time the request spent waiting for a slot.
+// the time the request spent waiting for a slot. From is the worker the
+// request's run was bound to before this decision, "" for a run with no
+// binding, and History is the prompt length its last settled step reported.
+// Together they say what a moved run left behind, which a KV hop can copy.
 type Decision struct {
 	Placement decide.Placement
 	Est       int
 	Queued    time.Duration
+	From      string
+	History   int
 }
 
 // Outcome is what the handler learned from the worker's response. The token
@@ -331,9 +336,13 @@ func (g *Gate) Admit(ctx context.Context, r decide.Request) (Decision, *Ticket, 
 		StickSlack: g.cfg.StickSlack,
 	}
 	p := decide.Pick(r, fleet, g.cfg.Policy, g.rnd)
+	history := 0
+	if prior != nil {
+		history = prior.PromptTokens
+	}
 	if !p.Placed() {
 		g.mu.Unlock()
-		return Decision{Placement: p, Est: est}, nil, nil
+		return Decision{Placement: p, Est: est, From: bound, History: history}, nil, nil
 	}
 
 	b.add(-float64(est))
@@ -367,9 +376,9 @@ func (g *Gate) Admit(ctx context.Context, r decide.Request) (Decision, *Ticket, 
 		if errors.As(err, &refusal) {
 			p.Pod = ""
 			p.Verdict = decide.Verdict{Shed: true, Code: 503, Reason: refusal.Reason, RetryAfter: time.Second}
-			return Decision{Placement: p, Est: est}, nil, nil
+			return Decision{Placement: p, Est: est, From: bound, History: history}, nil, nil
 		}
-		return Decision{Placement: p, Est: est}, nil, err
+		return Decision{Placement: p, Est: est, From: bound, History: history}, nil, err
 	}
 
 	t := &Ticket{
@@ -382,7 +391,7 @@ func (g *Gate) Admit(ctx context.Context, r decide.Request) (Decision, *Ticket, 
 		slot:     slot,
 		admitted: start,
 	}
-	return Decision{Placement: p, Est: est, Queued: g.now().Sub(start)}, t, nil
+	return Decision{Placement: p, Est: est, Queued: g.now().Sub(start), From: bound, History: history}, t, nil
 }
 
 // Settle closes a Ticket once the worker has answered. It drops the

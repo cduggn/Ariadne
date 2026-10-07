@@ -15,6 +15,7 @@ import (
 
 	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
 	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
+	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
 	"github.com/cduggn/cluster-doctor/gateway/internal/serve"
 )
 
@@ -32,6 +33,7 @@ var MetricNames = []string{
 	"orch_prompt_tokens_total",
 	"orch_completion_tokens_total",
 	"orch_overflow_total",
+	"orch_hop_total",
 	"orch_restricted_offbox_total",
 	"orch_request_duration_seconds",
 	"orch_replica_healthy",
@@ -78,6 +80,7 @@ type Metrics struct {
 	promptTokens     *prometheus.CounterVec
 	completionTokens *prometheus.CounterVec
 	overflow         *prometheus.CounterVec
+	hop              *prometheus.CounterVec
 	restrictedOffbox prometheus.Counter
 	duration         *prometheus.HistogramVec
 }
@@ -110,13 +113,15 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 			"Completion tokens generated per pod.", "pod"),
 		overflow: counter("orch_overflow_total",
 			"Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it.", "result"),
+		hop: counter("orch_hop_total",
+			"KV hops for runs moved off a worker that still held their history: hopped, failed or busy (the worker recomputed), below_threshold or recompute_cheaper.", "result"),
 		restrictedOffbox: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "orch_restricted_offbox_total",
 			Help: "Restricted requests routed off the box. Must stay 0.",
 		}),
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "orch_request_duration_seconds",
-			Help:    "Request time by stage: gateway, queue, local (upstream) and e2e.",
+			Help:    "Request time by stage: gateway, queue, hop (KV copy from the run's old worker), local (upstream) and e2e.",
 			Buckets: durationBuckets,
 		}, []string{"stage"}),
 	}
@@ -125,11 +130,14 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 	}
 	m.overflow.WithLabelValues(decide.OverflowBlocked)
 	m.overflow.WithLabelValues(decide.OverflowNoBackend)
+	for _, o := range hop.Outcomes {
+		m.hop.WithLabelValues(string(o))
+	}
 	m.registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		m.requests, m.shed, m.pick, m.pickUnknown, m.sticky, m.completed, m.upstreamErrors,
-		m.promptTokens, m.completionTokens, m.overflow, m.restrictedOffbox, m.duration,
+		m.promptTokens, m.completionTokens, m.overflow, m.hop, m.restrictedOffbox, m.duration,
 		newFleetCollector(g, f, pool),
 	)
 	return m
@@ -183,6 +191,12 @@ func (m *Metrics) Observe(ev serve.Event) {
 	}
 	if ev.Upstream > 0 {
 		m.duration.WithLabelValues("local").Observe(ev.Upstream.Seconds())
+	}
+	if ev.HopTime > 0 {
+		m.duration.WithLabelValues("hop").Observe(ev.HopTime.Seconds())
+	}
+	if ev.Hop != "" {
+		m.hop.WithLabelValues(ev.Hop).Inc()
 	}
 	if ev.Sticky != "" {
 		m.sticky.WithLabelValues(string(ev.Sticky)).Inc()

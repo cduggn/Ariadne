@@ -480,7 +480,7 @@
   },
   {
    "type": "row",
-   "title": "GPU \u2014 whole A100 (DCGM) and per slice (HAMi)",
+   "title": "GPU \u2014 whole card (DCGM) and per slice (HAMi)",
    "gridPos": {
     "h": 1,
     "w": 24,
@@ -655,6 +655,196 @@
      "refId": "B",
      "expr": "DCGM_FI_PROF_SM_ACTIVE * 400",
      "legendFormat": "SM active (scaled \u00d7400)"
+    }
+   ]
+  },
+  {
+   "type": "row",
+   "title": "Batching and chunked prefill",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 51
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "Batch size: requests per engine step",
+   "description": "Requests in each worker's running batch (continuous batching rebuilds it every step). Capped by --max-num-seqs (32) and by KV memory; the sweep's concurrency decides how full it gets. Waiting means vLLM itself is queueing.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 52
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "vllm:num_requests_running",
+     "legendFormat": "{{pod}} running"
+    },
+    {
+     "refId": "B",
+     "expr": "vllm:num_requests_waiting",
+     "legendFormat": "{{pod}} waiting"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Batch size: tokens per engine step (p50 / p95)",
+   "description": "Tokens one forward pass processed. Decode-only steps carry about one token per running request; steps that carry a prefill chunk are larger, and steps at 8,192 (--max-num-batched-tokens) mean a long prompt was split by chunked prefill.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 52
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:iteration_tokens_total_bucket[1m])))",
+     "legendFormat": "{{pod}} p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:iteration_tokens_total_bucket[1m])))",
+     "legendFormat": "{{pod}} p95"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Time per request: prefill vs decode (p50 / p95)",
+   "description": "Seconds each request spent in prefill (reading its prompt, mostly from the prefix cache) and in decode (writing its answer). With ~95% cache hits and ~30 tokens/s decode on half a card, decode should dominate.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 60
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:request_prefill_time_seconds_bucket[5m])))",
+     "legendFormat": "{{pod}} prefill p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:request_prefill_time_seconds_bucket[5m])))",
+     "legendFormat": "{{pod}} prefill p95"
+    },
+    {
+     "refId": "C",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:request_decode_time_seconds_bucket[5m])))",
+     "legendFormat": "{{pod}} decode p50"
+    },
+    {
+     "refId": "D",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:request_decode_time_seconds_bucket[5m])))",
+     "legendFormat": "{{pod}} decode p95"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Uncached prompt tokens per request (p50 / p95)",
+   "description": "Tokens each request actually prefilled, excluding prefix-cache hits: the run's new tail. Small and steady means stickiness and the cache are working; a jump means a run landed on a worker without its history.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 60
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(vllm:request_prefill_kv_computed_tokens_bucket[5m])))",
+     "legendFormat": "{{pod}} p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, pod) (rate(vllm:request_prefill_kv_computed_tokens_bucket[5m])))",
+     "legendFormat": "{{pod}} p95"
     }
    ]
   }

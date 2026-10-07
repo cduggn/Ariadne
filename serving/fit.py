@@ -3,6 +3,7 @@
     python -m serving.fit qwen3-30b-a3b-2507-awq full        # one pair, with the derivation
     python -m serving.fit all                                 # every profile × topology, one table
     python -m serving.fit qwen3-8b-awq sliced --gate          # exit 1 if the pair fails the gate (make deploy runs this)
+    python -m serving.fit qwen3-8b-awq sliced --gateway-env   # the gateway settings the pair implies (make gateway uses this)
 
 Per worker (topology → HAMi memory and SM share):
     budget      = slice MiB × gpu_memory_utilization
@@ -102,6 +103,24 @@ def fit(p: dict, topo: str, s: dict | None = None, *, metrics: Path | None = Non
     }
 
 
+# The gateway's in-flight cap per worker never goes above its shipped default: below vLLM's --max-num-seqs (32), so
+# priority ordering happens at the gateway (D-42).
+GATEWAY_MAX_INFLIGHT = 16
+
+
+def gateway_env(r: dict) -> str:
+    """The gateway settings one model × topology implies, as GW_* assignments for `make gateway` (D-43):
+    - GW_MAX_INFLIGHT: how many typical runs (app length, the shared prefix held once) one worker's KV pool holds,
+      between 1 and GATEWAY_MAX_INFLIGHT. It uses vLLM's measured pool once `make kv` has recorded one, so admission
+      is sized to the KV the worker really has, not to a constant chosen for another card;
+    - the KV hop's cost inputs: the model's KV bytes per token and the topology's uncached prefill rate (paper
+      numbers until measured)."""
+    inflight = max(1, min(GATEWAY_MAX_INFLIGHT, int(r["seqs_at_app_len_shared_prefix"])))
+    kv_bytes = round(r["kv_per_token_kib"] * 1024)
+    prefill = round(r["app_len"] / r["prefill_s_app_len_uncached"])
+    return f"GW_MAX_INFLIGHT={inflight} GW_HOP_KV_BYTES_PER_TOKEN={kv_bytes} GW_HOP_PREFILL_TOKENS_PER_S={prefill}"
+
+
 def verdict(r: dict) -> str:
     if r["pool_gib"] <= 0:
         return "does not fit: weights + overhead exceed the budget"
@@ -151,11 +170,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("topology", nargs="?", default="all", help="a topology from deploy/serving.json, or all")
     ap.add_argument("--gate", action="store_true", help="exit 1 unless the pair passes the fit gate")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--gateway-env", action="store_true", help="print the gateway settings for one pair (GW_* assignments)")
     a = ap.parse_args(argv)
     s = load_serving()
     ps = profiles() if a.model == "all" else [load_profile(a.model)]
     topos = list(s["topologies"]) if a.topology == "all" else [a.topology]
     rows = [fit(p, t, s) for p in ps for t in topos]
+    if a.gateway_env:
+        if len(rows) != 1:
+            raise SystemExit("--gateway-env needs one model and one topology")
+        print(gateway_env(rows[0]))
+        return 0
     if a.json:
         print(json.dumps(rows, indent=1))
     elif len(rows) == 1:

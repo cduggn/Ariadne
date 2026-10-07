@@ -1,0 +1,314 @@
+# HELP go_gc_duration_seconds A summary of the wall-time pause (stop-the-world) duration in garbage collection cycles.
+# TYPE go_gc_duration_seconds summary
+go_gc_duration_seconds{quantile="0"} 0.000151762
+go_gc_duration_seconds{quantile="0.25"} 0.000291494
+go_gc_duration_seconds{quantile="0.5"} 0.000379596
+go_gc_duration_seconds{quantile="0.75"} 0.000489658
+go_gc_duration_seconds{quantile="1"} 0.001272908
+go_gc_duration_seconds_sum 0.887299935
+go_gc_duration_seconds_count 2327
+# HELP go_gc_gogc_percent Heap size target percentage configured by the user, otherwise 100. This value is set by the GOGC environment variable, and the runtime/debug.SetGCPercent function. Sourced from /gc/gogc:percent.
+# TYPE go_gc_gogc_percent gauge
+go_gc_gogc_percent 100
+# HELP go_gc_gomemlimit_bytes Go runtime memory limit configured by the user, otherwise math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and the runtime/debug.SetMemoryLimit function. Sourced from /gc/gomemlimit:bytes.
+# TYPE go_gc_gomemlimit_bytes gauge
+go_gc_gomemlimit_bytes 9.223372036854776e+18
+# HELP go_goroutines Number of goroutines that currently exist.
+# TYPE go_goroutines gauge
+go_goroutines 17
+# HELP go_info Information about the Go environment.
+# TYPE go_info gauge
+go_info{version="go1.27.0"} 1
+# HELP go_memstats_alloc_bytes Number of bytes allocated in heap and currently in use. Equals to /memory/classes/heap/objects:bytes.
+# TYPE go_memstats_alloc_bytes gauge
+go_memstats_alloc_bytes 1.962192e+06
+# HELP go_memstats_alloc_bytes_total Total number of bytes allocated in heap until now, even if released already. Equals to /gc/heap/allocs:bytes.
+# TYPE go_memstats_alloc_bytes_total counter
+go_memstats_alloc_bytes_total 3.105403824e+09
+# HELP go_memstats_buck_hash_sys_bytes Number of bytes used by the profiling bucket hash table. Equals to /memory/classes/profiling/buckets:bytes.
+# TYPE go_memstats_buck_hash_sys_bytes gauge
+go_memstats_buck_hash_sys_bytes 1.444034e+06
+# HELP go_memstats_frees_total Total number of heap objects frees. Equals to /gc/heap/frees:objects + /gc/heap/tiny/allocs:objects.
+# TYPE go_memstats_frees_total counter
+go_memstats_frees_total 6.2653702e+07
+# HELP go_memstats_gc_sys_bytes Number of bytes used for garbage collection system metadata. Equals to /memory/classes/metadata/other:bytes.
+# TYPE go_memstats_gc_sys_bytes gauge
+go_memstats_gc_sys_bytes 3.482864e+06
+# HELP go_memstats_heap_alloc_bytes Number of heap bytes allocated and currently in use, same as go_memstats_alloc_bytes. Equals to /memory/classes/heap/objects:bytes.
+# TYPE go_memstats_heap_alloc_bytes gauge
+go_memstats_heap_alloc_bytes 1.962192e+06
+# HELP go_memstats_heap_idle_bytes Number of heap bytes waiting to be used. Equals to /memory/classes/heap/released:bytes + /memory/classes/heap/free:bytes.
+# TYPE go_memstats_heap_idle_bytes gauge
+go_memstats_heap_idle_bytes 1.1075584e+07
+# HELP go_memstats_heap_inuse_bytes Number of heap bytes that are in use. Equals to /memory/classes/heap/objects:bytes + /memory/classes/heap/unused:bytes
+# TYPE go_memstats_heap_inuse_bytes gauge
+go_memstats_heap_inuse_bytes 4.030464e+06
+# HELP go_memstats_heap_objects Number of currently allocated objects. Equals to /gc/heap/objects:objects.
+# TYPE go_memstats_heap_objects gauge
+go_memstats_heap_objects 17238
+# HELP go_memstats_heap_released_bytes Number of heap bytes released to OS. Equals to /memory/classes/heap/released:bytes.
+# TYPE go_memstats_heap_released_bytes gauge
+go_memstats_heap_released_bytes 9.66656e+06
+# HELP go_memstats_heap_sys_bytes Number of heap bytes obtained from system. Equals to /memory/classes/heap/objects:bytes + /memory/classes/heap/unused:bytes + /memory/classes/heap/released:bytes + /memory/classes/heap/free:bytes.
+# TYPE go_memstats_heap_sys_bytes gauge
+go_memstats_heap_sys_bytes 1.5106048e+07
+# HELP go_memstats_last_gc_time_seconds Number of seconds since 1970 of last garbage collection.
+# TYPE go_memstats_last_gc_time_seconds gauge
+go_memstats_last_gc_time_seconds 1.7912930175572922e+09
+# HELP go_memstats_mallocs_total Total number of heap objects allocated, both live and gc-ed. Semantically a counter version for go_memstats_heap_objects gauge. Equals to /gc/heap/allocs:objects + /gc/heap/tiny/allocs:objects.
+# TYPE go_memstats_mallocs_total counter
+go_memstats_mallocs_total 6.267094e+07
+# HELP go_memstats_mcache_inuse_bytes Number of bytes in use by mcache structures. Equals to /memory/classes/metadata/mcache/inuse:bytes.
+# TYPE go_memstats_mcache_inuse_bytes gauge
+go_memstats_mcache_inuse_bytes 59696
+# HELP go_memstats_mcache_sys_bytes Number of bytes used for mcache structures obtained from system. Equals to /memory/classes/metadata/mcache/inuse:bytes + /memory/classes/metadata/mcache/free:bytes.
+# TYPE go_memstats_mcache_sys_bytes gauge
+go_memstats_mcache_sys_bytes 64288
+# HELP go_memstats_mspan_inuse_bytes Number of bytes in use by mspan structures. Equals to /memory/classes/metadata/mspan/inuse:bytes.
+# TYPE go_memstats_mspan_inuse_bytes gauge
+go_memstats_mspan_inuse_bytes 269280
+# HELP go_memstats_mspan_sys_bytes Number of bytes used for mspan structures obtained from system. Equals to /memory/classes/metadata/mspan/inuse:bytes + /memory/classes/metadata/mspan/free:bytes.
+# TYPE go_memstats_mspan_sys_bytes gauge
+go_memstats_mspan_sys_bytes 310080
+# HELP go_memstats_next_gc_bytes Number of heap bytes when next garbage collection will take place. Equals to /gc/heap/goal:bytes.
+# TYPE go_memstats_next_gc_bytes gauge
+go_memstats_next_gc_bytes 4.194304e+06
+# HELP go_memstats_other_sys_bytes Number of bytes used for other system allocations. Equals to /memory/classes/other:bytes.
+# TYPE go_memstats_other_sys_bytes gauge
+go_memstats_other_sys_bytes 3.044598e+06
+# HELP go_memstats_stack_inuse_bytes Number of bytes obtained from system for stack allocator in non-CGO environments. Equals to /memory/classes/heap/stacks:bytes.
+# TYPE go_memstats_stack_inuse_bytes gauge
+go_memstats_stack_inuse_bytes 1.671168e+06
+# HELP go_memstats_stack_sys_bytes Number of bytes obtained from system for stack allocator. Equals to /memory/classes/heap/stacks:bytes + /memory/classes/os-stacks:bytes.
+# TYPE go_memstats_stack_sys_bytes gauge
+go_memstats_stack_sys_bytes 1.671168e+06
+# HELP go_memstats_sys_bytes Number of bytes obtained from system. Equals to /memory/classes/total:byte.
+# TYPE go_memstats_sys_bytes gauge
+go_memstats_sys_bytes 2.512308e+07
+# HELP go_sched_gomaxprocs_threads The current runtime.GOMAXPROCS setting, or the number of operating system threads that can execute user-level Go code simultaneously. Sourced from /sched/gomaxprocs:threads.
+# TYPE go_sched_gomaxprocs_threads gauge
+go_sched_gomaxprocs_threads 26
+# HELP go_threads Number of OS threads created.
+# TYPE go_threads gauge
+go_threads 21
+# HELP orch_completed_total Worker answers relayed to the client, by pod, status and finish reason.
+# TYPE orch_completed_total counter
+orch_completed_total{finish_reason="tool_calls",pod="vllm-0",status="200"} 209
+orch_completed_total{finish_reason="tool_calls",pod="vllm-1",status="200"} 231
+# HELP orch_completion_tokens_total Completion tokens generated per pod.
+# TYPE orch_completion_tokens_total counter
+orch_completion_tokens_total{pod="vllm-0"} 29275
+orch_completion_tokens_total{pod="vllm-1"} 29191
+# HELP orch_hop_total KV hops for runs moved off a worker that still held their history: hopped, failed or busy (the worker recomputed), below_threshold or recompute_cheaper.
+# TYPE orch_hop_total counter
+orch_hop_total{result="below_threshold"} 64
+orch_hop_total{result="busy"} 0
+orch_hop_total{result="failed"} 0
+orch_hop_total{result="hopped"} 24
+orch_hop_total{result="recompute_cheaper"} 0
+# HELP orch_kv_free_ratio Free KV over the Ready workers as a fraction of their pools, 0 when none is Ready.
+# TYPE orch_kv_free_ratio gauge
+orch_kv_free_ratio{pool="h100-half"} 1
+# HELP orch_overflow_total Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it.
+# TYPE orch_overflow_total counter
+orch_overflow_total{result="blocked_invariant"} 0
+orch_overflow_total{result="no_backend"} 0
+# HELP orch_pick_total Requests placed on a worker, by pod and pick policy.
+# TYPE orch_pick_total counter
+orch_pick_total{pod="vllm-0",policy="least_loaded"} 209
+orch_pick_total{pod="vllm-1",policy="least_loaded"} 231
+# HELP orch_prompt_tokens_total Prompt tokens by cache outcome: shared_hit, run_hit or miss.
+# TYPE orch_prompt_tokens_total counter
+orch_prompt_tokens_total{kind="miss",pod="vllm-0"} 212800
+orch_prompt_tokens_total{kind="miss",pod="vllm-1"} 247109
+orch_prompt_tokens_total{kind="run_hit",pod="vllm-0"} 456999
+orch_prompt_tokens_total{kind="run_hit",pod="vllm-1"} 576189
+orch_prompt_tokens_total{kind="shared_hit",pod="vllm-0"} 807093
+orch_prompt_tokens_total{kind="shared_hit",pod="vllm-1"} 892871
+# HELP orch_replica_active_requests Requests the gateway holds in flight on the worker.
+# TYPE orch_replica_active_requests gauge
+orch_replica_active_requests{pod="vllm-0",pool="h100-half"} 0
+orch_replica_active_requests{pod="vllm-1",pool="h100-half"} 0
+# HELP orch_replica_healthy 1 while the gate may place on the worker.
+# TYPE orch_replica_healthy gauge
+orch_replica_healthy{pod="vllm-0",pool="h100-half"} 1
+orch_replica_healthy{pod="vllm-1",pool="h100-half"} 1
+# HELP orch_replica_kv_free_ratio Free KV as a fraction of the pool, net of the gateway's reservations.
+# TYPE orch_replica_kv_free_ratio gauge
+orch_replica_kv_free_ratio{pod="vllm-0",pool="h100-half"} 1
+orch_replica_kv_free_ratio{pod="vllm-1",pool="h100-half"} 1
+# HELP orch_replica_mean_service_seconds Recent mean seconds per request on the worker, 0 until the first.
+# TYPE orch_replica_mean_service_seconds gauge
+orch_replica_mean_service_seconds{pod="vllm-0",pool="h100-half"} 19.269714599648843
+orch_replica_mean_service_seconds{pod="vllm-1",pool="h100-half"} 9.34963526143896
+# HELP orch_replica_phase 1 for the worker's current phase, 0 for the others.
+# TYPE orch_replica_phase gauge
+orch_replica_phase{phase="down",pod="vllm-0",pool="h100-half"} 0
+orch_replica_phase{phase="down",pod="vllm-1",pool="h100-half"} 0
+orch_replica_phase{phase="ready",pod="vllm-0",pool="h100-half"} 1
+orch_replica_phase{phase="ready",pod="vllm-1",pool="h100-half"} 1
+orch_replica_phase{phase="warming",pod="vllm-0",pool="h100-half"} 0
+orch_replica_phase{phase="warming",pod="vllm-1",pool="h100-half"} 0
+# HELP orch_replica_queue_depth Requests waiting in the gateway's queue for the worker.
+# TYPE orch_replica_queue_depth gauge
+orch_replica_queue_depth{pod="vllm-0",pool="h100-half"} 0
+orch_replica_queue_depth{pod="vllm-1",pool="h100-half"} 0
+# HELP orch_replica_restarts_total Down to Warming transitions, including the first at startup.
+# TYPE orch_replica_restarts_total counter
+orch_replica_restarts_total{pod="vllm-0",pool="h100-half"} 1
+orch_replica_restarts_total{pod="vllm-1",pool="h100-half"} 1
+# HELP orch_replica_saturating 1 while the worker's free KV is below the admission line.
+# TYPE orch_replica_saturating gauge
+orch_replica_saturating{pod="vllm-0",pool="h100-half"} 0
+orch_replica_saturating{pod="vllm-1",pool="h100-half"} 0
+# HELP orch_replica_snapshot_age_seconds Seconds since the worker's last successful scrape.
+# TYPE orch_replica_snapshot_age_seconds gauge
+orch_replica_snapshot_age_seconds{pod="vllm-0",pool="h100-half"} 0.024078443
+orch_replica_snapshot_age_seconds{pod="vllm-1",pool="h100-half"} 0.023991825
+# HELP orch_replica_tokens_in_flight Tokens the gateway has reserved on the worker since its last scrape.
+# TYPE orch_replica_tokens_in_flight gauge
+orch_replica_tokens_in_flight{pod="vllm-0",pool="h100-half"} 0
+orch_replica_tokens_in_flight{pod="vllm-1",pool="h100-half"} 0
+# HELP orch_replica_warm 1 while the fleet's warm-up gate holds the worker Ready.
+# TYPE orch_replica_warm gauge
+orch_replica_warm{pod="vllm-0",pool="h100-half"} 1
+orch_replica_warm{pod="vllm-1",pool="h100-half"} 1
+# HELP orch_request_duration_seconds Request time by stage: gateway, queue, hop (KV copy from the run's old worker), local (upstream) and e2e.
+# TYPE orch_request_duration_seconds histogram
+orch_request_duration_seconds_bucket{stage="e2e",le="0.005"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="0.01"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="0.025"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="0.05"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="0.1"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="0.25"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="0.5"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="1"} 0
+orch_request_duration_seconds_bucket{stage="e2e",le="2.5"} 157
+orch_request_duration_seconds_bucket{stage="e2e",le="5"} 331
+orch_request_duration_seconds_bucket{stage="e2e",le="10"} 365
+orch_request_duration_seconds_bucket{stage="e2e",le="30"} 426
+orch_request_duration_seconds_bucket{stage="e2e",le="60"} 440
+orch_request_duration_seconds_bucket{stage="e2e",le="120"} 440
+orch_request_duration_seconds_bucket{stage="e2e",le="+Inf"} 440
+orch_request_duration_seconds_sum{stage="e2e"} 2805.086851817
+orch_request_duration_seconds_count{stage="e2e"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="0.005"} 358
+orch_request_duration_seconds_bucket{stage="gateway",le="0.01"} 438
+orch_request_duration_seconds_bucket{stage="gateway",le="0.025"} 438
+orch_request_duration_seconds_bucket{stage="gateway",le="0.05"} 438
+orch_request_duration_seconds_bucket{stage="gateway",le="0.1"} 438
+orch_request_duration_seconds_bucket{stage="gateway",le="0.25"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="0.5"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="1"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="2.5"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="5"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="10"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="30"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="60"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="120"} 440
+orch_request_duration_seconds_bucket{stage="gateway",le="+Inf"} 440
+orch_request_duration_seconds_sum{stage="gateway"} 1.665517467999999
+orch_request_duration_seconds_count{stage="gateway"} 440
+orch_request_duration_seconds_bucket{stage="hop",le="0.005"} 0
+orch_request_duration_seconds_bucket{stage="hop",le="0.01"} 0
+orch_request_duration_seconds_bucket{stage="hop",le="0.025"} 0
+orch_request_duration_seconds_bucket{stage="hop",le="0.05"} 0
+orch_request_duration_seconds_bucket{stage="hop",le="0.1"} 0
+orch_request_duration_seconds_bucket{stage="hop",le="0.25"} 0
+orch_request_duration_seconds_bucket{stage="hop",le="0.5"} 7
+orch_request_duration_seconds_bucket{stage="hop",le="1"} 12
+orch_request_duration_seconds_bucket{stage="hop",le="2.5"} 20
+orch_request_duration_seconds_bucket{stage="hop",le="5"} 24
+orch_request_duration_seconds_bucket{stage="hop",le="10"} 24
+orch_request_duration_seconds_bucket{stage="hop",le="30"} 24
+orch_request_duration_seconds_bucket{stage="hop",le="60"} 24
+orch_request_duration_seconds_bucket{stage="hop",le="120"} 24
+orch_request_duration_seconds_bucket{stage="hop",le="+Inf"} 24
+orch_request_duration_seconds_sum{stage="hop"} 30.846278664000003
+orch_request_duration_seconds_count{stage="hop"} 24
+orch_request_duration_seconds_bucket{stage="local",le="0.005"} 0
+orch_request_duration_seconds_bucket{stage="local",le="0.01"} 0
+orch_request_duration_seconds_bucket{stage="local",le="0.025"} 0
+orch_request_duration_seconds_bucket{stage="local",le="0.05"} 0
+orch_request_duration_seconds_bucket{stage="local",le="0.1"} 0
+orch_request_duration_seconds_bucket{stage="local",le="0.25"} 0
+orch_request_duration_seconds_bucket{stage="local",le="0.5"} 0
+orch_request_duration_seconds_bucket{stage="local",le="1"} 0
+orch_request_duration_seconds_bucket{stage="local",le="2.5"} 157
+orch_request_duration_seconds_bucket{stage="local",le="5"} 336
+orch_request_duration_seconds_bucket{stage="local",le="10"} 366
+orch_request_duration_seconds_bucket{stage="local",le="30"} 427
+orch_request_duration_seconds_bucket{stage="local",le="60"} 440
+orch_request_duration_seconds_bucket{stage="local",le="120"} 440
+orch_request_duration_seconds_bucket{stage="local",le="+Inf"} 440
+orch_request_duration_seconds_sum{stage="local"} 2772.5470996679996
+orch_request_duration_seconds_count{stage="local"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="0.005"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="0.01"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="0.025"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="0.05"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="0.1"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="0.25"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="0.5"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="1"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="2.5"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="5"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="10"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="30"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="60"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="120"} 440
+orch_request_duration_seconds_bucket{stage="queue",le="+Inf"} 440
+orch_request_duration_seconds_sum{stage="queue"} 0.010276309
+orch_request_duration_seconds_count{stage="queue"} 440
+# HELP orch_requests_total Requests received, including those the guard rejected.
+# TYPE orch_requests_total counter
+orch_requests_total{class="restricted",priority="batch"} 133
+orch_requests_total{class="restricted",priority="interactive"} 307
+# HELP orch_restricted_offbox_total Restricted requests routed off the box. Must stay 0.
+# TYPE orch_restricted_offbox_total counter
+orch_restricted_offbox_total 0
+# HELP orch_shed_total Requests refused by the gateway, by reason and status code.
+# TYPE orch_shed_total counter
+orch_shed_total{code="429",reason="tenant_tokens"} 0
+orch_shed_total{code="503",reason="kv_free"} 0
+orch_shed_total{code="503",reason="no_eligible_pod"} 0
+orch_shed_total{code="503",reason="p99_spread"} 0
+orch_shed_total{code="503",reason="queue_full"} 0
+orch_shed_total{code="503",reason="timeout_queue"} 0
+# HELP orch_sticky_total Stickiness outcomes relative to the run's bound worker.
+# TYPE orch_sticky_total counter
+orch_sticky_total{outcome="broken_load"} 86
+orch_sticky_total{outcome="broken_shed"} 2
+orch_sticky_total{outcome="hit"} 300
+orch_sticky_total{outcome="new"} 52
+# HELP orch_warmup_probe_seconds Latency of the worker's latest warm-up probe, the re-quoted TTFT.
+# TYPE orch_warmup_probe_seconds gauge
+orch_warmup_probe_seconds{pod="vllm-0",pool="h100-half"} 0.161979895
+orch_warmup_probe_seconds{pod="vllm-1",pool="h100-half"} 0.170269872
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 48.4
+# HELP process_max_fds Maximum number of open file descriptors.
+# TYPE process_max_fds gauge
+process_max_fds 1.048576e+06
+# HELP process_network_receive_bytes_total Number of bytes received by the process over the network.
+# TYPE process_network_receive_bytes_total counter
+process_network_receive_bytes_total 2.38995588e+08
+# HELP process_network_transmit_bytes_total Number of bytes sent by the process over the network.
+# TYPE process_network_transmit_bytes_total counter
+process_network_transmit_bytes_total 2.5240036e+07
+# HELP process_open_fds Number of open file descriptors.
+# TYPE process_open_fds gauge
+process_open_fds 11
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 1.6150528e+07
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.79129205985e+09
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes 1.303453696e+09
+# HELP process_virtual_memory_max_bytes Maximum amount of virtual memory available in bytes.
+# TYPE process_virtual_memory_max_bytes gauge
+process_virtual_memory_max_bytes 1.8446744073709552e+19

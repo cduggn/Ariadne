@@ -1,7 +1,7 @@
 {
   "about": "The GPUs we rent, the engine settings every model shares, and how each card is carved (D-40). Models are in deploy/models/. A topology names its GPU, so a run's topology also records the hardware.",
   "engine": {
-    "image": "docker.io/vllm/vllm-openai:v0.30.0-cu129@sha256:a67f8f186d4567612ac37a55bd82295006002b18858eb12a8af2f05f86c2ae3f",
+    "image": "docker.io/vllm/vllm-openai:v0.29.0-cu129@sha256:7ef5a35d1ef8ce2cf9d671dd91eec6e367c5849262e0362b4d3d4a26be0d87d2",
     "gpu_memory_utilization": 0.9,
     "max_model_len": 24576,
     "max_num_seqs": 32,
@@ -78,7 +78,8 @@
       "boot": {
         "model": "qwen3-8b-awq",
         "topology": "sliced",
-        "next_model": "qwen3.8-27b-fp8"
+        "next_model": "qwen3.8-27b-fp8",
+        "hop": false
       }
     },
     "h100-80": {
@@ -94,9 +95,11 @@
       "note": "PCIe figures; the SXM5 card is faster (3,350 GB/s, 989 TFLOPS), so its floors are conservative",
       "boot": {
         "model": "qwen3.8-27b-fp8",
-        "topology": "h100-full",
-        "next_model": "gemma-4-31b-it-fp8"
-      }
+        "topology": "h100-half",
+        "next_model": "gemma-4-31b-it-fp8",
+        "hop": true
+      },
+      "boot_note": "Boots sliced (2 x 39 GiB halves, Qwen3.8-27B-FP8 fits 2.9 x 24k each) with the KV hop on, so the gateway, slicing and the hop all run on one card. h100-full is the whole-card benchmark."
     },
     "gh200-96": {
       "name": "GH200 96 GB (arm64 host)",
@@ -110,8 +113,20 @@
       "boot": {
         "model": "qwen3.8-27b-fp8",
         "topology": "gh200-full",
-        "next_model": "gemma-4-31b-it-fp8"
+        "next_model": "gemma-4-31b-it-fp8",
+        "hop": false
       }
     }
+  },
+  "kv_hop": {
+    "about": "Opt-in (make deploy HOP=1, make gateway HOP=1): every worker runs vLLM's MooncakeConnector as kv_both, so the gateway can copy a moved run's KV from its old worker instead of recomputing it. tcp, because the node has no RDMA. See gateway/internal/hop.",
+    "kv_transfer_config": {
+      "kv_connector": "MooncakeConnector",
+      "kv_role": "kv_both",
+      "kv_connector_extra_config": {
+        "mooncake_protocol": "tcp"
+      }
+    },
+    "bootstrap_port": 8998
   }
 }

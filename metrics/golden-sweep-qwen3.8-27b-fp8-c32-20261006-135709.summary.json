@@ -1,0 +1,110 @@
+{
+  "tag": "sweep-qwen3.8-27b-fp8-c32",
+  "profile": "qwen3.8-27b-fp8",
+  "model": "Qwen/Qwen3.8-27B-FP8",
+  "topology": "h100-half",
+  "workers": 2,
+  "gpu_share": 1.0,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 32,
+  "repeat": 1,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "963e5fb",
+  "wall_s": 140.1,
+  "timestamp": "20261006-135709",
+  "tasks": 26,
+  "unique_tasks": 26,
+  "passed": 8,
+  "pass_rate": 0.308,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.318,
+    "rightsize": 1.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.214,
+    "multi_hop": 0.143,
+    "red_herring": 0.75,
+    "rightsizing": 1.0
+  },
+  "passed_v2": 10,
+  "pass_rate_v2": 0.385,
+  "pass_rate_v2_ci95": [
+    0.224,
+    0.575
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.333,
+    "investigate": 0.364,
+    "rightsize": 1.0
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.357,
+    "multi_hop": 0.143,
+    "red_herring": 0.75,
+    "rightsizing": 1.0
+  },
+  "parts_v2": {
+    "submitted": 0.423,
+    "grounded": 0.423,
+    "status": 0.423,
+    "root": 0.423,
+    "category": 0.385,
+    "mechanism": 0.423,
+    "chain": 0.423,
+    "no_false_positive": 0.423
+  },
+  "top_failed_rules_v2": [
+    [
+      "no-diagnosis",
+      14
+    ],
+    [
+      "category",
+      1
+    ],
+    [
+      "inconclusive",
+      1
+    ]
+  ],
+  "advisory_v2": [],
+  "stop_reasons": {
+    "submitted": 11,
+    "http_503": 14,
+    "inconclusive": 1
+  },
+  "inconclusive": 1,
+  "abstained": 0,
+  "http_refusals": {
+    "503": 14
+  },
+  "top_failed_rules": [
+    [
+      "no-diagnosis",
+      14
+    ],
+    [
+      "category",
+      3
+    ],
+    [
+      "inconclusive",
+      1
+    ]
+  ],
+  "repairs": 6,
+  "tool_errors": 4,
+  "steps_per_task_mean": 5.27,
+  "prompt_tokens_last_step_p50": 6880,
+  "prompt_tokens_last_step_max": 15177,
+  "completion_tokens_per_step_p50": 52,
+  "cached_share_of_prompt": 0.828,
+  "step_latency_s_p50": 3.778,
+  "step_latency_s_p95": 25.894
+}

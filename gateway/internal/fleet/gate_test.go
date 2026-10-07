@@ -153,6 +153,35 @@ func TestNewRunLandsOnLessLoadedPodAndSticks(t *testing.T) {
 	}
 }
 
+func TestDecisionNamesWhereAMovedRunLeftItsHistory(t *testing.T) {
+	g, clk := newTestGate(DefaultConfig([]string{"a", "b"}))
+	scrapeReady(g, clk, "a", 100000, 0.5)
+	scrapeReady(g, clk, "b", 100000, 0.2)
+
+	d1, tk1 := mustAdmit(t, g, request(clk, "run1-s1", "platform", 7000, 768))
+	if d1.From != "" || d1.History != 0 {
+		t.Fatalf("step 1 From %q History %d, want no binding and no history", d1.From, d1.History)
+	}
+	g.Settle(tk1, Outcome{OK: true, PromptTokens: 9000, CompletionTokens: 60, Latency: time.Second}, 7000)
+
+	// b, the bound worker, is now 0.5 load units busier than a, over the
+	// 0.25 slack, but still above the KV line, so the run moves for load.
+	clk.advance(time.Second)
+	scrapeReady(g, clk, "a", 100000, 0.2)
+	scrapeReady(g, clk, "b", 100000, 0.7)
+	d2, tk2 := mustAdmit(t, g, request(clk, "run1-s2", "platform", 10500, 768))
+	defer g.Settle(tk2, Outcome{}, 10500)
+	if d2.Placement.Pod != "a" || d2.Placement.Sticky != decide.StickyBrokenLoad {
+		t.Fatalf("step 2 placed on %q with sticky %q, want a moved run on a", d2.Placement.Pod, d2.Placement.Sticky)
+	}
+	if d2.From != "b" || d2.History != 9000 {
+		t.Fatalf("step 2 From %q History %d, want b and 9000", d2.From, d2.History)
+	}
+	if got := g.Bound("run1"); got != "a" {
+		t.Fatalf("Bound(run1) = %q after the move, want a", got)
+	}
+}
+
 func TestUnusablePodsAreNeverPicked(t *testing.T) {
 	g, clk := newTestGate(DefaultConfig([]string{"a", "b", "c"}))
 	g.SetReady("a", true)

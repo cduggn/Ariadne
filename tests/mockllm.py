@@ -12,14 +12,19 @@ TRAJECTORIES = json.loads((Path(__file__).resolve().parents[1] / "evals/golden/r
 class Server:
     """Replays scripted tool calls; records every request body and header set."""
 
-    def __init__(self, *calls, status: int | None = None):
-        self.calls, self.status, self.requests = list(calls), status, []
+    def __init__(self, *calls, status: int | None = None, refuse: int = 0, reason: str = "kv_free"):
+        """status refuses every request with that status; refuse=N refuses the first N with a 503, then replays the
+        script. A refusal is shaped as the gateway sends it: the reason in error.code, and a Retry-After."""
+        self.calls, self.status, self.refuse, self.reason, self.requests = list(calls), status, refuse, reason, []
+        self.refused = 0
 
     def __call__(self, req: httpx.Request) -> httpx.Response:
         self.requests.append({"body": json.loads(req.content), "headers": dict(req.headers)})
-        if self.status:
-            return httpx.Response(self.status, json={"error": {"message": "shed", "type": "overloaded"}})
-        i = len(self.requests) - 1
+        if self.status or self.refused < self.refuse:
+            self.refused += 1
+            return httpx.Response(self.status or 503, headers={"Retry-After": "1"},
+                                  json={"error": {"message": "shed", "type": "overloaded", "code": self.reason}})
+        i = len(self.requests) - 1 - self.refused
         name, args = self.calls[min(i, len(self.calls) - 1)]
         raw = args if isinstance(args, str) else json.dumps(args)
         return httpx.Response(200, json={
