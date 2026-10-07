@@ -387,8 +387,7 @@ exactly; they are not runtime dependencies (D-33) and `uv sync` and CI never ins
 palette's first three categorical slots, which validate for every pair, on a light surface.
 **Because:** a notebook rebuilt from the data cannot drift from it, and reviewing cells as code catches the same
 mistakes code review does.
-**Revisit when:** a run's raw time series need charting (the node loses them at `make down` until `make export`
-exists).
+**Revisit when:** a run's raw time series need charting. Done by D-48.
 
 ### D-47 — Code-quality gates: git hooks, golangci-lint, gitleaks, govulncheck (2026-10-07)
 **Context:** the repository is going public. A credential audit of every commit found no real secrets, but nothing
@@ -414,6 +413,32 @@ fake worker serving with no timeouts.
 gets wrong, and a secret is cheapest to stop before it is committed.
 **Revisit when:** the Python side needs the same push gate (ruff and pytest run in `make test` and CI today), or a
 lint rule's false positives outnumber its finds.
+
+### D-48 — Part 5 evidence: export the node's time series, and probe the queue on purpose (2026-10-07)
+**Context:** the brief's Part 5 asks, with a scrape, who waits in our queue and who waits in vLLM's, what happens to a
+long prompt next to a short agent step, who frees the KV when a client leaves, and how a returning worker is loaded.
+Our runs saved `/metrics` once at the end, so every gauge read 0, and the node's Prometheus history (5 s scrapes, two
+days kept) died at `make down`. Nothing in the golden workload produces a long prompt, a client abort or a worker
+restart on its own.
+**Choice:**
+- **`make export`** (`lab/export.py`, stdlib only). One table of named PromQL queries, sent as range queries over the
+  bench window through `kubectl get --raw` on the node (or `--prom-url` through `make prom`). It writes one
+  `metrics/ts-<tag>-<stamp>.json` with the series, the step and the probe events in the window. A failed query is
+  recorded in the file and doesn't stop the others. `make bench` records its start in `.cache/bench.json` and ends with
+  the export. `make down` warns, and waits 15 s, if the last bench was never exported.
+- **`make probes`** (`lab/probes.py`, stdlib only). A golden run at concurrency 4 is the background load. On a fixed
+  schedule, three ~14k-token batch prompts, three clients that time out mid-answer, and one deleted worker. Each probe
+  appends timestamped events to `metrics/events-<tag>-<stamp>.jsonl`. The probes and the schedule are tables.
+- **Notebook section 10** reads the export and draws each Part 5 question with the probe times marked, and states the
+  design answer next to each chart. Without an export it prints one line and draws nothing.
+- **No ramp after a worker returns.** The returning worker serves after two warm-up probes, then gets traffic within
+  the in-flight cap and load-aware placement. The probe measures p99 through that; adding a ramp would need more than
+  one session of data to tune.
+**Because:** fixed queries keep the files small (a few MB per bench) and the charts reproducible from the repo, where a
+full Prometheus snapshot would carry every series and need Prometheus to read it. Deliberate probes give each Part 5
+question a known moment to look at instead of hoping the golden load produces one.
+**Revisit when:** the probes disturb the measurements they sit next to (move them to their own window), or a question
+needs a series not in the table (add one row).
 
 ### D-49 — KEDA scales the vLLM workers on the gateway's demand (2026-10-07)
 **Context:** the presentation asks which pool scales, and how. Until now the worker count was set by hand

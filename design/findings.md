@@ -236,4 +236,6 @@ to 10 requests per worker with up to 10 waiting and KV at 100% during the cap-16
 - Whether a hop's destination really pulls the KV: its `cached_tokens` on the hopped step (gateway log `hop`, the
   step's `cached_tokens`), since vLLM 0.29 has no transfer metric.
 - No time series (KV usage, power, placement over time) survive from 10-06 or 10-07, because the node's Prometheus
-  keeps nothing after `make down`. `make export` would save them as data before the next session.
+  keeps nothing after `make down`. `make bench` now ends with `make export` (D-48), so the next session keeps them.
+- Part 5 with a scrape: our queue against vLLM's waiting queue per pod, a ~14k batch prompt against the agents'
+  inter-token latency, a client leaving mid-request, and a worker returning under load (test plan, session 4).

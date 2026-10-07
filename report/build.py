@@ -298,6 +298,197 @@ table(["Alert", "Condition", "Severity"], [[n, f"`{e}`", s] for (n, e), s in zip
   - the KV hop starts paying off once contexts grow and moves become common (F35).
 - **Settings that do not fit this workload.** The 768-token output cap never bound (F30), and chunked prefill rarely
   binds (F15). The fit calculator needs a hybrid-model correction before it sizes a Qwen3.8 deployment (F5)."""),
+
+    md("""## 10. Queue: what runs next
+
+The brief's Part 5 asks who waits where, and what runs next when the load mixes. `make bench` ends with a probe session
+(D-48). A golden run at concurrency 4 is the background load. On a schedule, three ~14k-token batch prompts arrive,
+three clients leave mid-answer, and one worker is deleted and left to return. `make export` then pulls the node's
+Prometheus history for the bench window into `metrics/ts-*.json`, together with the probe times. The charts mark those
+times with vertical lines, and their time axis counts minutes from the start of the window."""),
+    code('''import json
+
+from report.results import series, timeseries
+
+ts = timeseries()
+NO_TS = "No time series yet: run `make bench` on the GPU (it ends with `make export`)"
+SLOTS = [BLUE, ORANGE, AQUA, "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]   # the categorical order, fixed
+MARKS = {"big_prompt_sent": ("--", "14k-token prompt sent"), "client_gone_aborted": (":", "client left"),
+         "worker_deleted": ("-.", "worker deleted"), "worker_phase": ((0, (6, 2, 1, 2, 1, 2)), "worker phase change")}
+PHASES = ["down", "warming", "ready"]
+PODS = sorted({lab["pod"] for q in (ts or {}).get("series", {}).values() for r in q["results"]
+               for lab in [r["labels"]] if "pod" in lab})
+
+def color(pod):
+    return SLOTS[PODS.index(pod) % len(SLOTS)] if pod in PODS else INK2
+
+def lines(name, key="pod", scale=1.0, only=None):
+    """One line per label value of an exported query, in minutes; empty without an export or when the query failed."""
+    out = []
+    for labels, t, v in (series(ts, name) if ts else []):
+        k = labels.get(key, "all")
+        if only is None or k == only:
+            out.append((k, color(k), [x / 60 for x in t], [y * scale for y in v]))
+    return sorted(out, key=lambda line: line[0])
+
+def phase_lines():
+    at = {}
+    for labels, t, v in (series(ts, "gw_phase") if ts else []):
+        for x, y in zip(t, v, strict=True):
+            if y == 1 and labels.get("phase") in PHASES:
+                at.setdefault(labels.get("pod", "all"), {})[x / 60] = PHASES.index(labels["phase"])
+    return [(pod, color(pod), sorted(at[pod]), [at[pod][x] for x in sorted(at[pod])]) for pod in sorted(at)]
+
+def plot(name, title, panels, marks=(), sharey=False):
+    """Small multiples on one time axis. A panel is (title, y label, lines[, y tick labels])."""
+    if ts is None:
+        print(NO_TS)
+        return
+    ev = [(e["kind"], (e["t"] - ts["start"]) / 60) for e in ts["events"] if e["kind"] in marks]
+    fig, axes = plt.subplots(len(panels), 1, figsize=(8.5, 1.0 + 1.9 * len(panels)), sharex=True, sharey=sharey,
+                             squeeze=False)
+    legends = set()
+    for ax, (head, ylabel, drawn, *ticks) in zip(axes[:, 0], panels, strict=True):
+        for label, c, t, v in drawn:
+            ax.plot(t, v, color=c, linewidth=2, label=label)
+        if not drawn:
+            ax.text(0.5, 0.5, "no data in this export", transform=ax.transAxes, ha="center", va="center", color=INK2)
+        seen = set()
+        for kind, t in ev:
+            style, text = MARKS[kind]
+            ax.axvline(t, color=INK2, linestyle=style, linewidth=1, label=None if kind in seen else text)
+            seen.add(kind)
+        if ticks:
+            ax.set_yticks(range(len(ticks[0])), ticks[0])
+            ax.set_ylim(-0.3, len(ticks[0]) - 0.7)
+        else:
+            ax.set_ylim(bottom=0)
+        ax.set_title(head, loc="left", fontsize=9.5)
+        ax.set_ylabel(ylabel)
+        ax.grid(axis="x", visible=False)
+        names = tuple(ax.get_legend_handles_labels()[1])
+        if names and names not in legends:                     # a panel repeating the legend above it gets none
+            legends.add(names)
+            ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1), fontsize=8.5)
+    span = (ts["end"] - ts["start"]) / 60
+    times = [t for _, t in ev]
+    axes[-1, 0].set_xlim((max(0, min(times) - 1.5), min(span, max(times) + 4)) if times else (0, span))
+    axes[-1, 0].set_xlabel("minutes since the window started")
+    fig.suptitle(title, fontweight="bold", fontsize=11)
+    show(fig, f"queue_{name}")
+
+if ts is None:
+    print(NO_TS)
+else:
+    failed = ", ".join(f"`{n}` ({why})" for n, why in sorted(ts["errors"].items())) or "none"
+    display(Markdown(f"Export `{ts['tag']}`: {(ts['end'] - ts['start']) / 60:.0f} minutes at a {ts['step_s']} s step, "
+                     f"{len(ts['series'])} queries, {len(ts['events'])} probe events. Failed queries: {failed}."))'''),
+
+    md("""### Who waits in our queue, and who waits in vLLM's
+
+The gateway holds a request in its own queue until the worker has room under the in-flight cap, 4 per H100 half
+(D-43). Once placed, the request belongs to vLLM. It waits in vLLM's queue (`num_requests_waiting`) until the scheduler
+has KV blocks and a batch slot for it, then runs (`num_requests_running`). vLLM puts a preempted request back in its
+waiting queue, so preemption shows as waiting above 0 while running drops. With the cap sized to KV, the overload
+should sit in the gateway's queue, and vLLM's waiting count should stay near 0 (F32). Each worker gets two panels on
+one shared scale, the gateway's view on top and vLLM's below.
+
+The same panels answer the per-worker question. The blue line in each gateway panel is `orch_replica_queue_depth` for
+that worker under the mixed load. The second chart is the gateway's shed rate by reason. It shows whether the queue
+overflowed (`queue_full`), waited past its deadline (`timeout_queue`), or the door refused for KV (`kv_free`)."""),
+    code('''panels = []
+for pod in PODS:
+    q, f = lines("gw_queue_depth", only=pod), lines("gw_inflight", only=pod)
+    w, r = lines("vllm_waiting", only=pod), lines("vllm_running", only=pod)
+    panels.append((f"{pod} · gateway", "requests", [("queued", BLUE, *x[2:]) for x in q]
+                   + [("in flight", ORANGE, *x[2:]) for x in f]))
+    panels.append((f"{pod} · vLLM", "requests", [("waiting", BLUE, *x[2:]) for x in w]
+                   + [("running", ORANGE, *x[2:]) for x in r]))
+plot("waiting", "Requests waiting and in service, gateway against vLLM, per worker", panels or [("no workers", "", [])],
+     marks=("big_prompt_sent", "client_gone_aborted", "worker_deleted"), sharey=True)
+if ts is not None:
+    sheds = [(reason, SLOTS[i % len(SLOTS)], t, v)                    # colored by place among all reasons, not those that fired
+             for i, (reason, _, t, v) in enumerate(lines("gw_shed_rate", key="reason")) if any(v)]
+    if sheds:
+        plot("shed", "Gateway refusals by reason", [("all workers", "refusals per second", sheds)],
+             marks=("big_prompt_sent", "client_gone_aborted", "worker_deleted"))
+    else:
+        display(Markdown("The gateway refused nothing in this window."))'''),
+
+    md("""### A 32k-token RAG prompt next to a short agent step
+
+A 32k prompt can't run here. `max_model_len` is 24,576 on an H100 half, so vLLM rejects it with a 400 after the
+gateway forwards it. The probe sends ~14k tokens instead, which takes two 8,192-token prefill chunks and still passes
+the door while golden runs share the pool. Our queue serves interactive work before batch. At a full queue, an
+interactive arrival displaces the newest batch waiter, which gets `queue_full`. At the door the gateway reserves the request's estimated
+tokens against the worker's free KV, so a long prompt that would fill the pool is refused with `kv_free` rather than
+admitted. Inside vLLM the scheduler serves running requests first on every engine step, and chunked prefill splits
+the long prompt into 8,192-token pieces. The agent's decode slows while those pieces run, but it does not stop. The
+chart shows inter-token latency and tokens per engine step around each long prompt."""),
+    code('''plot("long_prompt", "Decode speed and step size around the 14k-token prompts",
+     [("inter-token latency, p95", "ms", lines("vllm_itl_p95", scale=1000)),
+      ("tokens per engine step, p95", "tokens", lines("vllm_iter_tokens_p95"))],
+     marks=("big_prompt_sent",))'''),
+
+    md("""### PagedAttention and the prefix cache
+
+Both manage the same KV blocks, and they solve different problems. PagedAttention stores each request's KV in
+fixed-size blocks, so a request wastes less than one block, but each request still gets blocks of its own. The prefix
+cache hashes full blocks of the prompt, and a later request with the same prefix points at the blocks already there.
+The numbers below come from the committed golden rows and vLLM's own pool report."""),
+    code('''r = rows("gw-38-20261006-131640")
+shared = median([x["cached_tokens"][0] for x in r if x["cached_tokens"] and x["cached_tokens"][0]])
+pool, runs = kv_measured("qwen3.8-27b-fp8", "h100-half"), 16
+display(Markdown(
+    f"A run's first call finds **{shared:,}** tokens already cached. That is the shared prefix, counted in whole blocks. "
+    f"At {runs} concurrent runs, one copy per run would take **{runs * shared:,}** tokens, {runs * shared / pool:.0%} "
+    f"of an H100 half's measured pool ({pool:,} tokens), before any run's own history. The prefix cache keeps one copy "
+    f"per worker, {shared / pool:.1%} of the pool. PagedAttention alone would have removed fragmentation and still "
+    f"stored all {runs} copies (F8–F11)."))'''),
+
+    md("""### Engine flags for this workload
+
+Every model shares these engine settings (INV-15), read here from `deploy/serving.json`."""),
+    code('''engine = json.loads((ROOT / "deploy" / "serving.json").read_text())["engine"]
+display(Markdown(
+    f"`--max-num-seqs {engine['max_num_seqs']}` sits above the gateway's in-flight cap, so the overload waits in the "
+    f"gateway's queue, which knows priority and tenant, and vLLM's own waiting queue stays short. "
+    f"`--max-num-batched-tokens {engine['max_num_batched_tokens']:,}` bounds the activation peak that `serving/fit.py` "
+    f"charges against GPU memory, and it is the chunk size for long prefills. It rarely binds on this workload, because "
+    f"the prefix cache keeps each step's new tail short (F15)."))'''),
+
+    md("""### When KV fills after admission
+
+The gateway checks free KV at the door and sheds with `kv_free` below its line (section 6). Admitted requests keep
+growing their history after that, and when the pool fills, vLLM preempts a running request and recomputes it later
+(sections 5 and 6, F25, F33). Sizing the cap to the pool cut preemptions by ~95% and moved the overload into the
+gateway's queue (F36). The chart shows KV use and preemptions per worker across the probe session."""),
+    code('''plot("kv_full", "KV use and vLLM preemptions per worker",
+     [("KV cache in use", "% of pool", lines("vllm_kv_usage", scale=100)),
+      ("preemptions", "per second", lines("vllm_preempt_rate"))],
+     marks=("big_prompt_sent", "client_gone_aborted", "worker_deleted"))'''),
+
+    md("""### A client that leaves mid-answer
+
+When the client disconnects, Go cancels the gateway's request context, and that cancels the upstream call to vLLM.
+vLLM should then see the closed connection, abort the request and free its KV blocks. The probe checks that. The
+gateway records the request as `client_gone`, not as a worker error (D-44). The chart shows vLLM's aborted-request
+count and KV use around each client that left."""),
+    code('''plot("client_gone", "Aborted requests and KV use around the clients that left",
+     [("requests aborted (cumulative)", "requests", lines("vllm_aborts")),
+      ("KV cache in use", "% of pool", lines("vllm_kv_usage", scale=100))],
+     marks=("client_gone_aborted",))'''),
+
+    md("""### After a worker returns
+
+There is no ramp. A returning worker serves only after two warm-up probes answer quickly. Then it gets full traffic,
+bounded by the in-flight cap and spread by load-aware placement (D-48). The chart shows the gateway's p99 latency,
+placements per worker and each worker's phase around the deleted worker's return."""),
+    code('''plot("worker_return", "Latency, placement and phase around the deleted worker's return",
+     [("end-to-end latency, p99, all workers", "seconds", [("p99", BLUE, *x[2:]) for x in lines("gw_e2e_p99")]),
+      ("placements", "per second", lines("gw_pick_rate")),
+      ("phase", "", phase_lines(), PHASES)],
+     marks=("worker_deleted", "worker_phase"))'''),
 ]
 
 

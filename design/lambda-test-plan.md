@@ -165,11 +165,47 @@ If something goes wrong:
 - Many 429s: the tenant quota scales with the worker count (`gateway/internal/fleet/gate.go`); `kubectl logs deploy/gateway`
   prints one line per request with its pod, sticky outcome and refusal reason.
 
+## Session 4: what runs next, measured (Part 5, D-48)
+
+This session answers the brief's Part 5 with time series. Until now each run saved `/metrics` once at the end, so every
+gauge (queue depth, vLLM waiting and running, KV usage) read 0. The node's Prometheus scrapes every 5 s and keeps two
+days, so `make export` pulls that history into `metrics/ts-*.json` before `make down`. The probes put known events in
+it: three ~14k-token batch prompts, three clients that leave mid-request, and one worker deleted and left to return.
+Each probe writes its time to `metrics/events-*.jsonl`. Notebook section 10 plots the series with the probes marked.
+
+About 1–1.5 h of H100 time. Use `HOP=1` so the KV hop panel gets data in the same run.
+
+| # | Command | What it proves |
+|---|---|---|
+| Q0 | `make preflight && make up`, `make bringup`, terminals 2 and 3 | as before; `make check` shows both workers ready |
+| Q1 | `make bench TAG=q1` | the golden set, the sweep, then `make probes` and `make export`. The probes run against a golden run at concurrency 4 (`TAG=q1-probes`) |
+| Q2 | watch the gateway dashboard during the probes | queue depth per pod rises and drains; `kv_free` or `queue_full` sheds when a big prompt lands; the deleted worker goes down → warming → ready |
+| Q3 | screenshot each dashboard row while the sweep runs | the presentation's fallback if the live demo fails |
+| Q4 | `make report`, then commit `metrics/` and the notebook | section 10 draws from `metrics/ts-q1-*.json` |
+| Q5 | `make down` | it warns if the last bench was never exported |
+
+What each probe should show:
+- **A ~14k batch prompt** (Part 5, "32k RAG vs short agent decode"). A 32k prompt doesn't fit: `max_model_len` is
+  24,576. A ~21k prompt would fit the model but usually not the door: the gateway counts 1 token per 3.5 bytes and
+  refuses a request bigger than the worker's free KV, which golden runs already share. ~14k takes two 8,192-token
+  prefill chunks and still passes. Expected: tokens per engine step rise toward 8,192 for a few steps while the prefill is chunked, and the
+  agents' inter-token latency rises but doesn't stop. The prompt waits in the batch lane if the pod is at its cap.
+- **A client that leaves** (Part 5, "who frees the KV"). Expected: the gateway logs `client_gone`, vLLM's
+  `request_success_total{finished_reason="abort"}` rises by one per probe, and KV usage falls.
+- **A worker deleted under load** (Part 5, "slam or ramp"). Expected: placement moves to the other pod, p99 rises
+  while one worker carries the load, and the returning worker gets traffic only after its warm-up probes. There is
+  no ramp beyond warm-up and the in-flight cap.
+
+If `make export` fails (the node is busy, or `lam ssh` drops), rerun it: it writes a new file each time and reads the
+window from `.cache/bench.json`. `make prom` in another terminal plus `make export PROM=http://127.0.0.1:9090` reads
+through the port-forward instead.
+
 ## Session 5: autoscaling with KEDA, and the dashboards walkthrough (D-49)
 This session shows the worker pool scaling on its own and fills every dashboard the presentation walks through. Allow
 about 1.5 hours of H100 time. It starts with **one** worker, so it does not use `make bringup` (which scales to the
 topology's two). Rehearsed on kind on 2026-10-07 with a fake gateway (findings F38), so the open questions are the real
-timings and what a scale-down does to requests in flight.
+timings and what a scale-down does to requests in flight. On one node, run this session first, because it starts
+with one worker, then session 4 from step 8 on.
 
 | # | Command | What it proves |
 |---|---|---|
@@ -177,11 +213,11 @@ timings and what a scale-down does to requests in flight.
 | 1 | `make up` | An H100 (`TOPO=h100-half`, two worker slots) with KEDA installed idle: `kubectl -n keda get pods` all Running, `keda_chart` in `.cache/ready.json` |
 | 2 | `make deploy && make kv && make gateway && make dashboards` | One Qwen3.8 worker, its measured KV pool, the gateway with `max_inflight` 4, and all three dashboards |
 | 3 | `make tunnel` (terminal 2), `make grafana` (terminal 3) | `cluster-doctor cluster`: the Cluster row shows one node Ready and the pods, Outcomes is empty, Scaling shows 1 ready of 2 allowed |
-| 4 | `make autoscale` | `kubectl get scaledobject vllm` READY True; `kubectl get hpa keda-hpa-vllm` TARGETS `0/4 (avg), 0/1 (avg)` |
+| 4 | `date +%s`, then `make autoscale` | `kubectl get scaledobject vllm` READY True; `kubectl get hpa keda-hpa-vllm` TARGETS `0/4 (avg), 0/1 (avg)` |
 | 5 | `make golden TAG=as-up WORKERS=1 CONC=8 REPEAT=2` | Demand passes 4 and KEDA asks for 2 workers. Record four times: demand above 4, KEDA desired 2, `vllm-1` Running, `vllm-1` Ready in the gateway (`curl -s localhost:8000/debug/workers`). Expect the first two about 2 minutes apart (as on kind) and the load to take several more |
 | 6 | Keep `make golden TAG=as-down WORKERS=1 CONC=1 REPEAT=1` running and wait | Demand falls under 4; after 10 quiet minutes KEDA removes `vllm-1`. Check the Outcomes panel and `orch_upstream_errors_total` for requests cut off on `vllm-1` as it stops: the open risk of this design |
-| 7 | `make metrics TAG=autoscale` | The gateway and pod scrapes, including `orch_replica_phase` and the sheds |
-| 8 | `make autoscale-off && make scale N=2` | Back to a fixed two workers for the remaining experiments: the tuned cap (backlog, F36) and the KV hop check (F35) |
+| 7 | `uv run python -m lab.export --tag autoscale --start <the time from step 4>` | The whole window as time series (D-48): workers wanted and ready, KEDA's desired count, demand, sheds and worker phase, for the notebook and the slides |
+| 8 | `make autoscale-off && make scale N=2` | Back to a fixed two workers for session 4 (Q1 on), the tuned cap (backlog, F36) and the KV hop check (F35) |
 | 9 | commit `metrics/` and screenshots, then `make down` | Billing stops |
 
 For the presentation, take a screenshot of each dashboard while step 5 runs: `cluster-doctor cluster` (Cluster,

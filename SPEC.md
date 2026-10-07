@@ -317,7 +317,9 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
 `make report` builds and runs `report/report.ipynb` from the committed `metrics/` and saves its charts to
 `design/figures/`: shared against unique tokens per step, model quality with intervals, KV fit against measured, the
 routing A/B, the knee across admission settings, what was shed and why, tokens per engine step, the alerts, and
-recommendations for 10× traffic. `design/findings.md` gives the evidence for each finding.
+recommendations for 10× traffic. `design/findings.md` gives the evidence for each finding. Section 10 answers the
+brief's Part 5 from time series: `make export` (`lab/export.py`) saves the node's Prometheus history over the last bench
+as `metrics/ts-*.json`, and `make probes` (`lab/probes.py`) logs three probes to `metrics/events-*.jsonl` (D-48).
 
 ### C21 — Production alerts ✅ (`deploy/observability/alerts.yaml`, D-45)
 `KVCacheSaturated` (above the 0.80 shed line), `GatewayQueueWaitHigh` (queue p95 above half the 10 s interactive
@@ -383,6 +385,7 @@ uv sync                    # pinned agent stack (LangGraph, LangChain) from uv.l
 make preflight             # before paying for a GPU: lint, tests, gateway linux build, golden references, fit gate, lam API key
 make lint test             # ruff + golangci-lint + Python tests over recorded snapshots + gateway vet/race tests + promtool alert tests
 make secrets / vulncheck   # gitleaks over the whole history / govulncheck on the gateway (network; weekly in CI)
+make probes / export       # on the GPU: Part 5 probes under load / the node's time series into metrics/ts-*.json (D-48)
 make report                # rebuild report/report.ipynb and design/figures/ from metrics/
 make autoscale             # on a node: KEDA scales the vLLM workers on gateway demand (D-49); autoscale-off to stop
 make fit-all / make matrix # every model × topology on paper; regenerate design/model-matrix.md
@@ -440,4 +443,5 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-06 | KV hop over MooncakeConnector (opt-in) with its security fixes; H100 boots HAMi-sliced; Makefile playbook; the H100 session (Qwen3.8 86.5%, routing A/B, the knee); findings F1–F30 | D-42 |
 | 2026-10-07 | Admission sized to KV; refusal retries; `client_gone`; same-node control (F36); five alerts with promtool tests; results notebook and figures | D-43 … D-46 |
 | 2026-10-07 | Code-quality gates: git hooks, golangci-lint on the gateway, gitleaks in hooks and CI, race tests, weekly govulncheck | D-47 |
+| 2026-10-07 | Part 5 evidence: time-series export, queue probes (big prompt, client gone, worker return), notebook section 10 | D-48 |
 | 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |
