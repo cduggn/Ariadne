@@ -1,0 +1,92 @@
+{
+  "tag": "sweep-qwen3.8-27b-fp8-c16",
+  "profile": "qwen3.8-27b-fp8",
+  "model": "Qwen/Qwen3.8-27B-FP8",
+  "topology": "h100-half",
+  "workers": 2,
+  "gpu_share": 1.0,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 16,
+  "repeat": 1,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "d27f078",
+  "wall_s": 0.1,
+  "timestamp": "20261007-155904",
+  "tasks": 26,
+  "unique_tasks": 26,
+  "passed": 0,
+  "pass_rate": 0.0,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.0,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.0,
+    "multi_hop": 0.0,
+    "red_herring": 0.0,
+    "rightsizing": 0.0
+  },
+  "passed_v2": 0,
+  "pass_rate_v2": 0.0,
+  "pass_rate_v2_ci95": [
+    0.0,
+    0.129
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.0,
+    "investigate": 0.0,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.0,
+    "multi_hop": 0.0,
+    "red_herring": 0.0,
+    "rightsizing": 0.0
+  },
+  "parts_v2": {
+    "submitted": 0.0,
+    "grounded": 0.0,
+    "status": 0.0,
+    "root": 0.0,
+    "category": 0.0,
+    "mechanism": 0.0,
+    "chain": 0.0,
+    "no_false_positive": 0.0
+  },
+  "top_failed_rules_v2": [
+    [
+      "no-diagnosis",
+      26
+    ]
+  ],
+  "advisory_v2": [],
+  "stop_reasons": {
+    "transport_error": 26
+  },
+  "inconclusive": 0,
+  "abstained": 0,
+  "http_refusals": {},
+  "refusal_reasons": {},
+  "runs_that_waited_out_a_refusal": 0,
+  "top_failed_rules": [
+    [
+      "no-diagnosis",
+      26
+    ]
+  ],
+  "repairs": 0,
+  "tool_errors": 0,
+  "steps_per_task_mean": 1,
+  "prompt_tokens_last_step_p50": null,
+  "prompt_tokens_last_step_max": 0,
+  "completion_tokens_per_step_p50": null,
+  "cached_share_of_prompt": null,
+  "step_latency_s_p50": 0.031,
+  "step_latency_s_p95": 0.052
+}
