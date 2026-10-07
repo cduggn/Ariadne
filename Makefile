@@ -10,6 +10,7 @@
 #   make gateway-image              build + push the gateway image (Docker Hub, public), pin its digest
 #   make up / deploy / kv / tunnel / grafana / dashboards / down   Lambda GPU node via the `lam` CLI: up takes the first of TYPES with capacity (lab/up.sh)
 #   make scale [N=2]                workers on the topology's slices (at most its max_replicas)
+#   make autoscale / autoscale-off  KEDA scales the workers 1..max_replicas on gateway demand (D-49); off keeps the count
 #   make gateway [POLICY=least_loaded]   apply the pinned gateway image + warm-up body on the node and roll it out (D-42)
 #   make deploy HOP=1 && make gateway HOP=1   workers run vLLM's MooncakeConnector and the gateway copies a moved
 #                                   run's KV instead of recomputing it (gateway/internal/hop). node.env turns it on
@@ -81,7 +82,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale logs kv tunnel dashboards grafana golden metrics down
+.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale autoscale autoscale-off logs kv tunnel dashboards grafana golden metrics down
 
 .DEFAULT_GOAL := help
 
@@ -201,9 +202,24 @@ deploy: prefetch
 	$(REMOTE) kubectl rollout status statefulset/vllm --timeout=20m
 
 scale:
+	@$(REMOTE) "! kubectl get scaledobject vllm >/dev/null 2>&1" || (echo "KEDA owns the replica count: make autoscale-off first"; exit 1)
 	@$(PY) -c "import json,sys; t=json.load(open('deploy/serving.json'))['topologies']['$(TOPO)']; 	  sys.exit(0 if $(N) <= t['max_replicas'] else f'TOPO=$(TOPO) allows at most {t[\"max_replicas\"]} replicas')"
 	$(REMOTE) kubectl scale statefulset/vllm --replicas=$(N)
 	$(REMOTE) kubectl rollout status statefulset/vllm --timeout=15m
+
+# KEDA scaling of the vLLM workers (D-49): demand / per-worker cap, plus capacity sheds. The cap is the gateway's
+# GW_MAX_INFLIGHT for this model and topology, so one formula drives admission and scaling.
+WORKER_CAP = $(patsubst GW_MAX_INFLIGHT=%,%,$(filter GW_MAX_INFLIGHT=%,$(GWENV)))
+autoscale:
+	@[ "$(MAXREP)" -gt 1 ] || (echo "TOPO=$(TOPO) has one worker slot; nothing to scale"; exit 1)
+	@mkdir -p .cache/autoscale
+	sed -e 's/__MAX_REPLICAS__/$(MAXREP)/' -e 's/__WORKER_CAP__/$(WORKER_CAP)/' deploy/autoscale/keda-vllm.yaml > .cache/autoscale/keda-vllm.yaml
+	lam push .cache/autoscale/ '~/autoscale/' --delete
+	$(REMOTE) "kubectl -n keda rollout status deployment/keda-operator --timeout=2m && kubectl apply -f \$$HOME/autoscale/keda-vllm.yaml && \
+	  sleep 20 && kubectl get scaledobject vllm && kubectl get hpa keda-hpa-vllm"
+
+autoscale-off:
+	$(REMOTE) "kubectl delete scaledobject vllm --ignore-not-found && kubectl get statefulset vllm"
 
 logs:
 	$(REMOTE) kubectl logs vllm-0 --tail=100

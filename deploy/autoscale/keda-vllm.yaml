@@ -1,0 +1,42 @@
+# KEDA scales the vLLM worker pool on the gateway's demand (D-49). Opt-in: `make autoscale` fills the two
+# placeholders and applies it; `make autoscale-off` deletes it and leaves the replicas where they are.
+#   __MAX_REPLICAS__   the topology's max_replicas (deploy/serving.json): 2 on the halves and A100 slices
+#   __WORKER_CAP__     requests one worker holds in flight, GW_MAX_INFLIGHT from `serving.fit --gateway-env` (D-43)
+#
+# Which pool: the decode workers, the only pool here. A new worker loads the model and warms up for minutes before the
+# gateway routes to it (C13), so this follows sustained load, not bursts: scale up after 1 minute of demand, scale down
+# one worker at most every 5 minutes after 10 quiet minutes. Never to zero: an investigation is interactive.
+# The signals are recording rules in deploy/observability/alerts.yaml, tested with promtool.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: vllm
+  namespace: default
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: StatefulSet, name: vllm}
+  minReplicaCount: 1
+  maxReplicaCount: __MAX_REPLICAS__
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 60
+          policies: [{type: Pods, value: 1, periodSeconds: 60}]
+        scaleDown:
+          stabilizationWindowSeconds: 600
+          policies: [{type: Pods, value: 1, periodSeconds: 300}]
+  triggers:
+    # Workers needed = ceil(demand / per-worker cap): 4 in flight and 3 queued on a cap of 4 asks for 2 workers.
+    - type: prometheus
+      name: demand
+      metadata:
+        serverAddress: http://prometheus-server.monitoring.svc.cluster.local:80
+        query: avg_over_time(doctor:vllm_demand_requests[2m])
+        threshold: "__WORKER_CAP__"
+    # Any sustained capacity shed (kv_free, queue_full, timeout_queue, no_eligible_pod, p99_spread) asks for one more worker.
+    - type: prometheus
+      name: capacity-sheds
+      metadata:
+        serverAddress: http://prometheus-server.monitoring.svc.cluster.local:80
+        query: doctor:gateway_capacity_sheds_per_minute
+        threshold: "1"

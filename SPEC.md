@@ -207,7 +207,7 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
   finishes a node Lambda booted slowly.
 - `deploy/cloud-init.yaml`, one file for every GPU: k3s v1.36.4+k3s1, Helm v3.22.0 (amd64 or arm64), HAMi 2.9.0
   (split 4), Prometheus chart 29.33.0 (5 s scrape, the alert rules of C21), Grafana (grafana-community) 13.2.5, DCGM
-  exporter 4.5.2-4.8.1, OpenCost 2.5.32 (GPU $1.99/h), vLLM `v0.29.0-cu129` by digest. It reads the GPU's memory and
+  exporter 4.5.2-4.8.1, OpenCost 2.5.32 (GPU $1.99/h), KEDA 2.21.0 (idle until C22), vLLM `v0.29.0-cu129` by digest. It reads the GPU's memory and
   fetches that class's boot model before `ready.json` (A100: Qwen3-8B-AWQ; H100 and GH200: Qwen3.8-27B-FP8) and the
   next model in the background; `KUBECONFIG` via `/etc/environment`.
 - `deploy/k8s/vllm.yaml`: **generated** by `serving/profiles.py` for the default pair (qwen3-8b-awq, sliced) and kept equal
@@ -325,6 +325,16 @@ deadline), `VLLMPreempting`, `DoctorInconclusiveRateHigh` (over 20% in an hour),
 (critical). The node's Prometheus values embed the rules, and a test keeps the copy equal. `make alerts-test` runs
 promtool tests that check each rule fires on its condition and stays quiet below it.
 
+### C22 — Worker autoscaling 🟡 (`deploy/autoscale/keda-vllm.yaml`, D-49; rehearsed on kind, not yet on a GPU)
+A KEDA ScaledObject on `statefulset/vllm`, opt-in with `make autoscale` (`make autoscale-off` deletes it; `make scale`
+refuses while it exists). Between 1 and the topology's `max_replicas`. Workers wanted = ceil(demand / `GW_MAX_INFLIGHT`),
+where demand is the recording rule `doctor:vllm_demand_requests` (in flight plus queued, averaged over 2 minutes); a
+second trigger asks for one more worker on any capacity shed (`doctor:gateway_capacity_sheds_per_minute`; not
+`tenant_tokens`). Scale up after 60 s, scale down one worker per 5 minutes after 10 quiet minutes, never to zero. Both
+rules are promtool-tested, and a test keeps the shed signal equal to the gateway's capacity reasons. The
+`cluster-doctor cluster` dashboard shows the cluster, request outcomes and scaling (desired against ready workers,
+demand per worker, sheds, worker phase).
+
 ### Planned ⬜
 | Id | Component | Summary |
 |---|---|---|
@@ -357,7 +367,7 @@ promtool tests that check each rule fires on its condition and stays quiet below
 | Item | Value |
 |---|---|
 | Model / engine | A100: Qwen/Qwen3-8B-AWQ @ `4da05a8…` · H100/GH200: Qwen/Qwen3.8-27B-FP8 @ `017b9c7…` · vLLM `v0.29.0-cu129` @ `sha256:7ef5a35d…` (v0.30.0-cu129 crash-loops, F19) |
-| Gateway | `docker.io/cdugga/cluster-doctor-gateway` by digest (`deploy/k8s/gateway.yaml`) · Go 1.27.0 · promtool 3.14.0 for the alert tests · golangci-lint 2.14.0, gitleaks 8.30.1, govulncheck v1.8.0 (D-47) |
+| Gateway | `docker.io/cdugga/cluster-doctor-gateway` by digest (`deploy/k8s/gateway.yaml`) · Go 1.27.0 · promtool 3.14.0 for the alert tests · golangci-lint 2.14.0, gitleaks 8.30.1, govulncheck v1.8.0 (D-47) · KEDA chart 2.21.0 (D-49) |
 | Lab | kind v0.33.0 · kubectl v1.37.1 · node v1.36.4 · metrics-server v0.9.0 · cryptography 50.0.1 (lab only) |
 | Tokens (measured) | prefix 3,787 · card 112 · unique per task median: easy 2,459, multi-hop 3,570, red herring 4,768, rightsize 5,200, audits 7.7k–11.2k · max context 15.1k |
 | KV (measured) | 8B on an A100 slice: 79,056 tokens (paper 79,699) · Qwen3.8 on an H100 half: 51,092 (paper 77,926) · whole H100: 525,797 |
@@ -374,6 +384,7 @@ make preflight             # before paying for a GPU: lint, tests, gateway linux
 make lint test             # ruff + golangci-lint + Python tests over recorded snapshots + gateway vet/race tests + promtool alert tests
 make secrets / vulncheck   # gitleaks over the whole history / govulncheck on the gateway (network; weekly in CI)
 make report                # rebuild report/report.ipynb and design/figures/ from metrics/
+make autoscale             # on a node: KEDA scales the vLLM workers on gateway demand (D-49); autoscale-off to stop
 make fit-all / make matrix # every model × topology on paper; regenerate design/model-matrix.md
 uv run python -m doctor watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # autonomous mode, one cycle
 uv run python -m doctor investigate -n orders --snapshot crashloop   # needs a model at DOCTOR_BASE_URL
@@ -429,3 +440,4 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-06 | KV hop over MooncakeConnector (opt-in) with its security fixes; H100 boots HAMi-sliced; Makefile playbook; the H100 session (Qwen3.8 86.5%, routing A/B, the knee); findings F1–F30 | D-42 |
 | 2026-10-07 | Admission sized to KV; refusal retries; `client_gone`; same-node control (F36); five alerts with promtool tests; results notebook and figures | D-43 … D-46 |
 | 2026-10-07 | Code-quality gates: git hooks, golangci-lint on the gateway, gitleaks in hooks and CI, race tests, weekly govulncheck | D-47 |
+| 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |

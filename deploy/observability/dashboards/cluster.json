@@ -1,0 +1,550 @@
+{
+  "uid": "cd-cluster",
+  "title": "cluster-doctor cluster",
+  "tags": [
+    "final-project"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "panels": [
+    {
+      "type": "row",
+      "title": "Cluster: the node, its pods and its GPU",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Node ready",
+      "description": "kube-state-metrics: nodes reporting Ready. One Lambda node runs k3s, the workers, the gateway and monitoring.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+          "legendFormat": "ready nodes"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Pods by namespace and phase",
+      "description": "Every pod on the node. default holds vllm-* and the gateway; monitoring and keda the rest.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (namespace, phase) (kube_pod_status_phase{phase=~\"Running|Pending|Failed\"}) > 0",
+          "legendFormat": "{{namespace}} {{phase}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container restarts in the last hour",
+      "description": "A worker that restarts loses its prefix cache and its runs' stickiness (boot counter).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 14,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total[1h])) > 0",
+          "legendFormat": "{{namespace}}/{{pod}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Node CPU and memory used",
+      "description": "node-exporter. The workers are GPU-bound; high CPU here points at tokenisation or the gateway.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m]))",
+          "legendFormat": "CPU"
+        },
+        {
+          "refId": "B",
+          "expr": "1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)",
+          "legendFormat": "memory"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU memory used, card and per HAMi slice",
+      "description": "DCGM for the whole card; HAMi for each worker's slice against its limit.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE))",
+          "legendFormat": "card"
+        },
+        {
+          "refId": "B",
+          "expr": "vGPU_device_memory_usage_in_bytes / vGPU_device_memory_limit_in_bytes",
+          "legendFormat": "slice {{podname}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Outcomes: what happened to every request",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Request outcomes",
+      "description": "Every request the gateway saw, stacked: answered (by status), refused (by reason: 400s, quota 429s, capacity 503s) and client_gone. Run-level success, a correct diagnosis, is in the golden results (report \u00a72, \u00a75).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "stacking": {
+              "mode": "normal"
+            },
+            "fillOpacity": 60,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(orch_completed_total{status=\"200\"}[1m]))",
+          "legendFormat": "answered 200"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (status) (rate(orch_completed_total{status!=\"200\"}[1m]))",
+          "legendFormat": "answered {{status}}"
+        },
+        {
+          "refId": "C",
+          "expr": "sum by (reason) (rate(orch_shed_total[1m])) > 0",
+          "legendFormat": "refused {{reason}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Share answered with a 200",
+      "description": "Over 5 minutes. The doctor retries 429 and 503 (D-44), so a refusal here is not yet a failed run.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(orch_completed_total{status=\"200\"}[5m])) / clamp_min(sum(rate(orch_requests_total[5m])), 1e-9)",
+          "legendFormat": "answered 200"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Upstream errors by pod",
+      "description": "A worker that failed or broke the connection. A client that left is client_gone, not this (D-44).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pod, kind) (rate(orch_upstream_errors_total[1m])) > 0",
+          "legendFormat": "{{pod}} {{kind}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Scaling: the vLLM worker pool under KEDA (D-49)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "vLLM workers: wanted, ready and allowed",
+      "description": "KEDA's HPA desired count against the StatefulSet's ready pods. The gap between them is the minutes a new worker takes to load and warm up. Flat at the manual count when autoscaling is off.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 27
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(kube_statefulset_replicas{statefulset=\"vllm\"})",
+          "legendFormat": "StatefulSet replicas"
+        },
+        {
+          "refId": "B",
+          "expr": "max(kube_statefulset_status_replicas_ready{statefulset=\"vllm\"})",
+          "legendFormat": "ready"
+        },
+        {
+          "refId": "C",
+          "expr": "max(kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"keda-hpa-vllm\"})",
+          "legendFormat": "KEDA desired"
+        },
+        {
+          "refId": "D",
+          "expr": "max(kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler=\"keda-hpa-vllm\"})",
+          "legendFormat": "max (topology slots)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Demand per ready worker",
+      "description": "doctor:vllm_demand_requests: in flight plus queued. KEDA asks for ceil(demand / cap) workers, the cap being GW_MAX_INFLIGHT (4 on an H100 half). Above the cap means requests are waiting.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 27
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "doctor:vllm_demand_requests",
+          "legendFormat": "demand (requests)"
+        },
+        {
+          "refId": "B",
+          "expr": "doctor:vllm_demand_requests / clamp_min(max(kube_statefulset_status_replicas_ready{statefulset=\"vllm\"}), 1)",
+          "legendFormat": "per ready worker"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Capacity sheds per minute",
+      "description": "doctor:gateway_capacity_sheds_per_minute: refusals another worker would have prevented. KEDA's second trigger; a quota (tenant_tokens) does not count.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 27
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "doctor:gateway_capacity_sheds_per_minute",
+          "legendFormat": "capacity sheds / min"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker phase as the gateway sees it",
+      "description": "0 down, 1 warming, 2 ready. A new worker gets traffic only once ready (C13).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pod) (orch_replica_phase{phase=\"warming\"}) + 2 * sum by (pod) (orch_replica_phase{phase=\"ready\"})",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    }
+  ]
+}

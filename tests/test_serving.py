@@ -170,3 +170,34 @@ def test_cloud_init_embeds_the_alert_rules_verbatim():
     groups = rules[rules.index("groups:"):]
     boot = (ROOT / "deploy" / "cloud-init.yaml").read_text()
     assert "        alerting_rules.yml:\n" + textwrap.indent(groups, " " * 10).rstrip() + "\n" in boot
+
+
+def test_autoscaling_reads_the_tested_signals_and_scales_only_on_capacity():
+    """D-49: the ScaledObject queries recording rules that alerts.yaml defines (and promtool tests), the shed signal
+    names every capacity reason the gateway emits and not the tenant quota, and cloud-init installs a pinned KEDA."""
+    so = (ROOT / "deploy" / "autoscale" / "keda-vllm.yaml").read_text()
+    rules = (ROOT / "deploy" / "observability" / "alerts.yaml").read_text()
+    recorded = set(re.findall(r"record: (\S+)", rules))
+    queried = set(re.findall(r"doctor:[a-z_]+", so))
+    assert queried and queried <= recorded, queried - recorded
+    assert "__MAX_REPLICAS__" in so and "__WORKER_CAP__" in so
+    assert "kind: StatefulSet, name: vllm" in so and "minReplicaCount: 1" in so
+
+    gateway_reasons = set(re.findall(r'Reason\w* *= *"([a-z0-9_]+)"', "".join(
+        f.read_text() for f in (ROOT / "gateway" / "internal" / "decide").glob("*.go") if not f.name.endswith("_test.go"))))
+    shed_rule = re.search(r'gateway_capacity_sheds_per_minute\n\s+expr: .*reason=~"([^"]+)"', rules).group(1)
+    assert set(shed_rule.split("|")) == gateway_reasons - {"tenant_tokens"}, (shed_rule, gateway_reasons)
+
+    boot = (ROOT / "deploy" / "cloud-init.yaml").read_text()
+    assert re.search(r'KEDA_CHART_VERSION="\d+\.\d+\.\d+"', boot) and "kedacore/keda --version \"$KEDA_CHART_VERSION\"" in boot
+
+
+def test_cluster_dashboard_reads_only_exported_metrics_and_recorded_signals():
+    """The cluster dashboard (D-49) reads gateway metrics the gateway exports and scaling signals alerts.yaml records."""
+    dash = (ROOT / "deploy" / "observability" / "dashboards" / "cluster.json").read_text()
+    exported = set(re.findall(r'^\s+"(orch_[a-z_]+)",$', (ROOT / "gateway" / "internal" / "metrics" / "metrics.go").read_text(), re.M))
+    used = {re.sub(r"_(bucket|sum|count)$", "", m) for m in re.findall(r"orch_[a-z_]+", dash)}
+    assert used and used <= exported, used - exported
+    recorded = set(re.findall(r"record: (\S+)", (ROOT / "deploy" / "observability" / "alerts.yaml").read_text()))
+    assert set(re.findall(r"doctor:[a-z_]+", dash)) == recorded
+    assert json.loads(dash)["uid"] == "cd-cluster"

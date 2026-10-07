@@ -414,3 +414,31 @@ fake worker serving with no timeouts.
 gets wrong, and a secret is cheapest to stop before it is committed.
 **Revisit when:** the Python side needs the same push gate (ruff and pytest run in `make test` and CI today), or a
 lint rule's false positives outnumber its finds.
+
+### D-49 — KEDA scales the vLLM workers on the gateway's demand (2026-10-07)
+**Context:** the presentation asks which pool scales, and how. Until now the worker count was set by hand
+(`make scale N=2`). The measurements say what limits capacity: KV per worker (F6, F24). Admission is already sized to it
+(D-43), so a worker's in-flight cap is a known number, 4 on an H100 half.
+**Choice:**
+- **One pool, opt-in.** A KEDA ScaledObject on `statefulset/vllm` (`deploy/autoscale/keda-vllm.yaml`), applied by
+  `make autoscale`. It scales between 1 and the topology's `max_replicas`: 2 on one card's halves, so it can show the
+  mechanism but not a large range. KEDA 2.21.0 is installed idle at boot. `make scale` refuses while the ScaledObject
+  exists, so the two never fight.
+- **Scale on demand, sized by the admission cap.** Workers wanted = ceil(in-flight plus queued requests / the per-worker
+  cap), averaged over 2 minutes. A second trigger asks for one more worker on any capacity shed (`kv_free`, `queue_full`,
+  `timeout_queue`, `no_eligible_pod`, `p99_spread`). A tenant over its quota is not a capacity problem, so `tenant_tokens`
+  does not count. One formula sizes both admission and scaling.
+- **Signals as recording rules.** Both live in `deploy/observability/alerts.yaml` and have promtool tests, so the
+  numbers KEDA acts on are tested like the alerts. A test keeps the shed signal's reasons equal to the gateway's.
+- **Slow down, never to zero.** Scale up after 60 s, down one worker per 5 minutes after 10 quiet minutes. A new worker
+  loads the model and warms up for minutes before the gateway routes to it (C13), and an investigation is interactive.
+- **No gateway change.** The gateway already knows both worker addresses, treats a missing one as down and routes to it
+  only once it is warm.
+- **A dashboard for the walkthrough.** `cluster-doctor cluster` has the cluster, every request's outcome, and scaling
+  (desired against ready workers, demand per worker, sheds, worker phase).
+**Because:** KV per worker is the limit, so adding workers is the lever, and demand over the admission cap says how many
+are needed in the units the gateway already enforces. CPU or GPU utilisation would not: a decode-bound worker is busy at
+any load.
+**Revisit when:** a scale-down cuts off requests in flight on the removed worker (add a drain, a preStop that waits for
+the gateway to mark it down, test plan session 5 step 6), more than one card is available (then whole-card workers and
+a larger range), or the queue deadline is retuned (F36, then recheck the 2-minute window).

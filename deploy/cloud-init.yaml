@@ -25,6 +25,7 @@ write_files:
       PROMETHEUS_CHART_VERSION="29.33.0"    # prometheus-community/prometheus, app v3.14.0
       GRAFANA_CHART_VERSION="13.2.5"        # grafana-community/grafana (grafana/grafana chart is deprecated)
       OPENCOST_CHART_VERSION="2.5.32"       # opencost/opencost, app 1.121.3 (2026-09-21)
+      KEDA_CHART_VERSION="2.21.0"           # kedacore/keda, app 2.21.0 (2026-09-23); scales vLLM only after `make autoscale` (D-49)
       DCGM_IMAGE="nvcr.io/nvidia/k8s/dcgm-exporter:4.5.2-4.8.1-ubuntu22.04"
       VLLM_IMAGE="docker.io/vllm/vllm-openai:v0.29.0-cu129@sha256:7ef5a35d1ef8ce2cf9d671dd91eec6e367c5849262e0362b4d3d4a26be0d87d2"
       HF_CACHE="/opt/hf-cache"              # hostPath the vLLM pods mount read-only
@@ -111,6 +112,11 @@ write_files:
       sed "s|__DCGM_IMAGE__|$DCGM_IMAGE|" /opt/bootstrap/dcgm-exporter.yaml | kubectl apply -f -
       kubectl -n monitoring rollout status daemonset/dcgm-exporter --timeout=10m
 
+      step "KEDA $KEDA_CHART_VERSION (installed idle; make autoscale applies the ScaledObject)"
+      helm repo add kedacore https://kedacore.github.io/charts >/dev/null
+      helm upgrade --install keda kedacore/keda --version "$KEDA_CHART_VERSION" \
+        -n keda --create-namespace --wait --timeout 10m
+
       step "OpenCost $OPENCOST_CHART_VERSION (reads the in-cluster Prometheus; custom A100 pricing)"
       helm repo add opencost https://opencost.github.io/opencost-helm-chart >/dev/null
       helm upgrade --install opencost opencost/opencost --version "$OPENCOST_CHART_VERSION" \
@@ -136,7 +142,7 @@ write_files:
       drv = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"], capture_output=True, text=True).stdout.strip()
       json.dump({"k3s": "$K3S_VERSION", "helm": "$HELM_VERSION", "hami": "$HAMI_CHART_VERSION", "vllm_image": "$VLLM_IMAGE",
                  "prometheus_chart": "$PROMETHEUS_CHART_VERSION", "grafana_chart": "$GRAFANA_CHART_VERSION", "dcgm_image": "$DCGM_IMAGE",
-                 "opencost_chart": "$OPENCOST_CHART_VERSION",
+                 "opencost_chart": "$OPENCOST_CHART_VERSION", "keda_chart": "$KEDA_CHART_VERSION",
                  "gpu": "$GPU", "gpu_mib": $GPU_MIB, "arch": "$ARCH",
                  "model": "$MODEL", "revision": "$MODEL_REVISION", "next_model": "$NEXT_MODEL", "gpu_driver": drv}, open(sys.argv[1], "w"), indent=2)
       EOF
@@ -168,6 +174,16 @@ write_files:
       serverFiles:
         alerting_rules.yml:
           groups:
+            - name: cluster-doctor-scaling
+              rules:
+                # Requests that want a worker right now: in flight on one, or waiting in the gateway's queue for one.
+                # KEDA divides it by the per-worker in-flight cap (GW_MAX_INFLIGHT, D-43), so it reads as workers needed.
+                - record: doctor:vllm_demand_requests
+                  expr: (sum(orch_replica_active_requests) + sum(orch_replica_queue_depth)) or vector(0)
+                # Refusals that another worker would have prevented, per minute. tenant_tokens is a quota, not capacity.
+                - record: doctor:gateway_capacity_sheds_per_minute
+                  expr: (sum(rate(orch_shed_total{reason=~"kv_free|queue_full|timeout_queue|no_eligible_pod|p99_spread"}[2m])) * 60) or vector(0)
+
             - name: cluster-doctor-serving
               rules:
                 - alert: KVCacheSaturated
@@ -210,6 +226,7 @@ write_files:
                   annotations:
                     summary: "A restricted request was routed off the box"
                     action: "This breaks the data-class invariant. Stop overflow (unset the overflow backend) and audit the gateway's request log for class=restricted with overflow set."
+
       alertmanager: {enabled: false}
       prometheus-pushgateway: {enabled: false}
       kube-state-metrics: {enabled: true}

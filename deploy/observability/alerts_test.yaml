@@ -1,4 +1,5 @@
-# promtool unit tests for alerts.yaml: each alert fires on the condition it names and stays quiet just below it.
+# promtool unit tests for alerts.yaml: each alert fires on the condition it names and stays quiet just below it, and
+# each scaling signal (D-49) reads what KEDA expects.
 #   make alerts-test     (promtool test rules deploy/observability/alerts_test.yaml)
 rule_files: [alerts.yaml]
 evaluation_interval: 1m
@@ -121,3 +122,46 @@ tests:
             exp_annotations:
               summary: "A restricted request was routed off the box"
               action: "This breaks the data-class invariant. Stop overflow (unset the overflow backend) and audit the gateway's request log for class=restricted with overflow set."
+
+  - name: Demand counts in-flight and queued requests across workers; an idle gateway is 0, not absent
+    interval: 1m
+    input_series:
+      - series: 'orch_replica_active_requests{pod="vllm-0"}'
+        values: "0 4 4"
+      - series: 'orch_replica_queue_depth{pod="vllm-0"}'
+        values: "0 3 3"
+      - series: 'orch_replica_active_requests{pod="vllm-1"}'
+        values: "0 0 0"
+      - series: 'orch_replica_queue_depth{pod="vllm-1"}'
+        values: "0 0 0"
+    promql_expr_test:
+      - expr: doctor:vllm_demand_requests
+        eval_time: 0m
+        exp_samples: [{labels: 'doctor:vllm_demand_requests', value: 0}]
+      - expr: doctor:vllm_demand_requests
+        eval_time: 2m
+        exp_samples: [{labels: 'doctor:vllm_demand_requests', value: 7}]
+
+  - name: Capacity sheds count per minute; tenant quota refusals do not; no sheds at all is 0
+    interval: 1m
+    input_series:
+      - series: 'orch_shed_total{reason="timeout_queue",code="503"}'
+        values: "0+2x10"
+      - series: 'orch_shed_total{reason="kv_free",code="503"}'
+        values: "0+1x10"
+      - series: 'orch_shed_total{reason="tenant_tokens",code="429"}'
+        values: "0+50x10"
+    promql_expr_test:
+      - expr: doctor:gateway_capacity_sheds_per_minute
+        eval_time: 8m
+        exp_samples: [{labels: 'doctor:gateway_capacity_sheds_per_minute', value: 3}]
+
+  - name: A gateway that has never shed reads 0
+    interval: 1m
+    input_series:
+      - series: 'orch_replica_active_requests{pod="vllm-0"}'
+        values: "1x5"
+    promql_expr_test:
+      - expr: doctor:gateway_capacity_sheds_per_minute
+        eval_time: 4m
+        exp_samples: [{labels: 'doctor:gateway_capacity_sheds_per_minute', value: 0}]

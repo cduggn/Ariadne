@@ -126,6 +126,35 @@ promtool tests check that each rule fires on its condition and stays quiet just 
 
 ---
 
+## Scaling: which pool, on what signal
+
+- The vLLM worker pool is the only pool, and KV per worker is the limit (F6, F24).
+- KEDA scales `statefulset/vllm` from 1 to 2 workers, the two halves of one H100 (D-49).
+- Workers wanted = ⌈(in flight + queued) ÷ the per-worker cap of 4⌉, the same cap admission uses (D-43).
+- A second trigger adds a worker on any capacity shed. A tenant over quota doesn't count.
+- It scales up after a minute and down after 10 quiet minutes, never to zero, because a new worker takes minutes to load.
+
+Both signals are recording rules with promtool tests. Rehearsed on kind (F38); measured on the H100 in session 5.
+
+---
+
+## The dashboards, in walkthrough order
+
+| Topic | Dashboard and panel |
+|---|---|
+| Cluster | `cluster-doctor cluster`: node, pods, restarts, CPU, GPU memory per slice |
+| Success and failures | `cluster-doctor cluster`: request outcomes, share answered, upstream errors |
+| Admission | `cluster-doctor gateway`: admitted vs shed by reason |
+| Router | `cluster-doctor gateway`: placement per pod, stickiness, prompt tokens by kind |
+| Queue depth | `cluster-doctor gateway`: in flight and queued per pod, queue wait |
+| vLLM | `vLLM engine + GPU`: KV, preemptions, prefix hits, TTFT, batching |
+| Mooncake KV | `cluster-doctor gateway`: KV hops by result, hop latency |
+| Replicas and KEDA | `cluster-doctor cluster`: wanted vs ready workers, demand per worker, sheds, phase |
+
+The code behind each one is in `design/walkthrough.md`.
+
+---
+
 ## At 10× traffic
 
 - Add workers, not bigger slices. KV per worker is the limit.

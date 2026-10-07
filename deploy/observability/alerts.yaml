@@ -8,7 +8,20 @@
 #   inconclusive 20%       about twice Qwen3.8's measured rate on the golden set (findings F3)
 #   preemptions            any sustained eviction inside vLLM means admission let in more than KV holds (F25, F36)
 #   restricted off-box     the invariant: must never happen
+#
+# The scaling group holds the two signals KEDA scales the vLLM workers on (D-49, deploy/k8s/keda-vllm.yaml). They are
+# recording rules here, not raw queries in the ScaledObject, so promtool tests them like the alerts.
 groups:
+  - name: cluster-doctor-scaling
+    rules:
+      # Requests that want a worker right now: in flight on one, or waiting in the gateway's queue for one.
+      # KEDA divides it by the per-worker in-flight cap (GW_MAX_INFLIGHT, D-43), so it reads as workers needed.
+      - record: doctor:vllm_demand_requests
+        expr: (sum(orch_replica_active_requests) + sum(orch_replica_queue_depth)) or vector(0)
+      # Refusals that another worker would have prevented, per minute. tenant_tokens is a quota, not capacity.
+      - record: doctor:gateway_capacity_sheds_per_minute
+        expr: (sum(rate(orch_shed_total{reason=~"kv_free|queue_full|timeout_queue|no_eligible_pod|p99_spread"}[2m])) * 60) or vector(0)
+
   - name: cluster-doctor-serving
     rules:
       - alert: KVCacheSaturated

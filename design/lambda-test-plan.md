@@ -164,3 +164,33 @@ If something goes wrong:
   read `kubectl logs deploy/gateway` for the warm-up probe result.
 - Many 429s: the tenant quota scales with the worker count (`gateway/internal/fleet/gate.go`); `kubectl logs deploy/gateway`
   prints one line per request with its pod, sticky outcome and refusal reason.
+
+## Session 5: autoscaling with KEDA, and the dashboards walkthrough (D-49)
+This session shows the worker pool scaling on its own and fills every dashboard the presentation walks through. Allow
+about 1.5 hours of H100 time. It starts with **one** worker, so it does not use `make bringup` (which scales to the
+topology's two). Rehearsed on kind on 2026-10-07 with a fake gateway (findings F38), so the open questions are the real
+timings and what a scale-down does to requests in flight.
+
+| # | Command | What it proves |
+|---|---|---|
+| 0 | `make preflight` | Lint, tests, the promtool tests of the scaling rules, the fit gate |
+| 1 | `make up` | An H100 (`TOPO=h100-half`, two worker slots) with KEDA installed idle: `kubectl -n keda get pods` all Running, `keda_chart` in `.cache/ready.json` |
+| 2 | `make deploy && make kv && make gateway && make dashboards` | One Qwen3.8 worker, its measured KV pool, the gateway with `max_inflight` 4, and all three dashboards |
+| 3 | `make tunnel` (terminal 2), `make grafana` (terminal 3) | `cluster-doctor cluster`: the Cluster row shows one node Ready and the pods, Outcomes is empty, Scaling shows 1 ready of 2 allowed |
+| 4 | `make autoscale` | `kubectl get scaledobject vllm` READY True; `kubectl get hpa keda-hpa-vllm` TARGETS `0/4 (avg), 0/1 (avg)` |
+| 5 | `make golden TAG=as-up WORKERS=1 CONC=8 REPEAT=2` | Demand passes 4 and KEDA asks for 2 workers. Record four times: demand above 4, KEDA desired 2, `vllm-1` Running, `vllm-1` Ready in the gateway (`curl -s localhost:8000/debug/workers`). Expect the first two about 2 minutes apart (as on kind) and the load to take several more |
+| 6 | Keep `make golden TAG=as-down WORKERS=1 CONC=1 REPEAT=1` running and wait | Demand falls under 4; after 10 quiet minutes KEDA removes `vllm-1`. Check the Outcomes panel and `orch_upstream_errors_total` for requests cut off on `vllm-1` as it stops: the open risk of this design |
+| 7 | `make metrics TAG=autoscale` | The gateway and pod scrapes, including `orch_replica_phase` and the sheds |
+| 8 | `make autoscale-off && make scale N=2` | Back to a fixed two workers for the remaining experiments: the tuned cap (backlog, F36) and the KV hop check (F35) |
+| 9 | commit `metrics/` and screenshots, then `make down` | Billing stops |
+
+For the presentation, take a screenshot of each dashboard while step 5 runs: `cluster-doctor cluster` (Cluster,
+Outcomes, Scaling), `cluster-doctor gateway` (sheds by reason, placement and stickiness, queue depth by pod, KV hops) and
+`vLLM engine + GPU`. The node's Prometheus keeps nothing after `make down`.
+
+If something goes wrong:
+- The ScaledObject is not READY: `kubectl describe scaledobject vllm` names the failing trigger; check
+  `http://prometheus-server.monitoring.svc.cluster.local:80` from inside the cluster and that `doctor:vllm_demand_requests`
+  returns a value on `make prom`.
+- `make scale` refuses: KEDA owns the replica count until `make autoscale-off`.
+- `make deploy` resets the StatefulSet to 1 replica; under KEDA the HPA puts it back within a minute.
