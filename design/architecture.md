@@ -16,18 +16,22 @@ flowchart LR
         obs["Prometheus · Grafana · DCGM<br/>OpenCost · 5 alert rules"]
     end
 
-    k8s[("Kubernetes API<br/>read-only, no Secrets")]
+    target[("<b>cluster under diagnosis</b><br/>kind lab, or any cluster<br/>given by --context")]
 
     doctor -- "chat completions + headers<br/>(run id, tenant, priority, data class)" --> gw
     evals -. "same client" .-> gw
     gw -- "sticky placement<br/>(prefix_then_load)" --> v0
     gw --> v1
     v0 -. "KV hop, opt-in<br/>(Mooncake)" .- v1
-    doctor -- "get · list · logs" --> k8s
+    doctor -- "get · logs · top<br/>read-only RBAC, no Secrets" --> target
     obs -. scrapes .-> gw
     obs -. scrapes .-> v0
     obs -. scrapes .-> v1
 ```
+
+The cluster under diagnosis is separate from the serving stack. The doctor reads whatever cluster its kubeconfig
+context names: the kind lab for the recorded faults, or the GPU node's own k3s for the live-only ones. It never
+writes to it.
 
 **One request's path.** The doctor makes 5–16 chained calls per run, each carrying `X-Request-Id`
 (task-run-step), `X-Tenant`, `X-Priority` (interactive or batch) and `X-Data-Class: restricted`. The gateway

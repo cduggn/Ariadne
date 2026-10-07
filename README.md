@@ -28,21 +28,35 @@ rebuilds them (`make report`) and [`design/findings.md`](design/findings.md) giv
 
 ```mermaid
 flowchart LR
-    doctor["<b>cluster doctor</b><br/>agent over read-only tools"]
-    k8s[("Kubernetes API<br/>read-only")]
-    subgraph node["GPU node · k3s · HAMi"]
-        gw["<b>gateway</b> (Go)<br/>guard → admit → place → queue"]
-        v0["vLLM worker 0"]
-        v1["vLLM worker 1"]
-        obs["Prometheus · Grafana<br/>DCGM · alerts"]
+    subgraph laptop["Laptop or CI"]
+        doctor["<b>cluster doctor</b><br/>agent: LangGraph over read-only tools<br/>watch · investigate · audit · rightsize"]
+        evals["golden set<br/>26 recorded faults, v1 + v2 scores"]
     end
-    doctor -- "5–16 chained calls per run" --> gw
-    doctor -- "get · list · logs" --> k8s
-    gw -- "keeps a run on its worker" --> v0
+
+    subgraph node["Lambda GPU node · k3s · HAMi"]
+        gw["<b>gateway</b> (Go)<br/>guard → admit → place → queue<br/>warm-up · stay or leave · orch_* metrics"]
+        subgraph gpu["one GPU, HAMi slices"]
+            v0["vllm-0"]
+            v1["vllm-1"]
+        end
+        obs["Prometheus · Grafana · DCGM<br/>OpenCost · 5 alert rules"]
+    end
+
+    target[("<b>cluster under diagnosis</b><br/>kind lab, or any cluster<br/>given by --context")]
+
+    doctor -- "chat completions + headers<br/>(run id, tenant, priority, data class)" --> gw
+    evals -. "same client" .-> gw
+    gw -- "sticky placement<br/>(prefix_then_load)" --> v0
     gw --> v1
-    v0 -. "KV hop (opt-in)" .- v1
+    v0 -. "KV hop, opt-in<br/>(Mooncake)" .- v1
+    doctor -- "get · logs · top<br/>read-only RBAC, no Secrets" --> target
     obs -. scrapes .-> gw
+    obs -. scrapes .-> v0
+    obs -. scrapes .-> v1
 ```
+
+The doctor runs anywhere and reads the cluster it diagnoses with read-only permissions. That cluster is separate
+from the GPU node that serves the model.
 
 1. A scan that calls no model finds changed symptoms. The **agent** then investigates with read-only tools. It may cite
    only evidence it was shown, or it answers `inconclusive`.
