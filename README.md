@@ -84,7 +84,7 @@ Every golden row is scored twice (D-41). v1 is the original score. v2 differs in
 The full test plan is in [`design/lambda-test-plan.md`](design/lambda-test-plan.md). The node is billed
 from `make up` to `make down`.
 
-`make up` takes the first of GH200, H100 and A100 with capacity in any region (`TYPES=…` to choose). One cloud-init
+`make up` takes the first with capacity in any region of H100 PCIe, H100 SXM5, GH200 and A100 (`TYPES=…` to choose). One cloud-init
 serves every GPU: it reads the hardware, fetches that GPU's boot model and starts the next one in the background.
 `make up` then writes `.cache/node.env` (GPU, model, topology, hop), so the commands below need no flags; anything on
 the make line overrides it.

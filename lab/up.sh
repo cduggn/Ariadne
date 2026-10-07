@@ -12,7 +12,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${NAME:-cluster-doctor}
-TYPES=${TYPES:-gpu_1x_gh200 gpu_1x_h100_pcie gpu_1x_a100_sxm4}
+TYPES=${TYPES:-gpu_1x_h100_pcie gpu_1x_h100_sxm5 gpu_1x_gh200 gpu_1x_a100_sxm4}
 RETRY=${RETRY:-30}
 PREFER=$(lam config 2>/dev/null | awk '$1 == "LAM_REGION:" {print $2}')
 
