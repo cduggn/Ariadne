@@ -79,7 +79,7 @@ Each row is the newest full-set run for that model, topology and worker count. v
 
 | Model | Topology | Workers | Tasks × repeat | v2 pass [95 % CI] | v1 pass | easy | multi-hop | red-herring | rightsizing | Root found | Category | Mechanism | Abstained / failed closed | Steps / task | Step p50 / p95 s | Cached share | Correct / GPU-hour | Concurrency | Run |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| qwen3.8-27b-fp8 | h100-half | 2 | 26 × 2 | 88% [77%–95%] | 77% | 93% | 79% | 88% | 100% | 90% | 88% | 90% | 0 / 5 | 8.46 | 3.098 / 25.145 | 86% | 211 | 4 | gw-38-ll 20261006-140918 00fab90 |
+| qwen3.8-27b-fp8 | h100-half | 2 | 26 × 2 | 88% [77%–95%] | 79% | 93% | 86% | 75% | 100% | 88% | 88% | 88% | 0 / 4 | 9.29 | 1.927 / 15.749 | 89% | 309 | 4 | gw-38-kv 20261007-153043 d27f078 |
 | qwen3-30b-a3b-2507-awq | full | 1 | 26 × 2 | 67% [54%–78%] | 65% | 75% | 50% | 75% | 50% | 77% | 73% | 77% | 0 / 1 | 9.73 | 0.444 / 2.502 | 97% | 326 | 1 | 30b-smoke 20260928-164635 8c0ebec |
 | qwen3-8b-awq | sliced | 1 | 26 × 2 | 52% [39%–65%] | 44% | 68% | 43% | 25% | 0% | 62% | 62% | 58% | 0 / 4 | 10.98 | 0.436 / 6.481 | 95% | 267 | 1 | baseline 20260928-161531 8c0ebec |
 | qwen3-8b-awq | sliced | 2 | 26 × 2 | 48% [35%–61%] | 42% | 61% | 43% | 25% | 0% | 60% | 58% | 54% | 0 / 4 | 10.85 | 1.064 / 14.648 | 95% | 270 | 8 | gw-ptl 20261004-162326 900642d |
@@ -88,7 +88,7 @@ Each row is the newest full-set run for that model, topology and worker count. v
 
 Models are ranked by v2 pass rate, then by correct diagnoses per GPU-hour. Quality is compared on the full-GPU topology, because slicing changes capacity and latency but not the answers. The chosen model then serves the slicing, routing and KV-hop demonstration on the sliced topology.
 
-1. **qwen3.8-27b-fp8** on h100-half × 2: v2 88% [77%–95%], 211 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
+1. **qwen3.8-27b-fp8** on h100-half × 2: v2 88% [77%–95%], 309 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
 2. **qwen3-30b-a3b-2507-awq** on full × 1: v2 67% [54%–78%], 326 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
 3. **qwen3-8b-awq** on sliced × 1: v2 52% [39%–65%], 267 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
 4. **qwen3-8b-awq** on sliced × 2: v2 48% [35%–61%], 270 correct diagnoses per GPU-hour
@@ -103,6 +103,9 @@ Models are ranked by v2 pass rate, then by correct diagnoses per GPU-hour. Quali
 
 | When | Tag | Model | Topology | Tasks (unique) | Repeat | v1 | v2 | Stops | Commit | Note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 20261007-153043 | gw-38-kv | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 41/52 | 46/52 | submitted 47, inconclusive 4, step_cap 1 | d27f078 | full set |
+| 20261007-151406 | sweep-qwen3.8-27b-fp8-c32 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 13/26 | 14/26 | http_503 8, submitted 14, inconclusive 4 | d27f078 | full set |
+| 20261007-151105 | sweep-qwen3.8-27b-fp8-c16 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 16/26 | 18/26 | http_503 4, submitted 18, inconclusive 4 | d27f078 | full set |
 | 20261006-140918 | gw-38-ll | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 40/52 | 46/52 | submitted 47, inconclusive 5 | 00fab90 | full set |
 | 20261006-135709 | sweep-qwen3.8-27b-fp8-c32 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 8/26 | 10/26 | submitted 11, http_503 14, inconclusive 1 | 963e5fb | full set |
 | 20261006-135533 | sweep-qwen3.8-27b-fp8-c16 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 11/26 | 13/26 | http_503 13, submitted 13 | 963e5fb | full set |

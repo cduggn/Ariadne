@@ -144,6 +144,45 @@ concurrency 4. (measured)
   none with `length`. The ~40 s end-to-end spike seen on vllm-1 (F13) was a long answer that still fit under the cap.
   (measured: `finish_reasons` in `metrics/golden-gw-38-*20261006*.jsonl`)
 
+## 4d. KV-sized admission, re-run (10-07)
+
+Qwen3.8-27B-FP8 on two H100 halves, now with D-43 (gateway in-flight cap 4 per worker, from the measured pool) and
+D-44 (refused steps retried after `Retry-After`, up to ~15 s). **The node was an H100 SXM5** ("H100 80GB HBM3"), about
+1.7× the memory bandwidth of the 10-06 PCIe node, so every latency and part of the load result below is confounded
+with the hardware.
+
+| | 10-06: cap 16, no retries, PCIe | 10-07: cap 4, retries, SXM5 |
+|---|---|---|
+| c=16 v2 pass [95% CI] | 50.0% [32.1–67.9] | 69.2% [50.0–83.5] |
+| c=32 v2 pass [95% CI] | 38.5% [22.4–57.5] | 53.8% [35.5–71.2] |
+| Runs that waited out a refusal (c=16 / c=32) | — | 10 / 13 |
+| Refusals by reason (c=16 / c=32) | `kv_free` 13 / 14 (each ended a run) | `timeout_queue` 42 / 83, `kv_free` 4 / 0 |
+| vLLM preemptions, both workers, after c=32 | 6 | 3 |
+| Golden at c=4 (×2): v2 pass, step p50 / p95 | 86.5%, 2.9 s / 24.2 s | 88.5%, 1.9 s / 15.7 s |
+
+Evidence: `metrics/golden-sweep-qwen3.8-27b-fp8-c{16,32}-20261007-*.summary.json`,
+`metrics/golden-gw-38-kv-20261007-153043.*`, `metrics/{gateway,vllm-0,vllm-1}-sweep-c{16,32}-20261007-151105.prom`,
+`.cache/ready.json` for the GPU. The gateway log confirmed `"max_inflight":4`. (measured)
+
+- **F31. Pass rates held up better under load, with the cause not separable from the faster GPU.** Each interval still
+  overlaps its 10-06 counterpart. A same-node control (the old cap of 16 on the SXM5) is needed to attribute the gain
+  to D-43 and D-44. (measured; attribution open)
+- **F32. Overload moved from inside vLLM to the gateway's queue.** Refusals are now almost all `timeout_queue` (a
+  request waited in the gateway's queue past its deadline) instead of `kv_free`, and 10–13 runs per level waited out a
+  refusal and finished. That is the intended shape: waiting in priority order at the gateway rather than being
+  preempted in the engine. (measured)
+- **F33. Preemptions halved but did not reach 0** (3 against 6, all on vllm-1). This is D-43's revisit trigger: the
+  continuing-run exemption (down to 5% free KV) still lets a run's next step in when its worker is nearly full.
+  (measured; the cause is the likely explanation, unverified)
+- **F34. At 32 concurrent runs, ~15 s of retries is shorter than the queue's wait.** The runs that still failed (4 at
+  c=16, 8 at c=32) ran out of retries while requests timed out in the queue. Longer retries or a longer queue deadline
+  would trade more latency for more completed runs. (measured)
+- **F35. The KV hop fired on real hardware without being forced:** 8 hops completed the Mooncake protocol (the source
+  held the KV, the destination was told to pull it), 0 failed, and 26 moves were below the 8,192-token threshold.
+  Whether the destination actually pulled the KV rather than recomputing is unconfirmed: vLLM 0.29 exposes no KV-transfer
+  metric, and the forced-hop run failed because the tunnel was down after the gateway restarted. (measured protocol;
+  the transfer itself unverified)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
@@ -163,6 +202,8 @@ concurrency 4. (measured)
 
 ## Still to measure
 
-- With D-43 and D-44 deployed: concurrency 16 and 32 again, against F24's table (backlog).
+- A same-node control for F31: the old cap (`GW_MAX_INFLIGHT=16`) on the same GPU type, concurrency 16 and 32.
+- Whether a hop's destination really pulls the KV: its `cached_tokens` on the hopped step (gateway log `hop`, the
+  step's `cached_tokens`), since vLLM 0.29 has no transfer metric.
 - Time series (KV usage, power, placement over time) were not kept on 10-06: the node's Prometheus keeps nothing after
   `make down`. Build `make export` before the next session so they are saved as data.
