@@ -1,4 +1,4 @@
-"""cluster-doctor on the command line: diagnose a live cluster (read-only) or a recorded fault snapshot.
+"""Ariadne on the command line: diagnose a live cluster (read-only) or a recorded fault snapshot.
 
     uv run python -m doctor investigate -n inventory "stock-api keeps restarting"
     uv run python -m doctor audit -n orders,pricing,finance --context lambda
@@ -211,7 +211,7 @@ def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -
     st_err, st_out = Style(_color(err)), Style(_color(out) and not a.json)
 
     def fail(code: int, msg: str) -> int:
-        print(st_err(f"cluster-doctor: {msg}", "31"), file=err)
+        print(st_err(f"ariadne: {msg}", "31"), file=err)
         return code
 
     try:
@@ -238,7 +238,7 @@ def main(argv: list[str] | None = None, *, llm=None, stdout=None, stderr=None) -
     task = {"id": f"cli-{a.mode}", "task_type": a.mode, "namespaces": namespaces, "report": a.report or report,
             "max_steps": a.max_steps or max_steps, "tenant": a.tenant}
     if not a.quiet:
-        print(st_err(f"cluster-doctor · {a.mode} · {', '.join(namespaces)} · {where} · {a.model} at {a.base_url}", "1"), file=err)
+        print(st_err(f"ariadne · {a.mode} · {', '.join(namespaces)} · {where} · {a.model} at {a.base_url}", "1"), file=err)
     t0 = time.perf_counter()
     try:
         run = run_task(task, backend, llm or build_llm(a.base_url, a.model, client=client), cluster=cluster,

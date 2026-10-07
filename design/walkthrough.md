@@ -2,7 +2,7 @@
 
 The brief asks for a walk through the code, the reasons behind each choice, and a short tour of the Grafana dashboards
 in this order. Each section names the code to open, the choice and why, the panel to show, and the evidence. Grafana
-has three dashboards: `cluster-doctor cluster`, `cluster-doctor gateway` and `vLLM engine + GPU`.
+has three dashboards: `Ariadne · cluster`, `Ariadne · gateway` and `Ariadne · vLLM engine + GPU`.
 
 ## 1. Cluster
 
@@ -13,7 +13,7 @@ capacity, and one cloud-init detects the card and picks the model (`deploy/servi
 **Why.** The brief's app is one team's diagnosis tool, so one node with the GPU split into two workers gives routing
 and admission something to decide without a second card. Cluster data is restricted, so the model runs on our own GPU.
 
-**Dashboard.** `cluster-doctor cluster`, row *Cluster*: node Ready, pods by namespace and phase, restarts in the last
+**Dashboard.** `Ariadne · cluster`, row *Cluster*: node Ready, pods by namespace and phase, restarts in the last
 hour, node CPU and memory, GPU memory for the card and each HAMi slice.
 
 ## 2. Success and failures
@@ -26,7 +26,7 @@ and finish reason) or refused (`orch_shed_total` by reason). A client that leave
 **Why.** "Did the request work" and "did the diagnosis work" are different questions. The dashboard answers the first;
 the golden set answers the second (report §2, §5).
 
-**Dashboard.** `cluster-doctor cluster`, row *Outcomes*: every request stacked by outcome, the share answered with a
+**Dashboard.** `Ariadne · cluster`, row *Outcomes*: every request stacked by outcome, the share answered with a
 200, upstream errors by pod.
 
 **Evidence.** Qwen3.8 diagnosed 86.5% of 26 faults (F1). Under load, refusals rather than wrong answers caused the
@@ -43,7 +43,7 @@ pure functions, tested without a network.
 **Why.** The client only understands 429 and 503, so the gateway is the one place that can decide who gets in and say
 why. The in-flight cap per worker comes from the measured KV pool, `serving/fit.py:111` (D-43): 4 on an H100 half.
 
-**Dashboard.** `cluster-doctor gateway`, row *Admission*: requests by priority, admitted against shed by reason.
+**Dashboard.** `Ariadne · gateway`, row *Admission*: requests by priority, admitted against shed by reason.
 
 **Evidence.** Up to 16 concurrent runs the `kv_free` shed kept vLLM from preempting (F25). Sized to KV, overload moved
 into the gateway's queue as `timeout_queue` (F32), with ~95% fewer preemptions but fewer completed runs (F36).
@@ -56,7 +56,7 @@ history unless that worker is more than 0.25 load units busier. `least_loaded` a
 **Why.** Each agent step resends the whole conversation, so the worker that served the last step already has all but
 the newest few hundred tokens cached. Sending the run back there saves prefill.
 
-**Dashboard.** `cluster-doctor gateway`: *Placement: pod A vs pod B*, *Stickiness outcomes*, and *Prompt tokens:
+**Dashboard.** `Ariadne · gateway`: *Placement: pod A vs pod B*, *Stickiness outcomes*, and *Prompt tokens:
 shared prefix vs run history vs uncached*.
 
 **Evidence.** The A/B: without stickiness, vLLM recomputed 10% more prompt tokens and steps were 8–11% slower, with the
@@ -71,7 +71,7 @@ waits.
 **Why.** Queueing at the gateway, in priority order, is cheaper than letting vLLM preempt: a preempted request
 recomputes its prompt.
 
-**Dashboard.** `cluster-doctor gateway`, *In flight and queued per pod* and *Queue wait p50/p95*. The vLLM dashboard's
+**Dashboard.** `Ariadne · gateway`, *In flight and queued per pod* and *Queue wait p50/p95*. The vLLM dashboard's
 *Requests running vs waiting* shows the engine side, which should stay near 0 waiting.
 
 ## 6. vLLM
@@ -82,7 +82,7 @@ halves. A worker takes traffic only after two warm-up probes replay the doctor's
 
 **Why.** The settings follow the workload: long shared prompts that grow by a few hundred tokens per step.
 
-**Dashboard.** `vLLM engine + GPU`: KV usage, preemptions, prefix hit rate, TTFT and inter-token latency, tokens per
+**Dashboard.** `Ariadne · vLLM engine + GPU`: KV usage, preemptions, prefix hit rate, TTFT and inter-token latency, tokens per
 engine step, prefill against decode time, GPU power.
 
 **Evidence.** 88% of prompt tokens came from the cache (F9). KV runs out first: about two full-length runs per H100 half
@@ -98,7 +98,7 @@ client-supplied `kv_transfer_params`.
 **Why.** When the router has to move a run, the destination recomputes the run's history. With long histories the copy
 is cheaper. With today's short ones it rarely is, so the threshold keeps most moves as recomputes.
 
-**Dashboard.** `cluster-doctor gateway`, *KV hops by result* and the hop latency p95. It has data only with `HOP=1`.
+**Dashboard.** `Ariadne · gateway`, *KV hops by result* and the hop latency p95. It has data only with `HOP=1`.
 
 **Evidence.** 8 hops completed the protocol on an H100 with none failed. Nobody has yet confirmed that the destination
 pulled the KV rather than recomputing it (F35).
@@ -118,7 +118,7 @@ A new worker loads the model and warms up for minutes, so scaling follows sustai
 of demand and down only after 10 quiet minutes, never to zero. The gateway needs no change: it already knows both
 worker addresses and routes to a worker only once it is warm.
 
-**Dashboard.** `cluster-doctor cluster`, row *Scaling*: KEDA's desired workers against ready ones, demand per ready
+**Dashboard.** `Ariadne · cluster`, row *Scaling*: KEDA's desired workers against ready ones, demand per ready
 worker, capacity sheds per minute, and each worker's phase (down, warming, ready).
 
 **Evidence.** Rehearsed on kind with a fake gateway (F38). Session 5 of `design/lambda-test-plan.md` measures it on the

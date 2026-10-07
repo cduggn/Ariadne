@@ -3,7 +3,7 @@ marp: true
 paginate: true
 ---
 
-# Cluster doctor
+# Ariadne
 
 A read-only root-cause detector for Kubernetes, served on self-hosted GPUs
 
@@ -26,7 +26,7 @@ Each run makes 5 to 16 chained model calls. Investigations are interactive; audi
 
 ```mermaid
 flowchart LR
-    doctor["cluster doctor<br/>agent over read-only tools"]
+    doctor["Ariadne<br/>agent over read-only tools"]
     k8s[("Kubernetes API")]
     subgraph node["GPU node · k3s · HAMi"]
         gw["gateway (Go)<br/>guard → admit → place → queue"]
@@ -142,14 +142,14 @@ Both signals are recording rules with promtool tests. Rehearsed on kind (F38); m
 
 | Topic | Dashboard and panel |
 |---|---|
-| Cluster | `cluster-doctor cluster`: node, pods, restarts, CPU, GPU memory per slice |
-| Success and failures | `cluster-doctor cluster`: request outcomes, share answered, upstream errors |
-| Admission | `cluster-doctor gateway`: admitted vs shed by reason |
-| Router | `cluster-doctor gateway`: placement per pod, stickiness, prompt tokens by kind |
-| Queue depth | `cluster-doctor gateway`: in flight and queued per pod, queue wait |
-| vLLM | `vLLM engine + GPU`: KV, preemptions, prefix hits, TTFT, batching |
-| Mooncake KV | `cluster-doctor gateway`: KV hops by result, hop latency |
-| Replicas and KEDA | `cluster-doctor cluster`: wanted vs ready workers, demand per worker, sheds, phase |
+| Cluster | `Ariadne · cluster`: node, pods, restarts, CPU, GPU memory per slice |
+| Success and failures | `Ariadne · cluster`: request outcomes, share answered, upstream errors |
+| Admission | `Ariadne · gateway`: admitted vs shed by reason |
+| Router | `Ariadne · gateway`: placement per pod, stickiness, prompt tokens by kind |
+| Queue depth | `Ariadne · gateway`: in flight and queued per pod, queue wait |
+| vLLM | `Ariadne · vLLM engine + GPU`: KV, preemptions, prefix hits, TTFT, batching |
+| Mooncake KV | `Ariadne · gateway`: KV hops by result, hop latency |
+| Replicas and KEDA | `Ariadne · cluster`: wanted vs ready workers, demand per worker, sheds, phase |
 
 The code behind each one is in `design/walkthrough.md`.
 

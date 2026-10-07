@@ -1,4 +1,4 @@
-# SPEC — cluster-doctor
+# SPEC: Ariadne
 
 Living specification of what the system **is**, precise enough to maintain it or re-implement it in
 another language without reading the history.
@@ -18,7 +18,7 @@ the capacity file. Schemas in `doctor/schemas/` are the contracts: link them, ne
 ---
 
 ## 1. Purpose, scope, non-goals
-**Purpose.** A read-only Kubernetes "cluster doctor". Given a user's report about a namespace
+**Purpose.** Ariadne is a read-only Kubernetes "cluster doctor" (the code calls it `doctor`). Given a user's report about a namespace
 (*investigate*), several namespaces (*audit*) or a cost question (*rightsize*), a tool-using LLM agent
 gathers evidence, follows the causal chain from symptom to root cause, and returns a grounded diagnosis:
 one finding per root cause, with the victims it affects, cited evidence and a suggested fix it never
@@ -308,7 +308,7 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
 - **KV hop** (`hop`, opt-in, `HOP=1`). When the gateway moves a run off a worker that holds its history, it copies the
   KV over vLLM's MooncakeConnector if the history is long enough and the copy is cheaper than the prefill. Transfer ids
   are random, at most `GW_HOP_MAX_INFLIGHT` hops run at once, and any failure falls back to recomputing.
-- **Telemetry.** `orch_*` metrics, the `cluster-doctor gateway` dashboard (contract-tested) and one log line per
+- **Telemetry.** `orch_*` metrics, the `Ariadne · gateway` dashboard (contract-tested) and one log line per
   request. A client that leaves is `client_gone`, not a 502 (D-44).
 - **Delivery.** `docker.io/cdugga/cluster-doctor-gateway`, public, amd64 + arm64, pinned by digest in
   `deploy/k8s/gateway.yaml` (`make gateway-image`); one replica, because the run table lives in memory.
@@ -334,7 +334,7 @@ where demand is the recording rule `doctor:vllm_demand_requests` (in flight plus
 second trigger asks for one more worker on any capacity shed (`doctor:gateway_capacity_sheds_per_minute`; not
 `tenant_tokens`). Scale up after 60 s, scale down one worker per 5 minutes after 10 quiet minutes, never to zero. Both
 rules are promtool-tested, and a test keeps the shed signal equal to the gateway's capacity reasons. The
-`cluster-doctor cluster` dashboard shows the cluster, request outcomes and scaling (desired against ready workers,
+`Ariadne · cluster` dashboard shows the cluster, request outcomes and scaling (desired against ready workers,
 demand per worker, sheds, worker phase).
 
 ### Planned ⬜
@@ -444,4 +444,5 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-07 | Admission sized to KV; refusal retries; `client_gone`; same-node control (F36); five alerts with promtool tests; results notebook and figures | D-43 … D-46 |
 | 2026-10-07 | Code-quality gates: git hooks, golangci-lint on the gateway, gitleaks in hooks and CI, race tests, weekly govulncheck | D-47 |
 | 2026-10-07 | Part 5 evidence: time-series export, queue probes (big prompt, client gone, worker return), notebook section 10 | D-48 |
+| 2026-10-07 | The product is named Ariadne; README rebuilt around the inference stack; identifiers unchanged | D-50 |
 | 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |

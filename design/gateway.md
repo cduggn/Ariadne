@@ -6,7 +6,7 @@ contributed several ideas.
 
 ## Problem
 
-cluster-doctor makes 5 to 16 chained, non-streaming chat completions per run. Each call extends a prompt whose
+Ariadne's agent makes 5 to 16 chained, non-streaming chat completions per run. Each call extends a prompt whose
 history is cached only on the worker that served the previous step. That caching was worth 95% of prompt tokens
 on one worker. The gateway has to do five things:
 - make the four ordered decisions (guard, admit, place, queue);

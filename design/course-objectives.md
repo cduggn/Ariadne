@@ -1,4 +1,4 @@
-# Course objectives: how the cluster doctor answers the final-project brief
+# Course objectives: how Ariadne answers the final-project brief
 
 The brief is "Design the cluster and serve an app" (AI Inference Engineering & Systems Design). At office hours on
 2026-09-27 the course said grading rewards instrumentation and explanation under stress more than app polish. The
@@ -11,7 +11,7 @@ Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not bu
 
 | Part | What the brief asks | How this project answers | Evidence | Status |
 |---|---|---|---|---|
-| 0 App | Track A or B; app-shaped traffic | Track B: a read-only cluster doctor. Investigations are interactive; audits and right-sizing are batch. Faults are tiered so the model's value over rules is measurable (D-31) | `doctor/`, `faults/`, golden set (26 tasks) | ✅ |
+| 0 App | Track A or B; app-shaped traffic | Track B: Ariadne, a read-only cluster doctor. Investigations are interactive; audits and right-sizing are batch. Faults are tiered so the model's value over rules is measurable (D-31) | `doctor/`, `faults/`, golden set (26 tasks) | ✅ |
 | 1 Capacity on paper | max sequences at max length and at app length; bytes per token; first limiter | `serving/fit.py` for every model × topology; vLLM's measured pool beside it. KV binds first: two full-length runs per H100 half | F5, F6; report §3; `design/model-matrix.md` | ✅ |
 | 2 Cluster design | GPU, model, topology, concurrency, hop backend, overflow target, scaling pool | H100 halves (or A100 slices) under HAMi, Qwen3.8-27B-FP8 (86.5% v2), the in-flight cap sized to KV, an opt-in Mooncake KV hop, overflow decided but no backend (Superlinked blocked on billing), scale by adding workers | `design/architecture.md`; D-40, D-42, D-43; F1, F22 | ✅ (overflow backend ⬜) |
 | 3 Guard, admit, stay vs leave | `inspect`, `should_shed`; 429/500/slice_oom stay, 503/529 may leave | The gateway's `decide` package: guard 400, tenant 429, KV / deadline / spread 503; only a 503 may leave and a restricted request never does (fuzz test) | `gateway/internal/decide`; F24, F32; report §6 | ✅ |

@@ -21,9 +21,9 @@ OUT = ROOT / "report" / "report.ipynb"
 md, code = nbformat.v4.new_markdown_cell, nbformat.v4.new_code_cell
 
 CELLS = [
-    md("""# Cluster doctor: results
+    md("""# Ariadne: results
 
-What the cluster doctor's serving stack measured on Lambda GPUs between 2026-09-27 and 2026-10-07, answering the
+What Ariadne's serving stack measured on Lambda GPUs between 2026-09-27 and 2026-10-07, answering the
 brief's questions. Every number comes from a committed file in `metrics/` (loaded by `report/results.py`), so
 `make report` rebuilds this notebook and its charts from the repo. Each section cites the findings it rests on
 (`design/findings.md`, F-numbers) and the decisions behind it (`design/decisions.md`, D-numbers).

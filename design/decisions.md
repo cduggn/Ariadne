@@ -467,3 +467,16 @@ any load.
 **Revisit when:** a scale-down cuts off requests in flight on the removed worker (add a drain, a preStop that waits for
 the gateway to mark it down, test plan session 5 step 6), more than one card is available (then whole-card workers and
 a larger range), or the queue deadline is retuned (F36, then recheck the 2-minute window).
+
+### D-50 — The product is named Ariadne; identifiers keep cluster-doctor (2026-10-07)
+**Context:** "cluster doctor" described the agent but not the project, whose subject is the inference stack. The repo
+was about to go public, and the presentation needed one name for the whole system.
+**Choice:** the product is Ariadne: the README, SPEC title, slides, walkthrough, notebook title, CLI banner and Grafana
+dashboard titles. Identifiers keep `cluster-doctor` and `doctor`: the Python package and `python -m doctor`, the
+`doctor_*` metrics, Kubernetes resource names, the gateway image, the Lambda instance name, the GitHub repo, the
+`X-App: cluster-doctor` header and the model's system prompt ("You are a Kubernetes cluster doctor").
+**Because:** the header and the prompt are part of the wire format the measured results ran against (INV-1, INV-14),
+and renaming the image, metrics or resources would break the pinned digest, the dashboards' queries and the saved
+scrapes for no gain to a reader. Dashboard uids are unchanged, so links keep working.
+**Revisit when:** the GitHub repo is renamed (then update the badge, module path and image together), or a fresh model
+run happens anyway (then the prompt can say Ariadne at no cost to comparability).

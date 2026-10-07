@@ -3,7 +3,7 @@
 ```mermaid
 flowchart LR
     subgraph laptop["Laptop or CI"]
-        doctor["<b>cluster doctor</b><br/>agent: LangGraph over read-only tools<br/>watch · investigate · audit · rightsize"]
+        doctor["<b>Ariadne</b><br/>agent: LangGraph over read-only tools<br/>watch · investigate · audit · rightsize"]
         evals["golden set<br/>26 recorded faults, v1 + v2 scores"]
     end
 

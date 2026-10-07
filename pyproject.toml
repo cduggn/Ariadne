@@ -1,7 +1,7 @@
 [project]
 name = "cluster-doctor"
 version = "0.1.0"
-description = "Read-only Kubernetes cluster doctor served by self-hosted vLLM (course final project)"
+description = "Ariadne: a read-only Kubernetes cluster doctor served by self-hosted vLLM (course final project)"
 requires-python = ">=3.11"
 dependencies = [              # D-33: LangGraph orchestrates, LangChain supplies the tool and chat abstractions. Pinned exactly.
   "langgraph==1.2.12",
