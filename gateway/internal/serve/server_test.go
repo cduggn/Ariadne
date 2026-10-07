@@ -507,10 +507,14 @@ func TestReadyzAndDebugEndpoints(t *testing.T) {
 		t.Errorf("unknown pod metrics = %d, want 404", got)
 	}
 
+	// /readyz needs one warm worker, so the second may still be warming here; wait for both before asserting on them.
 	var workers []debugWorker
-	if err := json.Unmarshal(h.get("/debug/workers").body, &workers); err != nil {
-		t.Fatalf("/debug/workers is not JSON: %v", err)
-	}
+	eventually(t, "both workers ready", func() bool {
+		if err := json.Unmarshal(h.get("/debug/workers").body, &workers); err != nil {
+			t.Fatalf("/debug/workers is not JSON: %v", err)
+		}
+		return len(workers) == 2 && workers[0].Phase == "ready" && workers[1].Phase == "ready"
+	})
 	if len(workers) != 2 || workers[0].Pod != "vllm-0" || workers[1].Pod != "vllm-1" {
 		t.Fatalf("/debug/workers = %+v, want vllm-0 and vllm-1", workers)
 	}
