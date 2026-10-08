@@ -97,6 +97,17 @@ def test_refusal_retries_can_be_turned_off(tasks, monkeypatch):
     assert run["stop"] == "http_503" and len(s.requests) == 1
 
 
+def test_a_step_whose_worker_went_away_is_retried(tasks, no_refusal_waits):
+    t = tasks["dx-oom"]
+    s = Server(("list_problem_pods", {"namespace": "orders"}), refuse=2, refuse_status=502, reason="upstream_error")
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(s))
+    first = run["steps"][0]
+    assert first.get("http_status") is None and first["prompt_tokens"] is not None
+    assert [(r["http_status"], r["reason"]) for r in first["refusals"]] == [(502, "upstream_error")] * 2
+    run = agent.run_task(t, backend_for(t["snapshots"]), llm_for(Server(status=502, reason="bad_gateway")))
+    assert run["stop"] == "http_502" and run["steps"][0]["refusals"] == []     # only the gateway's upstream_error
+
+
 def test_a_server_error_is_not_retried(tasks):
     t = tasks["dx-oom"]
     s = Server(status=500)

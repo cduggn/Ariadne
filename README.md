@@ -95,7 +95,7 @@ that: keep a run on the worker that holds its history, and protect KV before any
 | Where does it break? | Between 8 and 16 concurrent runs. 88.5% of runs pass at 8 and 50% at 16. Re-run on 2026-10-08 with 52 runs per level: 82.7% at 8, 63.5% at 16, 23.1% at 32. | F24, F40 |
 | Shed at the door, or preempt in the engine? | Sizing admission to the measured KV pool cut vLLM preemptions by ~95% and tail latency by ~15%, but finished fewer runs at 16 and 32. The cap needs tuning to 6–8. | F36 |
 | Who waits where under mixed load? | The gateway's queue, in priority order. Across the 10-08 sweep vLLM's own queue never held more than 2, with 8 preemptions in all. A 10.5k-token batch prompt left the agents' inter-token latency p95 at 49 ms. | F41, F42 |
-| What happens when a worker dies? | The other worker took every placement. The deleted worker was ready again 5 min 37 s later. Two runs failed on a 502, because the doctor retries only 429 and 503. | F44 |
+| What happens when a worker dies? | The other worker took every placement. The deleted worker was ready again 5 min 37 s later. Two runs failed on a 502. The doctor now retries that 502 like a refusal. | F44, D-44 |
 | Does restricted data stay on the box? | Yes. `orch_restricted_offbox_total` is 0 in all 13 gateway scrapes, backed by a fuzz test and a critical alert. | D-42, D-45 |
 | Does the KV hop work? | 53 hops completed the Mooncake protocol with 0 failures (8 on 10-07, 45 on 10-08). Whether the KV moved instead of being recomputed is unconfirmed. | F35, F45 |
 | Does KEDA scale the workers? | Yes, a minute after a capacity shed. A new worker then takes 8 min 21 s to load, so it waits 15 quiet minutes before removing one. | F39, D-51 |

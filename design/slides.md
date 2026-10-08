@@ -111,7 +111,7 @@ Only a 503 may leave the box, and a restricted request never does. 0 left (fuzz 
 - The overload waits in the gateway's queue, in priority order. vLLM's own queue held at most 2, with 8 preemptions in
   a whole sweep (F41).
 - A 10.5k-token batch prompt left the agents' inter-token latency p95 at 49 ms (F42).
-- A deleted worker was back in 5 min 37 s. Its two in-flight runs failed on a 502 (F44).
+- A deleted worker was back in 5 min 37 s. Its two in-flight runs failed on a 502, which the doctor now retries (F44).
 - vLLM's abort counter didn't move when clients left, so freeing their KV is unconfirmed (F43).
 
 ---

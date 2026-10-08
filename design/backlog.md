@@ -13,9 +13,6 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   8B cited 9–11 and failed closed after two repairs (24 times in the 8B baseline; the 2026-10-04 smoke run found the
   right root cause and still scored 0). On the last repair, keep the first 8 refs instead. About 30 min. It changes
   the scores, so re-run the golden set afterwards.
-- [ ] **Retry a step that failed on a worker that went away.** When the probe deleted `vllm-1` under load, two runs ended
-  on an HTTP 502 on each GPU (findings F44), because the doctor retries only 429 and 503. Either the gateway re-places
-  a request whose worker vanished before it answered, or the doctor retries a 502 once. About 30 min, plus a test.
 
 ## Gateway
 - [ ] **Tune the KV-sized cap (D-43, findings F36).** Cap 4 kept vLLM healthy but finished fewer runs than cap 16 at 16

@@ -289,8 +289,8 @@ and the time series in `metrics/ts-q1-h100-20261008-131201.json` and `metrics/ts
   warm-up probes took 2 s, and the warm-up TTFT the gateway re-quotes fell from 63 ms to 56 ms (observed). That is 2 min
   44 s faster than the KEDA scale-up (F39), likely because the restarted pod reused the node's cached weights and
   compile cache (unverified). `vllm-0` took every placement while it was gone, peaking at about 1.7 a second. On both
-  GPUs two runs ended on an HTTP 502, likely the steps in flight on the deleted worker. The doctor retries a 503 but not
-  a 502, so each one cost a run. The golden run had ended before the worker returned, so no traffic reached it
+  GPUs two runs ended on an HTTP 502, likely the steps in flight on the deleted worker. The doctor retried a 503 but not
+  a 502, so each one cost a run. It now retries a 502 `upstream_error` too (D-44, amended 10-08). The golden run had ended before the worker returned, so no traffic reached it
   afterwards, and the ramp after a return is still unmeasured. (measured times; the 502s' cause unverified)
 - **F45. The KV hop fired 45 times on the H100, with none failed.** From the golden run to the end of the sweep, 68
   more moves were below the 8,192-token threshold. The destination's pull is still unconfirmed (F35). (measured

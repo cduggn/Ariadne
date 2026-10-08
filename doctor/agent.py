@@ -6,7 +6,7 @@
 Graph (state = messages + counters + diagnosis; backend, task and model travel in the run config):
 
       START ──► agent ──(model error)──────────────────────────────► END   stop = http_<code> | transport_error | bad_response
-                  │  (a gateway refusal, 429/503, is retried after Retry-After up to REFUSAL_RETRIES times first, D-44)
+                  │  (a gateway 429/503, or a 502 upstream_error, is retried up to REFUSAL_RETRIES times first, D-44)
                   │
                   ▼
                  act ──(diagnosis accepted / failed closed)────────► END   stop = submitted | abstained | inconclusive
@@ -67,7 +67,10 @@ MAX_REPAIRS = 2
 # Retry-After. The step waits max(Retry-After, 1, 2, 4, 8 s) and asks again, up to REFUSAL_RETRIES times (about 15 s at
 # most), so a run waits out a load spike instead of failing. The step records every refusal, so retries never hide
 # one. DOCTOR_REFUSAL_RETRIES=0 restores failing on the first refusal.
+# A 502 `upstream_error` gets the same retries: the step's worker went away mid-request (F44), and the ~15 s outlast the
+# gateway marking it down (12 s on the H100), so a retry lands on a live worker. Any other 5xx still ends the run.
 REFUSAL_STATUSES = (429, 503)
+WORKER_LOST = (502, "upstream_error")
 REFUSAL_RETRIES = int(os.environ.get("DOCTOR_REFUSAL_RETRIES", "4"))
 REFUSAL_WAIT_MAX_S = 8.0
 WARN_STEPS_LEFT = 2
@@ -205,6 +208,10 @@ def refusal_of(e: openai.APIStatusError) -> dict:
     return {"http_status": e.status_code, "reason": reason, "retry_after_s": retry_after}
 
 
+def retryable(refusal: dict) -> bool:
+    return refusal["http_status"] in REFUSAL_STATUSES or (refusal["http_status"], refusal["reason"]) == WORKER_LOST
+
+
 def refusal_wait(refusal: dict, attempt: int) -> float:
     """Seconds to wait before retry `attempt` (0-based). The larger of the gateway's Retry-After and an exponential
     floor, capped at REFUSAL_WAIT_MAX_S."""
@@ -225,13 +232,13 @@ def agent_node(state: State, config) -> dict:
                 msg = c["llm"].invoke(state["messages"])
                 break
             except openai.APIStatusError as e:
-                if e.status_code not in REFUSAL_STATUSES or len(refusals) >= REFUSAL_RETRIES:
-                    if e.status_code in REFUSAL_STATUSES:
-                        refusals.append(refusal_of(e))
+                r = refusal_of(e)
+                if not retryable(r) or len(refusals) >= REFUSAL_RETRIES:
+                    if retryable(r):
+                        refusals.append(r)
                     return {"n": n, "stop": f"http_{e.status_code}",
                             "steps": [{"step": n, "request_id": rid, "http_status": e.status_code, "refusals": refusals,
                                        "latency_s": round(time.perf_counter() - t0, 3)}]}
-                r = refusal_of(e)
                 r["waited_s"] = refusal_wait(r, len(refusals))
                 refusals.append(r)
                 _sleep(r["waited_s"])

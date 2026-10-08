@@ -357,6 +357,10 @@ worker faults (F28).
 load spike, and the results keep the refusal visible instead of hiding it or turning it into a lost run.
 **Revisit when:** waits of ~15 s are too long for interactive use (lower the retries for interactive priority), or a
 refusal storm suggests retries are amplifying load (add jitter or a per-tenant retry budget).
+**Amended 2026-10-08:** a 502 `upstream_error` gets the same retries. When the probe deleted a worker, two runs per GPU
+ended on that 502 (F44). The gateway took 12 s to mark the worker down, and the ~15 s of retries outlast that, so the
+retried step lands on a live worker. The gateway still doesn't retry or re-place a request itself (`design/gateway.md`).
+Any other 5xx still ends the run.
 
 ### D-45 — Five production alerts, thresholds from the system, tested with promtool (2026-10-07)
 **Context:** the brief asks for production alerts, and the measurements give each one a reason. KV is the first

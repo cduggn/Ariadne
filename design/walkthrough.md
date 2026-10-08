@@ -25,7 +25,8 @@ was down (F44). The restarts panel shows fractions and the per-slice memory has 
 **Code.** `gateway/internal/metrics/metrics.go` records each request once, as answered (`orch_completed_total` by status
 and finish reason) or refused (`orch_shed_total` by reason). A client that leaves is `client_gone`, not a worker error
 (`gateway/internal/serve/server.go:154`, D-44). The doctor retries a 429 or 503 after `Retry-After`
-(`doctor/agent.py:206`), so a refusal is not yet a failed run.
+(`doctor/agent.py:211`), so a refusal is not yet a failed run. Since 10-08 it also retries a 502 `upstream_error`,
+which means the step's worker went away.
 
 **Why.** "Did the request work" and "did the diagnosis work" are different questions. The dashboard answers the first;
 the golden set answers the second (report §2, §5).
@@ -35,7 +36,8 @@ the golden set answers the second (report §2, §5).
 
 **Evidence.** Qwen3.8 diagnosed 86.5% of 26 faults (F1), and 86.5% again on 10-08 (F40). Under load, refusals rather
 than wrong answers caused the failures (F27, F36). At 32 concurrent runs only 23.1% finished, after 253 refusals
-(F40). A deleted worker cost two runs on an HTTP 502, which the doctor doesn't retry (F44).
+(F40). A deleted worker cost two runs on an HTTP 502. The doctor now retries a 502 `upstream_error` the way it retries a
+refusal (F44, D-44).
 
 ## 3. Gateway and admission: sheds by reason
 

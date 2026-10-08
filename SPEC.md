@@ -430,7 +430,6 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
    has confirmed a real pull (F35, F45). HAMi slicing on GH200 is untested.
 10. vLLM's abort counter stayed 0 when clients left mid-request, so nobody has confirmed that a departed client's KV is
     freed (F43). The gateway has no `client_gone` metric.
-11. A worker that disappears mid-request fails the run on a 502, because the doctor retries only 429 and 503 (F44).
 
 ## 9. Change log
 | Date | Change | Decisions |
@@ -451,4 +450,5 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-07 | Part 5 evidence: time-series export, queue probes (big prompt, client gone, worker return), notebook section 10 | D-48 |
 | 2026-10-07 | The product is named Ariadne; README rebuilt around the inference stack; identifiers unchanged | D-50 |
 | 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |
+| 2026-10-08 | The doctor retries a 502 `upstream_error` like a refusal, so a worker that disappears mid-step no longer ends the run (F44) | D-44 |
 | 2026-10-08 | Part 5 sessions on the A100 (Qwen3-8B) and H100 (Qwen3.8): full sweep at 52 runs per level, probes, time series; findings F40–F47; notebook section 10 plots fixed (pod list, merged restart series, axes) | D-48 |

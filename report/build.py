@@ -515,7 +515,8 @@ bounded by the in-flight cap and spread by load-aware placement (D-48). The char
 placements per worker and each worker's phase around the deleted worker's return.
 
 On the H100 the deleted worker was ready again 5 min 37 s later, after 2 s of warm-up. The other worker took every
-placement in the meantime. Two runs ended on a 502, likely the steps in flight on the deleted worker. The background
+placement in the meantime. Two runs ended on a 502, likely the steps in flight on the deleted worker. The doctor now
+retries that 502 (D-44). The background
 run ended before the worker came back, so the chart shows no traffic reaching it afterwards (F44)."""),
     code('''plot("worker_return", "Latency, placement and phase around the deleted worker's return",
      [("end-to-end latency, p99, all workers", "seconds", [("p99", BLUE, *x[2:]) for x in lines("gw_e2e_p99")]),
