@@ -5,7 +5,7 @@
       └── KubectlBackend    a live cluster through `kubectl -o json` (kind, k3s, EKS alike) plus
                             optional Prometheus / OpenCost / AWS readers
 
-Tools (doctor/tools.py) turn raw data into small, referenced, redacted results. Because both backends
+Tools (agent/tools.py) turn raw data into small, referenced, redacted results. Because both backends
 return the same raw shapes, one set of tool code serves both, and a fixture exercises exactly the
 code path a live cluster does.
 

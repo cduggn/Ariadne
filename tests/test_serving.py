@@ -4,7 +4,7 @@ import re
 
 import httpx
 
-from doctor import agent
+from agent import agent
 from evals.build_golden import backend_for
 from serving import fit, matrix, profiles, warmup
 from tests.mockllm import Server

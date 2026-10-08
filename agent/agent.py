@@ -18,7 +18,7 @@ Graph (state = messages + counters + diagnosis; backend, task and model travel i
          user = task · then assistant tool calls and tool results.
   act    executes every tool call through LangChain StructuredTools, behind the harness guards (exact-repeat
          refusal, per-tool budgets × namespaces, submit-now nudge). It records every result the model receives in the
-         observation ledger and validates `submit_diagnosis` against it (expect-blind, doctor/validate.py, D-41). The
+         observation ledger and validates `submit_diagnosis` against it (expect-blind, agent/validate.py, D-41). The
          model gets up to 2 repairs, then the run fails closed to `inconclusive` (D-24). A model that submits
          `inconclusive` itself has abstained.
 

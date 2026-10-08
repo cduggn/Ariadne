@@ -4,8 +4,8 @@ import json
 import urllib.request
 from pathlib import Path
 
-from doctor import cli, watch
-from doctor.cli import open_source
+from agent import cli, watch
+from agent.cli import open_source
 from tests.mockllm import Server, llm_for, reference_script
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -1,7 +1,7 @@
 """The answer key is ground truth, so it is tested against known-good and deliberately wrong diagnoses, per tier."""
 import copy
 
-from doctor.validate import validate
+from agent.validate import validate
 from evals.build_golden import backend_for
 from evals.checker import check
 

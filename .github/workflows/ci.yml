@@ -15,7 +15,7 @@ jobs:
         with: {fetch-depth: 0}   # gitleaks scans every commit
       - run: bash lab/get-tools.sh gitleaks && make secrets   # pinned gitleaks, .gitleaks.toml (D-47)
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      - run: uvx -q ruff@0.13.2 check doctor evals lab serving tests report
+      - run: uvx -q ruff@0.13.2 check agent evals lab serving tests report
       - run: uv sync --locked --python 3.12
       - run: uv run python -m evals.build_golden && git diff --exit-code evals/golden    # references pass v1 and v2 and are up to date
       - run: uv run python -m serving.matrix && git diff --exit-code design/model-matrix.md   # the matrix matches deploy/ and metrics/

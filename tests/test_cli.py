@@ -5,7 +5,7 @@ import os
 import stat
 import sys
 
-from doctor import agent, cli
+from agent import agent, cli
 from evals.build_golden import backend_for
 from tests.mockllm import Server, llm_for, reference_script
 

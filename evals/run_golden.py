@@ -29,7 +29,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from doctor.agent import build_llm, load_profile, run_task  # noqa: E402
+from agent.agent import build_llm, load_profile, run_task  # noqa: E402
 from evals.build_golden import backend_for  # noqa: E402
 from evals.checker import PARTS, check, check_v2  # noqa: E402
 from serving.profiles import load_serving  # noqa: E402

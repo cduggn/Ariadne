@@ -2,7 +2,7 @@
 server (httpx MockTransport). Proves the wire format too: tools.json verbatim, prompt order, headers."""
 import json
 
-from doctor import agent
+from agent import agent
 from evals.build_golden import backend_for
 from evals.checker import check, check_v2
 from tests.mockllm import Server, llm_for, reference_script

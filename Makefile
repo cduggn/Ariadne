@@ -151,7 +151,7 @@ alerts-test: .bin/promtool
 	bash lab/get-tools.sh promtool
 
 lint: go-lint
-	$(RUFF) check doctor evals lab serving tests report
+	$(RUFF) check agent evals lab serving tests report
 
 # Code-quality gates (D-47). The hooks call the same tools; CI runs them too, so --no-verify only delays a failure.
 GOVULNCHECK_VERSION = v1.8.0
@@ -343,7 +343,7 @@ record-live:
 
 watch:
 	@mkdir -p metrics
-	$(KENV) DOCTOR_KUBECTL=$(KUBECTL) uv run -q python -m doctor watch --context $(CTX) --base-url $(BASE) --profile $(MODEL) \
+	$(KENV) DOCTOR_KUBECTL=$(KUBECTL) uv run -q python -m agent watch --context $(CTX) --base-url $(BASE) --profile $(MODEL) \
 	  --exclude $(WATCH_EXCLUDE) --out metrics/watch-$(STAMP).jsonl $(WATCH_ARGS)
 
 watch-metrics:

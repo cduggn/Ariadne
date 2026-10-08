@@ -4,8 +4,8 @@ uncertainty pushed toward "healthy"."""
 import copy
 import json
 
-from doctor import agent
-from doctor.validate import new_ledger, observe, validate
+from agent import agent
+from agent.validate import new_ledger, observe, validate
 from evals.build_golden import backend_for, replay
 from evals.checker import check, check_v2
 from tests.mockllm import TRAJECTORIES, Server, llm_for, reference_script

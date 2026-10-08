@@ -27,8 +27,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from doctor.backends import KINDS, KubectlBackend  # noqa: E402
-from doctor.redact import redact  # noqa: E402
+from agent.backends import KINDS, KubectlBackend  # noqa: E402
+from agent.redact import redact  # noqa: E402
 
 FAULTS = ROOT / "faults"
 OUT = ROOT / "fixtures"

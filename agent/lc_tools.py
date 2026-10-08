@@ -2,7 +2,7 @@
 
 `tools.json` stays the single source of truth for what the model sees: each StructuredTool is built from
 its entry (name, description, JSON-schema arguments) and executes the matching function in
-`doctor/tools.py` against a Backend. The model is bound to the raw `tools.json` dicts (byte-identical,
+`agent/tools.py` against a Backend. The model is bound to the raw `tools.json` dicts (byte-identical,
 tested), so LangChain never rewrites a schema and grammar-constrained decoding keeps every enum/pattern.
 
     tools = make_tools(backend)            # {name: StructuredTool}

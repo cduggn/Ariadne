@@ -1,10 +1,10 @@
 """Ariadne on the command line: diagnose a live cluster (read-only) or a recorded fault snapshot.
 
-    uv run python -m doctor investigate -n inventory "stock-api keeps restarting"
-    uv run python -m doctor audit -n orders,pricing,finance --context lambda
-    uv run python -m doctor rightsize -n analytics
-    uv run python -m doctor investigate -n orders --snapshot crashloop       # recorded fault, no cluster needed
-    uv run python -m doctor watch --context lambda                            # autonomous: detect, then diagnose (doctor/watch.py)
+    uv run python -m agent investigate -n inventory "stock-api keeps restarting"
+    uv run python -m agent audit -n orders,pricing,finance --context lambda
+    uv run python -m agent rightsize -n analytics
+    uv run python -m agent investigate -n orders --snapshot crashloop       # recorded fault, no cluster needed
+    uv run python -m agent watch --context lambda                            # autonomous: detect, then diagnose (agent/watch.py)
 
 The model comes from --base-url / DOCTOR_BASE_URL (default http://127.0.0.1:8000/v1, the `make tunnel` port) and
 --model / DOCTOR_MODEL; the API key comes only from VLLM_API_KEY. Live reads go through kubectl with
@@ -148,9 +148,9 @@ def exit_code(run: dict) -> int:
 # ---- entry point ------------------------------------------------------------------------------
 
 def parse(argv: list[str] | None) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(prog="python -m doctor", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(prog="python -m agent", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("mode", choices=sorted(MODES), help="investigate a report, audit namespaces, or find over-provisioned "
-                    "workloads; `watch` (see `python -m doctor watch --help`) runs autonomously")
+                    "workloads; `watch` (see `python -m agent watch --help`) runs autonomously")
     ap.add_argument("report", nargs="?", help="what the user sees (optional; each mode has a default)")
     ap.add_argument("-n", "--namespaces", required=True, help="comma-separated namespaces to examine")
     src = ap.add_mutually_exclusive_group()

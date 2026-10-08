@@ -27,9 +27,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from doctor import tools as T  # noqa: E402
-from doctor.backends import SnapshotBackend  # noqa: E402
-from doctor.validate import new_ledger, observe  # noqa: E402
+from agent import tools as T  # noqa: E402
+from agent.backends import SnapshotBackend  # noqa: E402
+from agent.validate import new_ledger, observe  # noqa: E402
 from evals.checker import check, check_v2  # noqa: E402
 
 GOLDEN = ROOT / "evals" / "golden"

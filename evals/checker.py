@@ -4,7 +4,7 @@
     check_v2(task, diagnosis, backend, observed=…, calls=…)     -> {"pass", "failed", "advisory", "parts", …}   corrected (v2)
 
 v1 rules (D-28, D-31), kept unchanged for continuity with earlier runs:
-  grounded        everything `doctor.validate` checks, with evidence against every ref the tools COULD return
+  grounded        everything `agent.validate` checks, with evidence against every ref the tools COULD return
   status          issue vs healthy is right
   found:<root>    a finding names the ROOT object (or an accepted alternative, or a pod/ReplicaSet it owns)
   category:<root> with an allowed category
@@ -30,10 +30,10 @@ from __future__ import annotations
 
 import re
 
-from doctor import tools as T
-from doctor.backends import Backend
-from doctor.quantity import cpu_m, mem_mi
-from doctor.validate import validate
+from agent import tools as T
+from agent.backends import Backend
+from agent.quantity import cpu_m, mem_mi
+from agent.validate import validate
 
 PARTS = ("submitted", "grounded", "status", "root", "category", "mechanism", "chain", "no_false_positive")
 

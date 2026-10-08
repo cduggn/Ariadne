@@ -102,7 +102,7 @@ Down-to-Up transition, the worker's own goroutine replays the doctor's recorded 
 `max_completion_tokens: 1`. Two consecutive probes must come back under 1 s; a cold probe takes about 4.5 s. Probe
 times go to `orch_warmup_probe_seconds{pod}`, which is the re-quoted TTFT the brief asks for. A restart is detected
 as a Down period followed by recovery, not by `process_start_time_seconds`, which vLLM may not export. A restart
-also drops that worker's run bindings. `python -m doctor.warmup` writes the recorded body, so the warm-up prefix is
+also drops that worker's run bindings. `python -m serving.warmup` writes the recorded body, so the warm-up prefix is
 byte-identical to live traffic.
 
 **Quota.** A fixed tenant set. Unknown tenants share one bucket, so a client can't mint fresh bursts by rotating

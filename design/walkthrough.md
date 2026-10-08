@@ -25,7 +25,7 @@ was down (F44). The restarts panel shows fractions and the per-slice memory has 
 **Code.** `gateway/internal/metrics/metrics.go` records each request once, as answered (`orch_completed_total` by status
 and finish reason) or refused (`orch_shed_total` by reason). A client that leaves is `client_gone`, not a worker error
 (`gateway/internal/serve/server.go:154`, D-44). The doctor retries a 429 or 503 after `Retry-After`
-(`doctor/agent.py:211`), so a refusal is not yet a failed run. Since 10-08 it also retries a 502 `upstream_error`,
+(`agent/agent.py:211`), so a refusal is not yet a failed run. Since 10-08 it also retries a 502 `upstream_error`,
 which means the step's worker went away.
 
 **Why.** "Did the request work" and "did the diagnosis work" are different questions. The dashboard answers the first;

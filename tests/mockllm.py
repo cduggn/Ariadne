@@ -4,7 +4,7 @@ from pathlib import Path
 
 import httpx
 
-from doctor import agent
+from agent import agent
 
 TRAJECTORIES = json.loads((Path(__file__).resolve().parents[1] / "evals/golden/reference_trajectories.json").read_text())
 

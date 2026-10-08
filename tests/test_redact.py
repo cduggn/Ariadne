@@ -1,4 +1,4 @@
-from doctor.redact import MASK, redact
+from agent.redact import MASK, redact
 
 
 def test_common_secret_shapes_are_masked():

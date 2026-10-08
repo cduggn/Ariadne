@@ -1,8 +1,8 @@
 """Tools over recorded snapshots: the views the model sees, their refs, and their guards."""
 import pytest
 
-from doctor import tools as T
-from doctor.backends import KubectlBackend, check_name, strip
+from agent import tools as T
+from agent.backends import KubectlBackend, check_name, strip
 from evals.build_golden import backend_for
 
 

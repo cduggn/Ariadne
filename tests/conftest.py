@@ -19,7 +19,7 @@ def refs():
 @pytest.fixture(autouse=True)
 def no_refusal_waits(monkeypatch):
     """A retried gateway refusal (D-44) waits for real in production; tests record the waits instead."""
-    from doctor import agent
+    from agent import agent
     waits = []
     monkeypatch.setattr(agent, "_sleep", waits.append)
     return waits

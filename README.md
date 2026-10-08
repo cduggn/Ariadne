@@ -186,8 +186,8 @@ expired certificate upstream, and a crash-looping API turns out to be an OOM-kil
 finding per root cause and never changes the cluster.
 
 ```
-uv run python -m doctor investigate -n inventory "stock-api keeps restarting"
-uv run python -m doctor watch --context <ctx>       # autonomous: scan every 60 s, /metrics on :9109
+uv run python -m agent investigate -n inventory "stock-api keeps restarting"
+uv run python -m agent watch --context <ctx>       # autonomous: scan every 60 s, /metrics on :9109
 ```
 
 The agent reads the model at `DOCTOR_BASE_URL` (default `http://127.0.0.1:8000/v1`). It exits 0 for healthy, 1 for
@@ -213,7 +213,7 @@ for Qwen3-8B, and scores 100% on the red herrings that fool rule-based tools (F1
 | `gateway/` | the Go gateway: admission, placement, queue, metrics, KV hop |
 | `deploy/` | GPU bootstrap, manifests, KEDA, dashboards, alert rules |
 | `serving/` | model profiles, the fit calculator, the model matrix |
-| `doctor/` | the agent: read-only tools, scan and watch loop, validation, redaction, CLI |
+| `agent/` | the agent: read-only tools, scan and watch loop, validation, redaction, CLI |
 | `evals/` | the golden set (26 faults), the scorer and the load runner |
 | `lab/` | the kind lab, the GPU launcher, queue probes and the time-series export |
 | `report/` | the results notebook and its data loaders |

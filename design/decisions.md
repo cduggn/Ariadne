@@ -36,7 +36,7 @@ What the measurements showed, with evidence for each, is in [`findings.md`](find
 **Side effects checked:** kubectl returns exit 0 with "unable to retrieve container logs" when a previous container was garbage-collected — the backend now reports that as unavailable (real behaviour kept in fixtures).
 
 ### D-22 — Agent loop: ported harness, two task types (2026-09-27)
-**Choice:** `doctor/agent.py` keeps the trip planner's guards (forced tool calls, exact-repeat refusal, per-tool budgets scaled by namespaces, submit-now nudge, repairs) with two task types: `investigate` (one namespace, user report, ≤ 16 steps) and `audit` (several namespaces, ≤ 30 steps).
+**Choice:** `agent/agent.py` keeps the trip planner's guards (forced tool calls, exact-repeat refusal, per-tool budgets scaled by namespaces, submit-now nudge, repairs) with two task types: `investigate` (one namespace, user report, ≤ 16 steps) and `audit` (several namespaces, ≤ 30 steps).
 **Because:** the harness was the difference between 3 % and 69 % on the predecessor; audits create the batch tenant the gateway needs.
 
 ### D-23 — Cluster card as the shared per-cluster prefix (2026-09-27)
@@ -76,7 +76,7 @@ INV-14).
 **Context:** the first catalogue (D-20) was single-hop — the pod's own status names the cause (`OOMKilled`, `ImagePullBackOff`). A dashboard or K8sGPT-style rules find those without a model; they do not justify an LLM.
 **Choice:** the catalogue is tiered. **easy** (the 12 originals) · **multi_hop** — the report points at a victim and the cause is elsewhere: an expired upstream certificate surfacing as 502s on the caller; a database OOM-killed while its API crash-loops; a namespace LimitRange injecting a 32Mi limit nobody set; a ResourceQuota silently stopping a scale-out (no pod looks unhealthy); an init container waiting for a renamed service; a sidecar filling ephemeral storage until the pod is evicted · **red_herring** — the obvious suspect is healthy: a frontend trusting the wrong CA bundle while "payments-api" is fine; a liveness probe starved by a 10m CPU limit ("restarts, no errors"); a Service `targetPort` mismatch while endpoints look ready; a pod `dnsConfig` pointing at a dead nameserver while "smtp-relay" is fine · **rightsizing** (D-32). Every error message comes from real software (nginx, busybox, kubelet), none authored. TLS uses a throwaway PKI generated at record time (`lab/make_certs.py`); private keys live only in lab Secrets, never in git or in front of the model.
 **Diagnosis contract:** one finding per ROOT cause; `affects` lists the victims; evidence should cover the chain. **Answer key:** roots (with accepted alternatives, e.g. the Deployment or the ConfigMap publishing an expired cert), victims, red herrings, `also_ok` (e.g. naming the workload alongside the LimitRange), traps. **Checker:** root found with an allowed category and evidence type; `chain:` every victim named in `affects`; `no-false-positive` explains whether a wrong finding "blames a victim", "blames a red herring" or "has nothing wrong"; results reported per tier.
-**Tools added (still read-only):** LimitRange, ResourceQuota, NetworkPolicy, PVC and Ingress views; container ports, init containers, volumes and DNS config in `describe`; logs per container (init containers and sidecars); `inspect_certificate` over **public** certificates in ConfigMaps (a stdlib DER reader, `doctor/x509.py`, checked against `cryptography`). ConfigMap data stays dropped except values that are public certificates.
+**Tools added (still read-only):** LimitRange, ResourceQuota, NetworkPolicy, PVC and Ingress views; container ports, init containers, volumes and DNS config in `describe`; logs per container (init containers and sidecars); `inspect_certificate` over **public** certificates in ConfigMaps (a stdlib DER reader, `agent/x509.py`, checked against `cryptography`). ConfigMap data stays dropped except values that are public certificates.
 **Because:** this is where a model earns its place over rules — connecting symptoms across objects and rejecting the obvious suspect — and the tiers make that measurable: "rules handle tier 1, the model is needed for tiers 2–3" is testable, not a claim.
 **Revisit when:** live runs show the model passing multi-hop by luck (e.g. naming the root with the wrong chain) — then weight `chain:` higher or require evidence per link.
 
@@ -102,7 +102,7 @@ INV-14).
 **Because:** "doctor heals its own inference stack" is a strong demo and product story, but write access must never leak into the read-only diagnosis path (INV-3).
 
 ### D-36 — The product surface is a command line; a web UI waits (2026-09-27)
-**Choice:** `python -m doctor {investigate|audit|rightsize} -n <namespaces> [report]` against a live cluster
+**Choice:** `python -m agent {investigate|audit|rightsize} -n <namespaces> [report]` against a live cluster
 (`--context`, `--kubeconfig`; kubectl read-only verbs) or a recorded fault (`--snapshot`). Progress per model call
 (latency, prompt/cached/output tokens) and per tool call (arguments, errors, repairs) on stderr; the report or
 `--json` run record on stdout; exit 0 healthy · 1 issue · 2 no grounded diagnosis · 64 bad usage. Snapshot runs use
@@ -115,7 +115,7 @@ records now keep their arguments and a rejected submission's validation errors.
 **Revisit when:** there is time after the presentation — a localhost-only page that streams the same hook.
 
 ### D-37 — Autonomous mode: detect cheaply, diagnose what changed (2026-09-27)
-**Choice:** `python -m doctor watch` runs a loop. Every 60 s it scans without a model: problem pods (fingerprinted
+**Choice:** `python -m agent watch` runs a loop. Every 60 s it scans without a model: problem pods (fingerprinted
 by owner), Deployments short of ready replicas, failed Jobs, Services with no ready endpoints, recent Warning events
 on non-Pod objects, and running pods with ≥ 3 error-looking lines in their last 30 log lines (a count only). A
 namespace is investigated (interactive) when it has a fingerprint (`namespace|Kind/name`) that was not present at
@@ -491,6 +491,10 @@ and renaming the image, metrics or resources would break the pinned digest, the 
 scrapes for no gain to a reader. Dashboard uids are unchanged, so links keep working.
 **Revisit when:** the GitHub repo is renamed (then update the badge, module path and image together), or a fresh model
 run happens anyway (then the prompt can say Ariadne at no cost to comparability).
+**Amended 2026-10-08 (package):** the Python package moved from `doctor/` to `agent/` (`python -m agent`), so the repo
+map names the component by its role. The `doctor_*` metrics, the `X-App` header, the system prompt, the
+`deploy/doctor/` ServiceAccount and recorded data keep `doctor`; the files under `agent/packs/` and `agent/schemas/`
+moved unchanged.
 **Amended 2026-10-08:** the GitHub repo is now `cduggn/Ariadne` (old URLs redirect). The README badge and the Go module
 path (`github.com/cduggn/ariadne/gateway`) moved with it. The gateway image keeps its name, because renaming it needs a
 new Docker Hub repository and a fresh pinned digest for no change in behaviour.

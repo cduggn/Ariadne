@@ -13,7 +13,7 @@ another language without reading the history.
 
 **Status legend:** ✅ built and tested offline · 🟡 built, not yet run on a GPU or live cluster · ⬜ planned.
 **Update rule:** a change is not done until this file matches the code. Why → `decisions.md`; numbers →
-the capacity file. Schemas in `doctor/schemas/` are the contracts: link them, never copy them here.
+the capacity file. Schemas in `agent/schemas/` are the contracts: link them, never copy them here.
 
 ---
 
@@ -38,7 +38,7 @@ or non-certificate ConfigMap values. Model-written PromQL or shell. Sending clus
 
 ### C1 — Fault catalogue ✅ (D-20, D-31, D-32)
 `faults/<id>/manifest.yaml` (+ `update.yaml` / `notes.md`) and `faults/<id>/scenario.json` (schema:
-`doctor/schemas/scenario.schema.json`). One namespace per scenario, **neutral team names** (INV-7).
+`agent/schemas/scenario.schema.json`). One namespace per scenario, **neutral team names** (INV-7).
 
 | Tier | Scenarios (namespace) |
 |---|---|
@@ -84,7 +84,7 @@ Objects are `kubectl get -o json` items without `managedFields`, `resourceVersio
 last-applied and `deployment.kubernetes.io/*` annotations. ConfigMaps keep `dataKeys` and, only for values
 that contain `-----BEGIN CERTIFICATE-----` and no `PRIVATE KEY`, `publicCertificates` (INV-11).
 
-### C3 — Backends ✅ (`doctor/backends.py`)
+### C3 — Backends ✅ (`agent/backends.py`)
 Interface: `objects(kind, ns)`, `logs(ns, pod, container, previous)`, `usage(ns)`, `usage_series(ns)`,
 `namespaces()`, `cluster_info()`, `now()`, `metric(preset, ns)`, `s3_bucket_stats(bucket)`, `cost(query)`.
 - `SnapshotBackend.load(*paths)` merges dumps; `now()` = the latest recorded time (certificate expiry is judged
@@ -98,7 +98,7 @@ Interface: `objects(kind, ns)`, `logs(ns, pod, container, previous)`, `usage(ns)
   `DOCTOR_CCEXPLORER` (`ccexplorer get aws -g DIMENSION=SERVICE -s … -e …`, `ccexplorer get aws anomalies -s … -e …`).
 - Names validated with RFC 1123 `^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$` before any call.
 
-### C4 — Tools and refs ✅ (`doctor/tools.py`, schemas `doctor/schemas/tools.json`)
+### C4 — Tools and refs ✅ (`agent/tools.py`, schemas `agent/schemas/tools.json`)
 | Tool | Arguments (all required) | Returns |
 |---|---|---|
 | `list_problem_pods` | namespace | pods where phase ∉ {Running, Succeeded}, restarts > 0, not all ready, or a reason is set; reason precedence: pod-level (`Evicted`) > init container not completed (`Init:<reason>`) > container waiting (with last exit) > terminated > `Restarted after <reason>` > `NotReady`; `{ref st-<pod>, pod, phase, ready, restarts, reason, detail, owner}` |
@@ -110,7 +110,7 @@ Interface: `objects(kind, ns)`, `logs(ns, pod, container, previous)`, `usage(ns)
 | `inspect_certificate` | namespace, configmap, key | public certs in the value: `{subject_cn/o, issuer_cn/o, not_before, not_after, dns_names, is_ca, expired, days_left}` judged at `backend.now()`; `ref ct-<configmap>-<key>` |
 | `rightsizing` | namespace | per (owner, container) of Running pods: requests/limits (m, Mi), usage p50/p95/max over the series, samples, `cpu_at_limit_share` (samples ≥ 90 % of the CPU limit), `idle_request` = request − p95, `est_monthly_idle_usd` = (idle cores × $0.031611 + idle GiB × $0.004237) × 730 h × replicas; `ref rz-<ns>-<owner>-<container>` |
 | `s3_bucket_stats`, `cost_report` | bucket / query | `ref cs-…` or `{unavailable}` |
-| `submit_diagnosis` | status, findings, summary (`doctor/schemas/diagnosis.schema.json`) | validated by the loop (C7) |
+| `submit_diagnosis` | status, findings, summary (`agent/schemas/diagnosis.schema.json`) | validated by the loop (C7) |
 
 - **Evidence types by prefix:** st status · ev event · ds describe · lg log · rs resources · mt metrics · ct certificate · rz rightsizing · cs cost.
 - **Event ref:** `ev-` + first 6 hex of SHA-1 over `ns|involvedObject.kind|involvedObject.name|reason|message`.
@@ -123,18 +123,18 @@ Interface: `objects(kind, ns)`, `logs(ns, pod, container, previous)`, `usage(ns)
   LimitRange, ResourceQuota, NetworkPolicy, PersistentVolumeClaim, Ingress, Node.
 
 ### C5 — Redaction, injection flags, certificates ✅
-`doctor/redact.py`: masks PEM private keys, AWS key ids, GitHub/HF/`sk-` tokens, JWTs, `Bearer` tokens,
+`agent/redact.py`: masks PEM private keys, AWS key ids, GitHub/HF/`sk-` tokens, JWTs, `Bearer` tokens,
 `scheme://user:pass@`, `…password|secret|token|api_key|access_key|private_key…=value`; applied at record
 time and in every tool result. Log lines matching injection phrases get `suspicious: true`.
-`doctor/x509.py`: stdlib DER reader (issuer/subject CN and O, validity, SAN dNSNames, basicConstraints CA),
-no signature verification; checked against `cryptography` on the lab PKI. `doctor/quantity.py`: CPU → m,
+`agent/x509.py`: stdlib DER reader (issuer/subject CN and O, validity, SAN dNSNames, basicConstraints CA),
+no signature verification; checked against `cryptography` on the lab PKI. `agent/quantity.py`: CPU → m,
 memory → MiB, percentiles as the sorted sample at index round(p × (n − 1)).
 
-### C6 — Cluster card ✅ (`doctor/card.py`)
+### C6 — Cluster card ✅ (`agent/card.py`)
 `<cluster_card>`: cluster name and version; per node role, cpu, memory, GPUs, taints; namespaces minus
 `kube-node-lease, kube-public, local-path-storage`. Inventory only (INV-2).
 
-### C7 — Agent: LangGraph over LangChain tools ✅ (`doctor/agent.py`, `doctor/lc_tools.py`, D-33)
+### C7 — Agent: LangGraph over LangChain tools ✅ (`agent/agent.py`, `agent/lc_tools.py`, D-33)
 - **Graph:** `START → agent → act → (agent | limit | END)`; `agent` errors → END. State: `messages` (add_messages),
   `n`, `trace`, `steps`, `calls` (append), `repairs`, `seen`, `used`, `diagnosis`, `stop`, `last_tokens`, `observed`
   (the observation ledger, D-41). The backend,
@@ -167,7 +167,7 @@ memory → MiB, percentiles as the sorted sample at index round(p × (n − 1)).
   submission's `validation_errors`.
 - **Hosted tracing** (LangSmith) env vars are forced to `false` at import (INV-13).
 
-### C8 — Validation (expect-blind) ✅ (`doctor/validate.py`, D-41)
+### C8 — Validation (expect-blind) ✅ (`agent/validate.py`, D-41)
 `validate(d, backend, namespaces, observed=None)`: the whole diagnosis against `diagnosis.schema.json` by a generic
 validator (type, enum, pattern, maxLength, min/maxItems, required, additionalProperties false; ≤ 8 messages);
 `issue` ⇔ findings, `healthy` and `inconclusive` take none, `inconclusive` needs a ≥ 20-character summary; with a
@@ -222,8 +222,8 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
   resourcequotas, networkpolicies, persistentvolumeclaims, ingresses; `pods/log`; `metrics.k8s.io`) — no Secrets,
   no writes, no exec.
 
-### C18 — Command line ✅ (`doctor/cli.py`, `python -m doctor`, D-36)
-- `python -m doctor {investigate|audit|rightsize} -n ns1,ns2 ["report"]`; source is `--context`/`--kubeconfig`
+### C18 — Command line ✅ (`agent/cli.py`, `python -m agent`, D-36)
+- `python -m agent {investigate|audit|rightsize} -n ns1,ns2 ["report"]`; source is `--context`/`--kubeconfig`
   (KubectlBackend, verbs get/logs/top/version only) or `--snapshot <fixtures/snapshots name>` (card name `doctor-lab`,
   same prefix as golden runs). Model: `--base-url`/`DOCTOR_BASE_URL` (default `http://127.0.0.1:8000/v1`),
   `--profile`/`DOCTOR_PROFILE` (a `deploy/models` name or path: served name + sampling, D-40), `--model`/`DOCTOR_MODEL`
@@ -238,7 +238,7 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
 - Exit: 0 healthy · 1 issue · 2 no grounded diagnosis (inconclusive, step cap, context budget, http_*, transport, cluster
   unreadable) · 64 usage.
 
-### C19 — Autonomous mode ✅ (`doctor/watch.py`, `python -m doctor watch`, D-37)
+### C19 — Autonomous mode ✅ (`agent/watch.py`, `python -m agent watch`, D-37)
 - **Model:** `--profile` / `--model` / `--base-url` as the command line (C18).
 - **Scan** (no model, every `--interval` 60 s, all namespaces but kube-system/kube-public/kube-node-lease/local-path-storage
   and `--exclude`, or `-n`): `scan_namespace(b, ns, event_window_s, logs)` → `{fingerprint: symptom}` with
@@ -348,18 +348,18 @@ demand per worker, sheds, worker phase).
 | Id | Invariant | Enforced by |
 |---|---|---|
 | INV-1 | Prompt order: ruleset+tools → cluster card → task → tool turns; first two identical across tasks on a cluster | `tests/test_agent.py::test_prompt_layout_and_headers` |
-| INV-2 | The cluster card holds inventory only | `doctor/card.py` review |
+| INV-2 | The cluster card holds inventory only | `agent/card.py` review |
 | INV-3 | Read-only: kubectl verbs ∈ {get, logs, top, version}; no Secrets | `tests/test_tools.py::test_live_backend_is_read_only_by_construction`, RBAC |
-| INV-4 | In-loop validation never reads the answer key | `doctor/validate.py` has no access to `expect` |
+| INV-4 | In-loop validation never reads the answer key | `agent/validate.py` has no access to `expect` |
 | INV-5 | No ungrounded diagnosis is delivered: every cited ref was returned to the model in this run; after 2 repairs → `inconclusive` | `tests/test_agent.py::test_repair_then_fail_closed`, `tests/test_scoring_v2.py` |
 | INV-6 | Secrets never reach fixtures, models or logs | redaction at record and read; `tests/test_redact.py` |
 | INV-7 | Task text never names the fault (neutral namespaces, user-voice reports) | catalogue review |
 | INV-8 | Every reference diagnosis passes v1 and, replayed through its trajectory, v2 | `evals/build_golden.py`, CI |
 | INV-9 | Everything pinned | §4, CI |
-| INV-10 | `X-Data-Class: restricted` on every request; the gateway must never overflow it | `doctor/agent.py`; gateway tests (planned) |
-| INV-11 | ConfigMap values are dropped unless they are public certificates (no private keys) | `doctor/backends.strip`, `tests/test_tools.py::test_configmap_data_is_dropped_except_public_certs` |
+| INV-10 | `X-Data-Class: restricted` on every request; the gateway must never overflow it | `agent/agent.py`; gateway tests (planned) |
+| INV-11 | ConfigMap values are dropped unless they are public certificates (no private keys) | `agent/backends.strip`, `tests/test_tools.py::test_configmap_data_is_dropped_except_public_certs` |
 | INV-12 | Fault evidence is produced by real software, never authored text | catalogue review (`faults/*/manifest.yaml`) |
-| INV-13 | No hosted tracing or telemetry that could ship cluster data off-site | `doctor/agent.py` forces LangSmith env off; `tests/test_agent.py::test_hosted_tracing_is_forced_off` |
+| INV-13 | No hosted tracing or telemetry that could ship cluster data off-site | `agent/agent.py` forces LangSmith env off; `tests/test_agent.py::test_hosted_tracing_is_forced_off` |
 | INV-14 | The model is bound to `tools.json` verbatim; request shape (prompt order, headers) is stable | `tests/test_agent.py::test_wire_format_tools_prompt_order_and_headers` |
 | INV-15 | Every model is served with the same engine settings; a profile may not override them; the committed manifest and cloud-init pins equal the rendered default | `serving/profiles.validate_profile`, `tests/test_serving.py` |
 | INV-16 | The model matrix is generated, never edited: every number traces to a profile, a `make kv` log or a golden summary | `serving/matrix.py`, CI diff |
@@ -388,8 +388,8 @@ make probes / export       # on the GPU: Part 5 probes under load / the node's t
 make report                # rebuild report/report.ipynb and design/figures/ from metrics/
 make autoscale             # on a node: KEDA scales the vLLM workers on gateway demand (D-49); autoscale-off to stop
 make fit-all / make matrix # every model × topology on paper; regenerate design/model-matrix.md
-uv run python -m doctor watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # autonomous mode, one cycle
-uv run python -m doctor investigate -n orders --snapshot crashloop   # needs a model at DOCTOR_BASE_URL
+uv run python -m agent watch --snapshot crashloop,cascade-db --once --metrics-addr ""   # autonomous mode, one cycle
+uv run python -m agent investigate -n orders --snapshot crashloop   # needs a model at DOCTOR_BASE_URL
 make golden-build          # rebuild the golden set; fails if any reference diagnosis fails its checker
 make lab-up lab-record     # re-record fixtures on kind (~25 min, batches of 4), then make golden-build
 make up && make bringup    # a Lambda GPU (costs money: ask first); make help prints the session in order
@@ -412,7 +412,7 @@ and the event-ref hash input; owner resolution; the problem-pod predicate and re
 key; quantity parsing and the percentile rule (sorted sample at index round(p × (n − 1))); the idle-cost formula; `inspect_certificate` judging
 expiry at `backend.now()`; guard keys (Python `json.dumps(args, sort_keys=True)` — any canonical form works if
 identical arguments map to identical keys); budgets × namespace count; validation and checker message
-prefixes (tests key on them); the fail-closed shape; the DER walk order in `doctor/x509.py`.
+prefixes (tests key on them); the fail-closed shape; the DER walk order in `agent/x509.py`.
 
 ## 8. Open issues
 1. The KV-sized cap (D-43) kept vLLM healthy but finished fewer runs than cap 16 at high concurrency (F36). The
@@ -436,7 +436,7 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-09-27 | Initial build: faults, lab recorder, backends, tools, agent, validation, evals, deploy, docs | D-19 … D-30 |
 | 2026-09-27 | Tiered catalogue (multi-hop, red-herring, right-sizing), causal chains, certificate inspection, new kinds, `--max-model-len 24576` | D-29 (amended), D-31, D-32 |
 | 2026-09-27 | Agent on LangGraph + LangChain tools; preflight, sweep, live-recording targets; GPU power panel; test plan; self-healing planned | D-33, D-34, D-35 |
-| 2026-09-27 | Command line (`python -m doctor`); progress hook on the agent; call records keep arguments | D-36 |
+| 2026-09-27 | Command line (`python -m agent`); progress hook on the agent; call records keep arguments | D-36 |
 | 2026-09-27 | First GPU run: `tool_choice` auto, Qwen3 sampling, `strict` removed (required → whitespace loops) | D-38 |
 | 2026-09-27 | Autonomous mode (`watch`): cheap scan → change filter → diagnose, schedules, JSON lines, /metrics; lab fault injector; prom/opencost targets | D-37 |
 | 2026-09-28 | Model profiles and topologies, fit calculator and gate, rendered manifests, model matrix; `--profile` on CLI, watch and golden | D-40 |
@@ -449,6 +449,7 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-07 | Part 5 evidence: time-series export, queue probes (big prompt, client gone, worker return), notebook section 10 | D-48 |
 | 2026-10-07 | The product is named Ariadne; README rebuilt around the inference stack; identifiers unchanged | D-50 |
 | 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |
+| 2026-10-08 | Python package `doctor/` renamed `agent/` (`python -m agent`); metrics, header, prompt and ServiceAccount keep `doctor` | D-50 |
 | 2026-10-08 | Submission pruned: the AWS runaway-writer scenario and `deploy/aws/` (never run), the agent guides, the first capacity sheet (replaced by F5, F6), the A100 screenshots, and two unused metrics files | D-27 |
 | 2026-10-08 | GitHub repo renamed to `cduggn/Ariadne`; README badge and Go module path follow; the image and runtime identifiers keep `cluster-doctor` | D-50 |
 | 2026-10-08 | The doctor retries a 502 `upstream_error` like a refusal, so a worker that disappears mid-step no longer ends the run (F44) | D-44 |

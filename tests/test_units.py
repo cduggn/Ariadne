@@ -1,4 +1,4 @@
-from doctor.quantity import cpu_m, mem_mi, pct
+from agent.quantity import cpu_m, mem_mi, pct
 
 
 def test_quantities():

@@ -1,7 +1,7 @@
 """Autonomous mode: detect cheaply, diagnose only what changed (D-37).
 
-    uv run python -m doctor watch --context lambda --out metrics/watch.jsonl
-    uv run python -m doctor watch --snapshot crashloop,cascade-db --once          # recorded faults, one cycle
+    uv run python -m agent watch --context lambda --out metrics/watch.jsonl
+    uv run python -m agent watch --snapshot crashloop,cascade-db --once          # recorded faults, one cycle
 
 Every --interval seconds (default 60):
   scan      no model: per namespace, problem pods (by owner), Deployments with unavailable replicas, failed
@@ -341,7 +341,7 @@ def _line(rec: dict) -> str:
 def main(argv: list[str], *, llm=None, stdout=None, stderr=None, open_source=None) -> int:
     from .cli import EXIT_NO_DIAGNOSIS, EXIT_USAGE, SourceError, open_source as _open  # noqa: I001  (a local import avoids an import cycle)
     out, err = stdout or sys.stdout, stderr or sys.stderr
-    ap = argparse.ArgumentParser(prog="python -m doctor watch", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(prog="python -m agent watch", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = ap.add_mutually_exclusive_group()
     src.add_argument("--context", help="kubectl context (default: the current context)")
     src.add_argument("--snapshot", help="comma-separated recorded faults instead of a live cluster")
