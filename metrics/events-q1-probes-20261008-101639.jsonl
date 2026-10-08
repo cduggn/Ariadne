@@ -1,0 +1,18 @@
+{"t": 1791450999.6086621, "kind": "session_start", "probe": "session", "detail": {"load_cmd": "/Library/Developer/CommandLineTools/usr/bin/make golden WORKERS=2 CONC=4 REPEAT=2 TAG=q1-probes", "schedule": [[60, "big-prompt"], [90, "big-prompt"], [120, "big-prompt"], [180, "client-gone"], [200, "client-gone"], [220, "client-gone"], [300, "worker-return"]]}}
+{"t": 1791451059.61937, "kind": "big_prompt_sent", "probe": "big-prompt", "detail": {"run": "probe-big-1", "prompt_tokens_est": 13000}}
+{"t": 1791451062.1444259, "kind": "big_prompt_done", "probe": "big-prompt", "detail": {"run": "probe-big-1", "status": 200, "seconds": 2.524, "prompt_tokens": 10485}}
+{"t": 1791451089.618422, "kind": "big_prompt_sent", "probe": "big-prompt", "detail": {"run": "probe-big-2", "prompt_tokens_est": 13000}}
+{"t": 1791451092.291029, "kind": "big_prompt_done", "probe": "big-prompt", "detail": {"run": "probe-big-2", "status": 200, "seconds": 2.672, "prompt_tokens": 10499}}
+{"t": 1791451119.617244, "kind": "big_prompt_sent", "probe": "big-prompt", "detail": {"run": "probe-big-3", "prompt_tokens_est": 13000}}
+{"t": 1791451122.1930509, "kind": "big_prompt_done", "probe": "big-prompt", "detail": {"run": "probe-big-3", "status": 200, "seconds": 2.575, "prompt_tokens": 10484}}
+{"t": 1791451179.615659, "kind": "client_gone_sent", "probe": "client-gone", "detail": {"run": "probe-gone-1"}}
+{"t": 1791451182.617833, "kind": "client_gone_aborted", "probe": "client-gone", "detail": {"run": "probe-gone-1", "seconds": 3.002}}
+{"t": 1791451199.615073, "kind": "client_gone_sent", "probe": "client-gone", "detail": {"run": "probe-gone-2"}}
+{"t": 1791451202.617687, "kind": "client_gone_aborted", "probe": "client-gone", "detail": {"run": "probe-gone-2", "seconds": 3.002}}
+{"t": 1791451219.610027, "kind": "client_gone_sent", "probe": "client-gone", "detail": {"run": "probe-gone-3"}}
+{"t": 1791451222.6111832, "kind": "client_gone_aborted", "probe": "client-gone", "detail": {"run": "probe-gone-3", "seconds": 3.001}}
+{"t": 1791451301.7099059, "kind": "worker_deleted", "probe": "worker-return", "detail": {"pod": "vllm-1"}}
+{"t": 1791451301.9013062, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "ready"}}
+{"t": 1791451312.875149, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "down"}}
+{"t": 1791451479.343926, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "ready"}}
+{"t": 1791451479.344727, "kind": "session_end", "probe": "session", "detail": {"load_exit": 0}}

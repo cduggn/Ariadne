@@ -1,0 +1,19 @@
+{"t": 1791459211.693721, "kind": "session_start", "probe": "session", "detail": {"load_cmd": "/Library/Developer/CommandLineTools/usr/bin/make golden WORKERS=2 CONC=4 REPEAT=2 TAG=q1-h100-probes", "schedule": [[60, "big-prompt"], [90, "big-prompt"], [120, "big-prompt"], [180, "client-gone"], [200, "client-gone"], [220, "client-gone"], [300, "worker-return"]]}}
+{"t": 1791459271.7074828, "kind": "big_prompt_sent", "probe": "big-prompt", "detail": {"run": "probe-big-1", "prompt_tokens_est": 13000}}
+{"t": 1791459273.825724, "kind": "big_prompt_done", "probe": "big-prompt", "detail": {"run": "probe-big-1", "status": 200, "seconds": 2.118, "prompt_tokens": 10512}}
+{"t": 1791459301.702807, "kind": "big_prompt_sent", "probe": "big-prompt", "detail": {"run": "probe-big-2", "prompt_tokens_est": 13000}}
+{"t": 1791459303.82079, "kind": "big_prompt_done", "probe": "big-prompt", "detail": {"run": "probe-big-2", "status": 200, "seconds": 2.117, "prompt_tokens": 10516}}
+{"t": 1791459331.707835, "kind": "big_prompt_sent", "probe": "big-prompt", "detail": {"run": "probe-big-3", "prompt_tokens_est": 13000}}
+{"t": 1791459334.17567, "kind": "big_prompt_done", "probe": "big-prompt", "detail": {"run": "probe-big-3", "status": 200, "seconds": 2.467, "prompt_tokens": 10525}}
+{"t": 1791459391.704345, "kind": "client_gone_sent", "probe": "client-gone", "detail": {"run": "probe-gone-1"}}
+{"t": 1791459394.705802, "kind": "client_gone_aborted", "probe": "client-gone", "detail": {"run": "probe-gone-1", "seconds": 3.001}}
+{"t": 1791459411.7028549, "kind": "client_gone_sent", "probe": "client-gone", "detail": {"run": "probe-gone-2"}}
+{"t": 1791459414.706582, "kind": "client_gone_aborted", "probe": "client-gone", "detail": {"run": "probe-gone-2", "seconds": 3.003}}
+{"t": 1791459431.697803, "kind": "client_gone_sent", "probe": "client-gone", "detail": {"run": "probe-gone-3"}}
+{"t": 1791459434.701171, "kind": "client_gone_aborted", "probe": "client-gone", "detail": {"run": "probe-gone-3", "seconds": 3.003}}
+{"t": 1791459513.8854551, "kind": "worker_deleted", "probe": "worker-return", "detail": {"pod": "vllm-1"}}
+{"t": 1791459514.0975711, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "ready"}}
+{"t": 1791459525.460022, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "down"}}
+{"t": 1791459848.6088839, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "warming"}}
+{"t": 1791459850.830718, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "ready"}}
+{"t": 1791459850.83157, "kind": "session_end", "probe": "session", "detail": {"load_exit": 0}}

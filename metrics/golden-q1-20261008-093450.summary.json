@@ -1,0 +1,172 @@
+{
+  "tag": "q1",
+  "profile": "qwen3-8b-awq",
+  "model": "Qwen/Qwen3-8B-AWQ",
+  "topology": "sliced",
+  "workers": 2,
+  "gpu_share": 1.0,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 4,
+  "repeat": 2,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "06ed201",
+  "wall_s": 460.1,
+  "timestamp": "20261008-093450",
+  "tasks": 52,
+  "unique_tasks": 26,
+  "passed": 27,
+  "pass_rate": 0.519,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.614,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.714,
+    "multi_hop": 0.214,
+    "red_herring": 0.5,
+    "rightsizing": 0.0
+  },
+  "passed_v2": 29,
+  "pass_rate_v2": 0.558,
+  "pass_rate_v2_ci95": [
+    0.423,
+    0.684
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.0,
+    "investigate": 0.659,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.75,
+    "multi_hop": 0.429,
+    "red_herring": 0.25,
+    "rightsizing": 0.0
+  },
+  "parts_v2": {
+    "submitted": 0.865,
+    "grounded": 0.865,
+    "status": 0.865,
+    "root": 0.692,
+    "category": 0.673,
+    "mechanism": 0.654,
+    "chain": 0.654,
+    "no_false_positive": 0.75
+  },
+  "top_failed_rules_v2": [
+    [
+      "found",
+      9
+    ],
+    [
+      "no-false-positive",
+      7
+    ],
+    [
+      "no-diagnosis",
+      5
+    ],
+    [
+      "mechanism",
+      3
+    ],
+    [
+      "chain",
+      2
+    ],
+    [
+      "inconclusive",
+      2
+    ],
+    [
+      "resize",
+      2
+    ],
+    [
+      "category",
+      1
+    ],
+    [
+      "trap",
+      1
+    ],
+    [
+      "evidence-type",
+      1
+    ]
+  ],
+  "advisory_v2": [
+    [
+      "tools-called",
+      11
+    ]
+  ],
+  "stop_reasons": {
+    "submitted": 45,
+    "inconclusive": 2,
+    "step_cap": 2,
+    "context_budget": 3
+  },
+  "inconclusive": 2,
+  "abstained": 0,
+  "http_refusals": {},
+  "refusal_reasons": {},
+  "runs_that_waited_out_a_refusal": 0,
+  "top_failed_rules": [
+    [
+      "found",
+      9
+    ],
+    [
+      "no-false-positive",
+      7
+    ],
+    [
+      "no-diagnosis",
+      5
+    ],
+    [
+      "tools-called",
+      3
+    ],
+    [
+      "category",
+      3
+    ],
+    [
+      "chain",
+      2
+    ],
+    [
+      "inconclusive",
+      2
+    ],
+    [
+      "resize",
+      2
+    ],
+    [
+      "trap",
+      1
+    ],
+    [
+      "evidence-type",
+      1
+    ]
+  ],
+  "repairs": 23,
+  "tool_errors": 230,
+  "steps_per_task_mean": 10.9,
+  "prompt_tokens_last_step_p50": 6893,
+  "prompt_tokens_last_step_max": 22821,
+  "completion_tokens_per_step_p50": 34,
+  "cached_share_of_prompt": 0.949,
+  "step_latency_s_p50": 0.919,
+  "step_latency_s_p95": 15.398
+}

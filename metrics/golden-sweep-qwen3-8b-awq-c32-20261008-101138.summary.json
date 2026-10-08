@@ -1,0 +1,170 @@
+{
+  "tag": "sweep-qwen3-8b-awq-c32",
+  "profile": "qwen3-8b-awq",
+  "model": "Qwen/Qwen3-8B-AWQ",
+  "topology": "sliced",
+  "workers": 2,
+  "gpu_share": 1.0,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 32,
+  "repeat": 2,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "06ed201",
+  "wall_s": 299.1,
+  "timestamp": "20261008-101138",
+  "tasks": 52,
+  "unique_tasks": 26,
+  "passed": 23,
+  "pass_rate": 0.442,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.523,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.571,
+    "multi_hop": 0.214,
+    "red_herring": 0.5,
+    "rightsizing": 0.0
+  },
+  "passed_v2": 27,
+  "pass_rate_v2": 0.519,
+  "pass_rate_v2_ci95": [
+    0.387,
+    0.649
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.0,
+    "investigate": 0.614,
+    "rightsize": 0.0
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.679,
+    "multi_hop": 0.429,
+    "red_herring": 0.25,
+    "rightsizing": 0.0
+  },
+  "parts_v2": {
+    "submitted": 0.808,
+    "grounded": 0.808,
+    "status": 0.808,
+    "root": 0.635,
+    "category": 0.615,
+    "mechanism": 0.596,
+    "chain": 0.615,
+    "no_false_positive": 0.692
+  },
+  "top_failed_rules_v2": [
+    [
+      "found",
+      10
+    ],
+    [
+      "no-false-positive",
+      8
+    ],
+    [
+      "no-diagnosis",
+      7
+    ],
+    [
+      "inconclusive",
+      3
+    ],
+    [
+      "mechanism",
+      2
+    ],
+    [
+      "resize",
+      2
+    ],
+    [
+      "trap",
+      2
+    ],
+    [
+      "chain",
+      2
+    ],
+    [
+      "category",
+      1
+    ]
+  ],
+  "advisory_v2": [
+    [
+      "tools-called",
+      11
+    ]
+  ],
+  "stop_reasons": {
+    "submitted": 42,
+    "inconclusive": 3,
+    "step_cap": 1,
+    "context_budget": 3,
+    "http_503": 3
+  },
+  "inconclusive": 3,
+  "abstained": 0,
+  "http_refusals": {
+    "503": 3
+  },
+  "refusal_reasons": {
+    "503 timeout_queue": 100,
+    "503 kv_free": 75
+  },
+  "runs_that_waited_out_a_refusal": 39,
+  "top_failed_rules": [
+    [
+      "found",
+      10
+    ],
+    [
+      "no-false-positive",
+      8
+    ],
+    [
+      "no-diagnosis",
+      7
+    ],
+    [
+      "category",
+      6
+    ],
+    [
+      "inconclusive",
+      3
+    ],
+    [
+      "tools-called",
+      3
+    ],
+    [
+      "resize",
+      2
+    ],
+    [
+      "trap",
+      2
+    ],
+    [
+      "chain",
+      2
+    ]
+  ],
+  "repairs": 19,
+  "tool_errors": 213,
+  "steps_per_task_mean": 10.4,
+  "prompt_tokens_last_step_p50": 6715,
+  "prompt_tokens_last_step_max": 22634,
+  "completion_tokens_per_step_p50": 34,
+  "cached_share_of_prompt": 0.947,
+  "step_latency_s_p50": 2.561,
+  "step_latency_s_p95": 16.616
+}
