@@ -102,7 +102,7 @@ that: keep a run on the worker that holds its history, and protect KV before any
 
 <table>
   <tr>
-    <td width="50%"><img src="design/figures/knee.png" alt="Pass rate against concurrent runs for three admission settings"></td>
+    <td width="50%"><img src="design/figures/knee.png" alt="Pass rate against concurrent runs for three admission settings and the 10-08 full sweep"></td>
     <td width="50%"><img src="design/figures/routing_ab.png" alt="Prefill and step latency with and without stickiness"></td>
   </tr>
   <tr>

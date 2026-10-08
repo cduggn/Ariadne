@@ -25,26 +25,40 @@ CELLS = [
 
 What Ariadne's serving stack measured on Lambda GPUs between 2026-09-27 and 2026-10-07, answering the
 brief's questions. Every number comes from a committed file in `metrics/` (loaded by `report/results.py`), so
-`make report` rebuilds this notebook and its charts from the repo. Each section cites the findings it rests on
+`make report` rebuilds this notebook and its charts from the repo. Opened on its own (Colab, for example), the first
+code cell clones the public repo and reads its `metrics/`. Each section cites the findings it rests on
 (`design/findings.md`, F-numbers) and the decisions behind it (`design/decisions.md`, D-numbers).
 
 **The setup.** The doctor is an agent that diagnoses Kubernetes faults in 5 to 16 chained model calls per run. It runs
 on self-hosted vLLM behind a Go gateway that guards, admits, places and queues every call (D-42). The golden set is 26
 recorded faults in four tiers, scored twice (v1, and the stricter v2, D-41)."""),
-    code("""import re
+    code("""import os
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
 from IPython.display import Image, Markdown, display
 
-from report.results import FIGURES, by_label, histogram, kv_measured, prom, rows, summary, total
-from serving import fit, profiles
+# The notebook needs the repo beside it: its loaders and metrics/. `make report` runs it from the repo root, Jupyter may
+# start it in report/, and Colab opens this file alone, so there it clones the public repo first.
+repo = next((p for p in (Path.cwd(), *Path.cwd().parents) if (p / "report" / "results.py").exists()), None)
+if repo is None:
+    repo = Path("/content/Ariadne") if Path("/content").is_dir() else Path.home() / "Ariadne"
+    if not repo.exists():
+        subprocess.run(["git", "clone", "--depth", "1", "https://github.com/cduggn/Ariadne", str(repo)], check=True)
+os.chdir(repo)
+sys.path.insert(0, str(repo))
 
-ROOT = Path.cwd()                           # the kernel runs in the repo root (report/build.py)
+from report.results import FIGURES, by_label, histogram, kv_measured, prom, rows, summary, total  # noqa: E402
+from serving import fit, profiles  # noqa: E402
+
+ROOT = Path.cwd()                           # the repo root, found above
 
 # The reference palette's first three categorical slots (they validate for every pair), light surface and ink.
-BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
@@ -166,22 +180,27 @@ def uncached(run):
 def p95_after_first(run):
     xs = sorted(t for x in rows(run) for t in x["latency_s"][1:] if t)
     return xs[int(0.95 * len(xs))]
-metrics_ab = [("v2 pass rate", lambda r: summary(r)["pass_rate_v2"], "{:.1%}"),
-              ("cached share of prompt", lambda r: summary(r)["cached_share_of_prompt"], "{:.1%}"),
-              ("prompt tokens recomputed", uncached, "{:,.0f}"),
-              ("step p95, after step 1 (s)", p95_after_first, "{:.1f}")]
-fig, axes = plt.subplots(1, len(metrics_ab), figsize=(9.5, 3.0))
+def passed(run):
+    s = summary(run)
+    return f"{s['passed_v2']}/{round(s['passed_v2'] / s['pass_rate_v2'])}"
+metrics_ab = [("v2 runs passed\\n(same answers)", lambda r: summary(r)["pass_rate_v2"], passed),
+              ("cached share of prompt\\n(higher is better)", lambda r: summary(r)["cached_share_of_prompt"], "{:.1%}"),
+              ("prompt tokens recomputed\\n(lower is better)", uncached, "{:,.0f}"),
+              ("step p95 after step 1, s\\n(lower is better)", p95_after_first, "{:.1f}")]
+fig, axes = plt.subplots(1, len(metrics_ab), figsize=(9.5, 3.3))
 for ax, (title, f, fmt) in zip(axes, metrics_ab, strict=True):
     vals = [f(run) for _, run in arms]
     ax.bar([0, 1], vals, color=[BLUE, ORANGE], width=0.7)
     for i, v in enumerate(vals):
-        ax.annotate(fmt.format(v), (i, v), xytext=(0, 3), textcoords="offset points", ha="center", fontsize=9)
+        ax.annotate(fmt(arms[i][1]) if callable(fmt) else fmt.format(v), (i, v), xytext=(0, 3), textcoords="offset points", ha="center", fontsize=9)
     ax.set_xticks([0, 1], ["sticky", "least\\nloaded"])
     ax.set_title(title, fontsize=9.5)
+    ax.set_ylim(0, max(vals) * 1.15)
     ax.set_yticks([])
     ax.grid(False)
     ax.spines["left"].set_visible(False)
-fig.suptitle("Routing A/B: prefix_then_load (sticky) against least_loaded, same workload", fontweight="bold", fontsize=11)
+fig.suptitle("Routing A/B: prefix_then_load (sticky) against least_loaded\\n"
+             "10-06 · two H100 halves · 4 concurrent runs · the golden set twice per arm", fontweight="bold", fontsize=11)
 show(fig, "routing_ab")
 g = by_label(prom("gateway-gw-38-ll-20261006-142337"), "orch_sticky_total", "outcome")
 cont = g.get("hit", 0) + g.get("broken_load", 0) + g.get("broken_shed", 0)
@@ -196,7 +215,10 @@ vLLM preempted (F24, F25). On 10-07 we tested two changes on one faster node (an
 refusal (D-44), and the gateway sizes the in-flight cap to the measured KV pool, 4 per half (D-43). The cap cut vLLM
 preemptions by ~95%, kept more of the cache and lowered tail latency. But fewer runs finished, because queued requests
 hit the gateway's deadline before the retries ran out (F36). Sizing for zero preemption is stricter than the workload
-needs, so the next step is a cap of 6–8 (backlog)."""),
+needs, so the next step is a cap of 6–8 (backlog).
+
+On 10-08 the full sweep ran again with cap 4 and retries, from 1 to 32 concurrent runs, with 52 runs per level instead
+of 26 (the thick line). The knee is still between 8 and 16 (F40)."""),
     code("""curves = [
     ("10-06 PCIe · cap 16 · no retries", ORANGE,
      {4: "gw-38-20261006-131640", 8: "sweep-qwen3.8-27b-fp8-c8-20261006-135139",
@@ -206,13 +228,17 @@ needs, so the next step is a cap of 6–8 (backlog)."""),
     ("10-07 SXM5 · cap 4 (KV-sized) · retries", BLUE,
      {4: "gw-38-kv-20261007-153043", 16: "sweep-qwen3.8-27b-fp8-c16-20261007-151105",
       32: "sweep-qwen3.8-27b-fp8-c32-20261007-151406"}),
+    ("10-08 SXM5 · cap 4 · retries · 52 runs per level", YELLOW,
+     {1: "sweep-qwen3.8-27b-fp8-c1-20261008-115608", 4: "sweep-qwen3.8-27b-fp8-c4-20261008-121024",
+      8: "sweep-qwen3.8-27b-fp8-c8-20261008-121925", 16: "sweep-qwen3.8-27b-fp8-c16-20261008-122501",
+      32: "sweep-qwen3.8-27b-fp8-c32-20261008-122959"}),
 ]
 fig, ax = plt.subplots(figsize=(7.5, 3.8))
-levels = [4, 8, 16, 32]                    # evenly spaced: each level doubles the one before
+levels = [1, 4, 8, 16, 32]                 # evenly spaced by position, not value
 for label, color, runs in curves:
     xs = sorted(runs)
     ys = [summary(runs[c])["pass_rate_v2"] for c in xs]
-    ax.plot([levels.index(c) for c in xs], ys, "-o", color=color, linewidth=2, markersize=8,
+    ax.plot([levels.index(c) for c in xs], ys, "-o", color=color, linewidth=3.5 if "52 runs" in label else 2, markersize=8,
             markeredgecolor=SURFACE, markeredgewidth=2, label=label)
 ax.set(ylim=(0, 1), title="v2 pass rate against concurrent runs (two Qwen3.8 workers)",
        xlabel="concurrent agent runs", ylabel="v2 pass rate")
@@ -314,7 +340,7 @@ from report.results import series, timeseries
 
 ts = timeseries()
 NO_TS = "No time series yet: run `make bench` on the GPU (it ends with `make export`)"
-SLOTS = [BLUE, ORANGE, AQUA, "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]   # the categorical order, fixed
+SLOTS = [BLUE, ORANGE, AQUA, YELLOW, "#e87ba4", "#008300", "#4a3aa7", "#e34948"]   # the categorical order, fixed
 MARKS = {"big_prompt_sent": ("--", "long prompt sent"), "client_gone_aborted": (":", "client left"),
          "worker_deleted": ("-.", "worker deleted"), "worker_phase": ((0, (6, 2, 1, 2, 1, 2)), "worker phase change")}
 PHASES = ["down", "warming", "ready"]
