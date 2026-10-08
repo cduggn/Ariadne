@@ -167,6 +167,12 @@ If something goes wrong:
 
 ## Session 4: what runs next, measured (Part 5, D-48)
 
+**Ran on 2026-10-08, twice.** In the morning no H100 was free, so it ran on an A100 with Qwen3-8B. In the afternoon it
+ran on an H100 SXM5 with Qwen3.8. Results are in findings F40–F47, and the screenshots are
+`design/screenshots/q1-a100-*` and `q1-h100-*`. The first export ended before the deleted worker was ready, so
+`make export` ran again before `make down`. The probe deletes the worker at 300 s, and on the H100 it took about
+5.5 minutes to return, after the background golden run had finished (backlog).
+
 This session answers the brief's Part 5 with time series. Until now each run saved `/metrics` once at the end, so every
 gauge (queue depth, vLLM waiting and running, KV usage) read 0. The node's Prometheus scrapes every 5 s and keeps two
 days, so `make export` pulls that history into `metrics/ts-*.json` before `make down`. The probes put known events in
@@ -201,6 +207,10 @@ window from `.cache/bench.json`. `make prom` in another terminal plus `make expo
 through the port-forward instead.
 
 ## Session 5: autoscaling with KEDA, and the dashboards walkthrough (D-49)
+
+**Ran on 2026-10-07 into 10-08 on an H100.** KEDA asked for a second worker about 80 s into the load, and the worker
+took 8 min 21 s to be ready. A 10-minute scale-down window removed it 40 s into the next run, so the window is now 15
+minutes (D-51). Results are in findings F39, and the screenshots are `design/screenshots/as-*` and `1h-*`.
 This session shows the worker pool scaling on its own and fills every dashboard the presentation walks through. Allow
 about 1.5 hours of H100 time. It starts with **one** worker, so it does not use `make bringup` (which scales to the
 topology's two). Rehearsed on kind on 2026-10-07 with a fake gateway (findings F38), so the open questions are the real

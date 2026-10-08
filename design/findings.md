@@ -239,6 +239,72 @@ these are the scaler's own timings, not a worker's load time.
   (measured, H100; HPA events, pod timestamps, `metrics/golden-as-*`, `metrics/ts-autoscale-20261008-002807.json`,
   `design/screenshots/`)
 
+## 4f. The full sweep and the Part 5 probes (10-08)
+
+Two sessions ran `make bench` with `REPEAT=2`, so every level ran 52 runs. On the A100 that morning (no H100 was
+free), Qwen3-8B-AWQ ran on two HAMi slices. In the afternoon, Qwen3.8-27B-FP8 ran on two halves of an H100 SXM5, with
+the cap at 4, the D-44 retries and the KV hop on. Each bench ended with the probes against a golden run at concurrency 4
+and `make export`. The power draw shows the H100 was an SXM5, because it reached 600 W and a PCIe H100 stops at 350 W.
+
+| Concurrency | H100, Qwen3.8 v2 pass [95% CI] | Refused (H100) | A100, Qwen3-8B v2 pass | Refused (A100) |
+|---|---|---|---|---|
+| 1 | 82.7% [70.3–90.6] | 0 | 50.0% | 0 |
+| 4 (golden) | 86.5% [74.7–93.3] | 0 | 55.8% | 0 |
+| 4 (sweep) | 84.6% [72.5–92.0] | 0 | 51.9% | 0 |
+| 8 | 82.7% [70.3–90.6] | `kv_free` 1 | 53.8% | 0 |
+| 16 | 63.5% [49.9–75.2] | `timeout_queue` 127, `kv_free` 38 | 48.1% | 0 |
+| 32 | 23.1% [13.7–36.1] | `timeout_queue` 220, `kv_free` 33 | 51.9% | `timeout_queue` 100, `kv_free` 75 |
+| 4, with probes | 75.0% [61.8–84.8] | `kv_free` 7, two runs ended on a 502 | 51.9% | two runs ended on a 502 |
+
+Evidence: `metrics/golden-q1-h100-20261008-114653.*`, `metrics/golden-sweep-qwen3.8-27b-fp8-c*-20261008-*.summary.json`,
+`metrics/golden-q1-h100-probes-20261008-123332.*`, `metrics/golden-q1-20261008-093450.*`,
+`metrics/golden-sweep-qwen3-8b-awq-c*-20261008-*.summary.json`, `metrics/golden-q1-probes-20261008-101639.*`, the
+probe times in `metrics/events-q1-h100-probes-20261008-123331.jsonl` and `metrics/events-q1-probes-20261008-101639.jsonl`,
+and the time series in `metrics/ts-q1-h100-20261008-131201.json` and `metrics/ts-q1-20261008-102520.json`. (measured)
+
+- **F40. On the H100 the knee is still between 8 and 16, and 32 real concurrent runs fail most of the time.** The pass
+  rate holds at 83–87% up to 8 and falls to 63.5% at 16 and 23.1% at 32. The 10-07 sweep scored 53.8% at 32, but it ran
+  26 runs per level, so it never had more than 26 in flight. With 52 runs, 32 are in flight at once, and most refusals
+  are `timeout_queue`, whose wait outlasts the doctor's ~15 s of retries (F34). The intervals barely overlap (13.7–36.1
+  against 35.5–71.2). The run count is the likely cause, unverified. The 8B's pass rate stays at 48–56% at every level,
+  even with 175 refusals at 32, so its limit is the model, not capacity (F1). Its cached share stayed at 94–95%.
+  (measured)
+- **F41. The overload waits in the gateway's queue, not in vLLM's.** Across the H100 bench, the gateway queue held
+  requests in 104 of about 2,000 five-second samples (230 request-samples in all). vLLM's waiting queue was above 0 in
+  29 (30 request-samples), never more than 2. vLLM preempted 8 requests over the whole sweep, 1 on vllm-0 and 7 on
+  vllm-1. That confirms F32 at a real 32 concurrent runs. (measured, `gw_queue_depth` and `vllm_waiting` in the export,
+  `metrics/vllm-{0,1}-sweep-c32-20261008-115608.prom`)
+- **F42. A 10.5k-token batch prompt doesn't slow the agents' decode at p95.** Three prompts of 10,512–10,525 tokens
+  (the probe estimated 13,000) each returned 200 in 2.1–2.5 s. Inter-token latency p95 stayed at 49 ms on both workers
+  in the 45 s after each prompt, as in the minute before. The tokens-per-step p95 didn't move either. One prompt
+  adds two large prefill steps among many small decode steps, so a p95 can't show it (likely, unverified). That is
+  also why the Grafana "tokens per engine step" panel looks empty. (measured)
+- **F43. Nothing confirms that vLLM frees the KV of a client that leaves.** Each of the three clients left after
+  3.0 s, on both GPUs. vLLM's `request_success_total{finished_reason="abort"}` stayed at 0 on both workers throughout
+  both sessions. Either the cancellation doesn't reach vLLM, or vLLM 0.29 doesn't count a disconnect as an abort.
+  Neither is checked. The gateway logs `client_gone` but has no metric for it, so the only record is its log, which
+  `make down` deletes. (measured counter; the cause unverified)
+- **F44. A deleted worker came back in 5 min 37 s, and its in-flight requests failed.** The probe deleted `vllm-1` at
+  12:38:33, the gateway marked it down at 12:38:45, and it was warming at 12:44:08 and ready at 12:44:10. The two
+  warm-up probes took 2 s, and the warm-up TTFT the gateway re-quotes fell from 63 ms to 56 ms (observed). That is 2 min
+  44 s faster than the KEDA scale-up (F39), likely because the restarted pod reused the node's cached weights and
+  compile cache (unverified). `vllm-0` took every placement while it was gone, peaking at about 1.7 a second. On both
+  GPUs two runs ended on an HTTP 502, likely the steps in flight on the deleted worker. The doctor retries a 503 but not
+  a 502, so each one cost a run. The golden run had ended before the worker returned, so no traffic reached it
+  afterwards, and the ramp after a return is still unmeasured. (measured times; the 502s' cause unverified)
+- **F45. The KV hop fired 45 times on the H100, with none failed.** From the golden run to the end of the sweep, 68
+  more moves were below the 8,192-token threshold. The destination's pull is still unconfirmed (F35). (measured
+  protocol, `metrics/gateway-q1-h100-20261008-123330.prom`)
+- **F46. On the dashboards, power is the H100's load signal, not utilisation.** DCGM's GPU utilisation read 100% from
+  the first single run to the end of the sweep. It counts the time any kernel is running, not how busy the GPU is.
+  Power rose from about 450 W with 1 to 8 runs to about 600 W at 16 and 32, and fell to about 110 W idle. Five panels
+  need fixing, and they are in `design/backlog.md`. The worker phase panel shows its threshold labels ("2+", "<1")
+  instead of down, warming and ready. Container restarts shows fractions. HAMi slice memory and SM activity have no
+  data. "KV hops by result" plots the hop p95 in seconds on its req/s axis. (observed, `design/screenshots/q1-h100-*`)
+- **F47. The shared prefix grew to about 3.9k tokens.** On the H100 golden run, a run's first call found a median of
+  3,920 tokens cached (49 of 52 runs), counted in whole KV blocks, out of a first prompt of 4,734. F8's 3,787 predates
+  D-41's longer ruleset and tool schemas. (measured, `metrics/golden-q1-h100-20261008-114653.jsonl`)
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
@@ -258,12 +324,13 @@ these are the scaler's own timings, not a worker's load time.
 
 ## Still to measure
 
-- Autoscaling on the H100 (session 5): the time from demand to a ready second worker, including the model load, and
-  whether a scale-down cuts off requests in flight on the removed worker (D-49's revisit trigger).
-- The tuned cap (backlog): somewhere between 4 and 16, or cap 4 with a longer queue deadline, against F36's table.
+- The tuned cap (backlog): somewhere between 4 and 16, or cap 4 with a longer queue deadline, against F36's table and
+  now F40's 52-run levels.
 - Whether a hop's destination really pulls the KV: its `cached_tokens` on the hopped step (gateway log `hop`, the
-  step's `cached_tokens`), since vLLM 0.29 has no transfer metric.
-- No time series (KV usage, power, placement over time) survive from 10-06 or 10-07, because the node's Prometheus
-  keeps nothing after `make down`. `make bench` now ends with `make export` (D-48), so the next session keeps them.
-- Part 5 with a scrape: our queue against vLLM's waiting queue per pod, a ~14k batch prompt against the agents'
-  inter-token latency, a client leaving mid-request, and a worker returning under load (test plan, session 4).
+  step's `cached_tokens`), since vLLM 0.29 has no transfer metric (F35, F45).
+- Whether vLLM aborts a request when its client leaves (F43). That needs a gateway counter for `client_gone`, and
+  vLLM's running count and KV usage in the seconds after a probe.
+- A returning worker under load (F44). The background load has to outlast the worker's 5.5-minute return, for
+  example a golden run with `REPEAT=4`.
+- Whether a scale-down cuts off requests in flight on the removed worker (D-49's revisit trigger). The `as-down` run
+  in F39 removed `vllm-1` with no upstream errors, but at one run at a time.

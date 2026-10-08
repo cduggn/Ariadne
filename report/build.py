@@ -302,10 +302,12 @@ table(["Alert", "Condition", "Severity"], [[n, f"`{e}`", s] for (n, e), s in zip
     md("""## 10. Queue: what runs next
 
 The brief's Part 5 asks who waits where, and what runs next when the load mixes. `make bench` ends with a probe session
-(D-48). A golden run at concurrency 4 is the background load. On a schedule, three ~14k-token batch prompts arrive,
-three clients leave mid-answer, and one worker is deleted and left to return. `make export` then pulls the node's
-Prometheus history for the bench window into `metrics/ts-*.json`, together with the probe times. The charts mark those
-times with vertical lines, and their time axis counts minutes from the start of the window."""),
+(D-48). A golden run at concurrency 4 is the background load. On a schedule, three long batch prompts arrive (the
+probe aims at ~13k tokens, and vLLM counted 10.5k), three clients leave mid-answer, and the probe deletes one worker
+and leaves it to return. `make export` then pulls the node's Prometheus history for the bench window into `metrics/ts-*.json`,
+together with the probe times. The charts mark those times with vertical lines, and their time axis counts minutes
+from the start of the window. The first two charts span the whole bench, golden set and sweep included. The others
+zoom in on the probes. The committed export is the H100 session of 2026-10-08 (findings F40–F47)."""),
     code('''import json
 
 from report.results import series, timeseries
@@ -313,23 +315,35 @@ from report.results import series, timeseries
 ts = timeseries()
 NO_TS = "No time series yet: run `make bench` on the GPU (it ends with `make export`)"
 SLOTS = [BLUE, ORANGE, AQUA, "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]   # the categorical order, fixed
-MARKS = {"big_prompt_sent": ("--", "14k-token prompt sent"), "client_gone_aborted": (":", "client left"),
+MARKS = {"big_prompt_sent": ("--", "long prompt sent"), "client_gone_aborted": (":", "client left"),
          "worker_deleted": ("-.", "worker deleted"), "worker_phase": ((0, (6, 2, 1, 2, 1, 2)), "worker phase change")}
 PHASES = ["down", "warming", "ready"]
-PODS = sorted({lab["pod"] for q in (ts or {}).get("series", {}).values() for r in q["results"]
-               for lab in [r["labels"]] if "pod" in lab})
+PODS = sorted({lab["pod"] for name, q in (ts or {}).get("series", {}).items() if name.startswith(("gw_", "vllm_"))
+               for r in q["results"] for lab in [r["labels"]] if "pod" in lab})
 
 def color(pod):
     return SLOTS[PODS.index(pod) % len(SLOTS)] if pod in PODS else INK2
 
 def lines(name, key="pod", scale=1.0, only=None):
-    """One line per label value of an exported query, in minutes; empty without an export or when the query failed."""
-    out = []
+    """One line per label value of an exported query, in minutes; empty without an export or when the query failed.
+    A restarted worker comes back with new labels, so its series are merged into one line per value of `key`."""
+    points = {}
     for labels, t, v in (series(ts, name) if ts else []):
         k = labels.get(key, "all")
         if only is None or k == only:
-            out.append((k, color(k), [x / 60 for x in t], [y * scale for y in v]))
-    return sorted(out, key=lambda line: line[0])
+            points.setdefault(k, {}).update({x / 60: y * scale for x, y in zip(t, v, strict=True)})
+    return [(k, color(k), *gapped(p)) for k, p in sorted(points.items())]
+
+def gapped(p):
+    """Times and values in order, with a NaN wherever samples stop for more than three steps, so no line crosses a gap."""
+    gap, t, v = 3 * ts["step_s"] / 60, [], []
+    for x in sorted(p):
+        if t and x - t[-1] > gap:
+            t.append(x)
+            v.append(float("nan"))
+        t.append(x)
+        v.append(p[x])
+    return t, v
 
 def phase_lines():
     at = {}
@@ -339,12 +353,18 @@ def phase_lines():
                 at.setdefault(labels.get("pod", "all"), {})[x / 60] = PHASES.index(labels["phase"])
     return [(pod, color(pod), sorted(at[pod]), [at[pod][x] for x in sorted(at[pod])]) for pod in sorted(at)]
 
-def plot(name, title, panels, marks=(), sharey=False):
-    """Small multiples on one time axis. A panel is (title, y label, lines[, y tick labels])."""
+def plot(name, title, panels, marks=(), sharey=False, whole=False):
+    """Small multiples on one time axis. A panel is (title, y label, lines[, y tick labels]). The axis spans the probes
+    unless `whole`, which shows the whole export."""
     if ts is None:
         print(NO_TS)
         return
     ev = [(e["kind"], (e["t"] - ts["start"]) / 60) for e in ts["events"] if e["kind"] in marks]
+    span, times = (ts["end"] - ts["start"]) / 60, [t for _, t in ev]
+    lo, hi = (max(0, min(times) - 1.5), min(span, max(times) + 4)) if times and not whole else (0, span)
+
+    def peak(drawn):                                          # the highest value inside the shown window, NaN skipped
+        return max((y for *_, t, v in drawn for x, y in zip(t, v, strict=True) if lo <= x <= hi and y == y), default=1)
     fig, axes = plt.subplots(len(panels), 1, figsize=(8.5, 1.0 + 1.9 * len(panels)), sharex=True, sharey=sharey,
                              squeeze=False)
     legends = set()
@@ -362,7 +382,8 @@ def plot(name, title, panels, marks=(), sharey=False):
             ax.set_yticks(range(len(ticks[0])), ticks[0])
             ax.set_ylim(-0.3, len(ticks[0]) - 0.7)
         else:
-            ax.set_ylim(bottom=0)
+            top = max(peak(p[2]) for p in panels) if sharey else peak(drawn)
+            ax.set_ylim(0, (top or 1) * 1.1)
         ax.set_title(head, loc="left", fontsize=9.5)
         ax.set_ylabel(ylabel)
         ax.grid(axis="x", visible=False)
@@ -370,9 +391,7 @@ def plot(name, title, panels, marks=(), sharey=False):
         if names and names not in legends:                     # a panel repeating the legend above it gets none
             legends.add(names)
             ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1), fontsize=8.5)
-    span = (ts["end"] - ts["start"]) / 60
-    times = [t for _, t in ev]
-    axes[-1, 0].set_xlim((max(0, min(times) - 1.5), min(span, max(times) + 4)) if times else (0, span))
+    axes[-1, 0].set_xlim(lo, hi)
     axes[-1, 0].set_xlabel("minutes since the window started")
     fig.suptitle(title, fontweight="bold", fontsize=11)
     show(fig, f"queue_{name}")
@@ -395,7 +414,11 @@ one shared scale, the gateway's view on top and vLLM's below.
 
 The same panels answer the per-worker question. The blue line in each gateway panel is `orch_replica_queue_depth` for
 that worker under the mixed load. The second chart is the gateway's shed rate by reason. It shows whether the queue
-overflowed (`queue_full`), waited past its deadline (`timeout_queue`), or the door refused for KV (`kv_free`)."""),
+overflowed (`queue_full`), waited past its deadline (`timeout_queue`), or the door refused for KV (`kv_free`).
+
+On the H100 the gateway's queue held requests in 104 five-second samples across the sweep, and vLLM's waiting queue
+in 29, never more than 2. vLLM preempted 8 requests in the whole sweep. Most refusals at 16 and 32 concurrent runs
+were `timeout_queue` (F40, F41)."""),
     code('''panels = []
 for pod in PODS:
     q, f = lines("gw_queue_depth", only=pod), lines("gw_inflight", only=pod)
@@ -405,27 +428,30 @@ for pod in PODS:
     panels.append((f"{pod} · vLLM", "requests", [("waiting", BLUE, *x[2:]) for x in w]
                    + [("running", ORANGE, *x[2:]) for x in r]))
 plot("waiting", "Requests waiting and in service, gateway against vLLM, per worker", panels or [("no workers", "", [])],
-     marks=("big_prompt_sent", "client_gone_aborted", "worker_deleted"), sharey=True)
+     marks=("big_prompt_sent", "client_gone_aborted", "worker_deleted"), sharey=True, whole=True)
 if ts is not None:
     sheds = [(reason, SLOTS[i % len(SLOTS)], t, v)                    # colored by place among all reasons, not those that fired
              for i, (reason, _, t, v) in enumerate(lines("gw_shed_rate", key="reason")) if any(v)]
     if sheds:
         plot("shed", "Gateway refusals by reason", [("all workers", "refusals per second", sheds)],
-             marks=("big_prompt_sent", "client_gone_aborted", "worker_deleted"))
+             marks=("big_prompt_sent", "client_gone_aborted", "worker_deleted"), whole=True)
     else:
         display(Markdown("The gateway refused nothing in this window."))'''),
 
     md("""### A 32k-token RAG prompt next to a short agent step
 
 A 32k prompt can't run here. `max_model_len` is 24,576 on an H100 half, so vLLM rejects it with a 400 after the
-gateway forwards it. The probe sends ~14k tokens instead, which takes two 8,192-token prefill chunks and still passes
-the door while golden runs share the pool. Our queue serves interactive work before batch. At a full queue, an
+gateway forwards it. The probe sends about 10.5k tokens instead, which takes two 8,192-token prefill chunks and still
+passes the door while golden runs share the pool. Our queue serves interactive work before batch. At a full queue, an
 interactive arrival displaces the newest batch waiter, which gets `queue_full`. At the door the gateway reserves the request's estimated
 tokens against the worker's free KV, so a long prompt that would fill the pool is refused with `kv_free` rather than
 admitted. Inside vLLM the scheduler serves running requests first on every engine step, and chunked prefill splits
 the long prompt into 8,192-token pieces. The agent's decode slows while those pieces run, but it does not stop. The
-chart shows inter-token latency and tokens per engine step around each long prompt."""),
-    code('''plot("long_prompt", "Decode speed and step size around the 14k-token prompts",
+chart shows inter-token latency and tokens per engine step around each long prompt.
+
+On the H100 each long prompt returned in 2.1–2.5 s, and the agents' inter-token latency p95 stayed at 49 ms. Neither
+p95 moved, because one prompt adds two large steps among many small decode steps (F42)."""),
+    code('''plot("long_prompt", "Decode speed and step size around the long prompts",
      [("inter-token latency, p95", "ms", lines("vllm_itl_p95", scale=1000)),
       ("tokens per engine step, p95", "tokens", lines("vllm_iter_tokens_p95"))],
      marks=("big_prompt_sent",))'''),
@@ -473,7 +499,10 @@ gateway's queue (F36). The chart shows KV use and preemptions per worker across 
 When the client disconnects, Go cancels the gateway's request context, and that cancels the upstream call to vLLM.
 vLLM should then see the closed connection, abort the request and free its KV blocks. The probe checks that. The
 gateway records the request as `client_gone`, not as a worker error (D-44). The chart shows vLLM's aborted-request
-count and KV use around each client that left."""),
+count and KV use around each client that left.
+
+The abort count stayed at 0 through every client that left, on the A100 and the H100. Either the cancellation doesn't
+reach vLLM or vLLM 0.29 doesn't count it, so freeing the KV is unconfirmed (F43)."""),
     code('''plot("client_gone", "Aborted requests and KV use around the clients that left",
      [("requests aborted (cumulative)", "requests", lines("vllm_aborts")),
       ("KV cache in use", "% of pool", lines("vllm_kv_usage", scale=100))],
@@ -483,7 +512,11 @@ count and KV use around each client that left."""),
 
 There is no ramp. A returning worker serves only after two warm-up probes answer quickly. Then it gets full traffic,
 bounded by the in-flight cap and spread by load-aware placement (D-48). The chart shows the gateway's p99 latency,
-placements per worker and each worker's phase around the deleted worker's return."""),
+placements per worker and each worker's phase around the deleted worker's return.
+
+On the H100 the deleted worker was ready again 5 min 37 s later, after 2 s of warm-up. The other worker took every
+placement in the meantime. Two runs ended on a 502, likely the steps in flight on the deleted worker. The background
+run ended before the worker came back, so the chart shows no traffic reaching it afterwards (F44)."""),
     code('''plot("worker_return", "Latency, placement and phase around the deleted worker's return",
      [("end-to-end latency, p99, all workers", "seconds", [("p99", BLUE, *x[2:]) for x in lines("gw_e2e_p99")]),
       ("placements", "per second", lines("gw_pick_rate")),

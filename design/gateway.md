@@ -209,7 +209,8 @@ For today's workload a recompute takes a second or two, so the hop matters only 
   request never arrives pins the source's blocks for `VLLM_MOONCAKE_ABORT_REQUEST_TIMEOUT` (480 s).
 - The workers must run the connector. `make deploy HOP=1` adds `--kv-transfer-config` (`kv_both`, `tcp` because the
   node has no RDMA) and port 8998, from `serving.json` `kv_hop`.
-- On hardware, 8 hops completed the protocol with none failed (findings F35). Still unverified are the copy
+- On hardware, 53 hops completed the protocol with none failed: 8 on 2026-10-07 and 45 on 2026-10-08 (findings F35,
+  F45). Still unverified are the copy
   bandwidth between two HAMi slices on one GPU, and whether a destination really pulls Qwen3.8's hybrid state rather
   than recomputing it.
 

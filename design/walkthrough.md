@@ -16,6 +16,10 @@ and admission something to decide without a second card. Cluster data is restric
 **Dashboard.** `Ariadne · cluster`, row *Cluster*: node Ready, pods by namespace and phase, restarts in the last
 hour, node CPU and memory, GPU memory for the card and each HAMi slice.
 
+**Evidence.** The 10-08 screenshots (`design/screenshots/q1-h100-cluster-*`) show the node Ready, five namespaces
+Running and the card at 86% memory through a 100-minute session. GPU memory fell to 44% for the 5.5 minutes a worker
+was down (F44). The restarts panel shows fractions and the per-slice memory has no data (F46).
+
 ## 2. Success and failures
 
 **Code.** `gateway/internal/metrics/metrics.go` records each request once, as answered (`orch_completed_total` by status
@@ -29,8 +33,9 @@ the golden set answers the second (report §2, §5).
 **Dashboard.** `Ariadne · cluster`, row *Outcomes*: every request stacked by outcome, the share answered with a
 200, upstream errors by pod.
 
-**Evidence.** Qwen3.8 diagnosed 86.5% of 26 faults (F1). Under load, refusals rather than wrong answers caused the
-failures (F27, F36).
+**Evidence.** Qwen3.8 diagnosed 86.5% of 26 faults (F1), and 86.5% again on 10-08 (F40). Under load, refusals rather
+than wrong answers caused the failures (F27, F36). At 32 concurrent runs only 23.1% finished, after 253 refusals
+(F40). A deleted worker cost two runs on an HTTP 502, which the doctor doesn't retry (F44).
 
 ## 3. Gateway and admission: sheds by reason
 
@@ -46,7 +51,8 @@ why. The in-flight cap per worker comes from the measured KV pool, `serving/fit.
 **Dashboard.** `Ariadne · gateway`, row *Admission*: requests by priority, admitted against shed by reason.
 
 **Evidence.** Up to 16 concurrent runs the `kv_free` shed kept vLLM from preempting (F25). Sized to KV, overload moved
-into the gateway's queue as `timeout_queue` (F32), with ~95% fewer preemptions but fewer completed runs (F36).
+into the gateway's queue as `timeout_queue` (F32), with ~95% fewer preemptions but fewer completed runs (F36). On
+10-08, at a real 32 concurrent runs, 220 of 253 refusals were `timeout_queue` (F40).
 
 ## 4. Router
 
@@ -74,6 +80,9 @@ recomputes its prompt.
 **Dashboard.** `Ariadne · gateway`, *In flight and queued per pod* and *Queue wait p50/p95*. The vLLM dashboard's
 *Requests running vs waiting* shows the engine side, which should stay near 0 waiting.
 
+**Evidence.** Across the 10-08 H100 sweep the gateway's queue held requests in 104 five-second samples and vLLM's
+waiting queue in 29, never more than 2, with 8 preemptions in all (F41).
+
 ## 6. vLLM
 
 **Code.** `deploy/k8s/vllm.yaml`, rendered from `deploy/models/*.json` and `deploy/serving.json` by `make render`:
@@ -86,7 +95,9 @@ halves. A worker takes traffic only after two warm-up probes replay the doctor's
 engine step, prefill against decode time, GPU power.
 
 **Evidence.** 88% of prompt tokens came from the cache (F9). KV runs out first: about two full-length runs per H100 half
-(F6). Chunked prefill rarely binds (F15).
+(F6). Chunked prefill rarely binds (F15). A 10.5k-token prompt left the agents' inter-token latency p95 at 49 ms
+(F42). DCGM's utilisation reads 100% at any load, so power is the load signal. It was about 450 W at up to 8 runs and
+600 W at 16 and 32 (F46).
 
 ## 7. Mooncake KV hop
 
@@ -100,8 +111,8 @@ is cheaper. With today's short ones it rarely is, so the threshold keeps most mo
 
 **Dashboard.** `Ariadne · gateway`, *KV hops by result* and the hop latency p95. It has data only with `HOP=1`.
 
-**Evidence.** 8 hops completed the protocol on an H100 with none failed. Nobody has yet confirmed that the destination
-pulled the KV rather than recomputing it (F35).
+**Evidence.** 8 hops completed the protocol on an H100 on 10-07, and 45 on 10-08, with none failed (F35, F45). Nobody
+has yet confirmed that the destination pulled the KV rather than recomputing it.
 
 ## 8. Pods, replicas and KEDA: which pool scales
 
@@ -121,5 +132,6 @@ worker addresses and routes to a worker only once it is warm.
 **Dashboard.** `Ariadne · cluster`, row *Scaling*: KEDA's desired workers against ready ones, demand per ready
 worker, capacity sheds per minute, and each worker's phase (down, warming, ready).
 
-**Evidence.** Rehearsed on kind with a fake gateway (F38). Session 5 of `design/lambda-test-plan.md` measures it on the
-H100.
+**Evidence.** Rehearsed on kind with a fake gateway (F38). On the H100, KEDA asked for a second worker about 80 s into
+the load, and the worker took 8 min 21 s to be ready (F39). A worker that restarts on the same node took 5 min 37 s
+(F44).

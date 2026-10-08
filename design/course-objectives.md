@@ -16,10 +16,10 @@ Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not bu
 | 2 Cluster design | GPU, model, topology, concurrency, hop backend, overflow target, scaling pool | H100 halves (or A100 slices) under HAMi, Qwen3.8-27B-FP8 (86.5% v2), the in-flight cap sized to KV, an opt-in Mooncake KV hop, overflow decided but no backend (Superlinked blocked on billing), a KEDA-scaled vLLM pool, one to two workers (D-49) | `design/architecture.md`; D-40, D-42, D-43, D-49; F1, F22, F38 | ✅ (overflow backend ⬜) |
 | 3 Guard, admit, stay vs leave | `inspect`, `should_shed`; 429/500/slice_oom stay, 503/529 may leave | The gateway's `decide` package: guard 400, tenant 429, KV / deadline / spread 503; only a 503 may leave and a restricted request never does (fuzz test) | `gateway/internal/decide`; F24, F32; report §6 | ✅ |
 | 4 Place | `pick` + policy | `prefix_then_load` (bounded stickiness), with `least_loaded` and `p2c` for the A/B | F29; report §4 | ✅ |
-| 5 Queue | who waits where; preemption; chunked prefill flags; abort on disconnect | Per-worker priority queue with deadlines; the in-flight cap sized to KV moves waiting from vLLM to the gateway; preemptions and chunked prefill measured; a client abort cancels the upstream call (`client_gone`) | F14, F15, F25, F32, F36; report §5, §7, §10 | ✅ |
-| 6 Hop and warm | record a hop, or prove warm-up and re-quote TTFT | Warm-up: a worker takes traffic only after two probes replay the real first request (`orch_warmup_probe_seconds`). Hop: 8 KV hops completed the Mooncake protocol on hardware, transfer itself unconfirmed | D-42; F35 | ✅ warm-up · 🟡 hop |
+| 5 Queue | who waits where; preemption; chunked prefill flags; abort on disconnect | Per-worker priority queue with deadlines; the in-flight cap sized to KV moves waiting from vLLM to the gateway; preemptions and chunked prefill measured; a client abort cancels the upstream call (`client_gone`). Probed on the H100 with time series: a long batch prompt, clients leaving, a worker deleted | F14, F15, F25, F32, F36, F41–F44; report §5, §7, §10 | ✅ (vLLM freeing a departed client's KV 🟡, F43) |
+| 6 Hop and warm | record a hop, or prove warm-up and re-quote TTFT | Warm-up: a worker takes traffic only after two probes replay the real first request (`orch_warmup_probe_seconds`); a deleted worker re-quoted 56 ms after 2 s of warm-up. Hop: 53 KV hops completed the Mooncake protocol on hardware, transfer itself unconfirmed | D-42; F35, F44, F45 | ✅ warm-up · 🟡 hop |
 | 7 Wire the app | smoke the engine first | `make bringup`, then a one-task golden run | Makefile; `design/lambda-test-plan.md` | ✅ |
-| 8 Proof under app traffic | real app traffic, mixes | The doctor itself is the traffic: the golden set at concurrency 4–32 through the gateway, mixing interactive investigations and batch audits | F24–F36; report §5 | ✅ |
+| 8 Proof under app traffic | real app traffic, mixes | The doctor itself is the traffic: the golden set at concurrency 1–32 through the gateway, mixing interactive investigations and batch audits | F24–F36, F40; report §5 | ✅ |
 
 ## Where each presentation question is answered
 
@@ -34,7 +34,7 @@ Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not bu
 | Where do I hop, and what is not copied? | the opt-in KV hop copies only blocks the destination lacks; the shared prefix is already there from warm-up (D-42, F35) |
 | Where do I evict; ghosts? | stickiness breaks when the bound worker restarts (boot counter), so a run never targets a cache that is gone |
 | Engine scheduler vs my admit, place and queue? | vLLM orders execution within a batch (32 sequences, 8,192 tokens per step); the gateway decides who gets in and where (F14, F17) |
-| What limited concurrency? | KV: about two full-length runs per H100 half; the knee is between 8 and 16 concurrent runs (F6, F24) |
+| What limited concurrency? | KV: about two full-length runs per H100 half; the knee is between 8 and 16 concurrent runs (F6, F24), confirmed at 52 runs per level on 10-08 (F40) |
 | Production alerts | five rules, each tested to fire: KV saturated, queue wait high, vLLM preempting, inconclusive rate, restricted off-box (D-45; report §8) |
 | Which pool scales? | The vLLM pool. KV per worker is the limiter, so KEDA adds workers, not slots: workers wanted = demand ÷ the cap of 4, plus a trigger on capacity sheds (D-49, D-51; rehearsed on kind, F38; on the H100 a new worker took 8 minutes to arrive, F39) |
 | 10× traffic: what changes, which knobs are wrong? | report §9: more workers, a shared run table for a second gateway, an overflow backend, the KV hop; the 768-token cap never bound (F30) and chunked prefill rarely does (F15) |
@@ -49,7 +49,7 @@ Status key: ✅ built and measured, 🟡 built with partial evidence, ⬜ not bu
 | Pod A vs pod B placement | `orch_pick_total{pod}`, stickiness outcomes (F29) | ✅ |
 | Errors by type (placement / overflow / shedding) | gateway counters by reason; `client_gone` separated from worker errors (D-44) | ✅ |
 | Shared vs unique tokens, prefix hits | `orch_prompt_tokens_total{kind}`, `cached_share_of_prompt` (report §1) | ✅ |
-| DCGM power, memory across prefill- vs decode-heavy phases | DCGM exporter on the vLLM dashboard; screenshots, since the node's Prometheus keeps nothing after `make down` | 🟡 (no saved time series) |
+| DCGM power, memory across prefill- vs decode-heavy phases | DCGM exporter on the vLLM dashboard; power in `metrics/ts-*.json` (D-48) and the 10-08 screenshots. Power tracks load (450 W at up to 8 runs, 600 W at 32); DCGM utilisation reads 100% at any load (F46) | ✅ (SM activity has no series) |
 | Recommendations | report §9 | ✅ |
 
 ## Why a model and not rules: the tier story (D-31)

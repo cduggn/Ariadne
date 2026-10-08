@@ -86,7 +86,8 @@ Without stickiness, vLLM recomputed 10% more prompt tokens and steps were 8–11
 ![h:400](figures/knee.png)
 
 The pass rate holds to 8 concurrent runs and falls past 16 (F24). Sizing admission to KV cut preemptions by ~95% but
-finished fewer runs, because queued requests hit their deadline (F36).
+finished fewer runs, because queued requests hit their deadline (F36). Re-run on 10-08 with 52 runs per level: 83–87%
+up to 8, 63.5% at 16, 23.1% at 32 (F40).
 
 ---
 
@@ -100,6 +101,18 @@ finished fewer runs, because queued requests hit their deadline (F36).
 | Queue | 503 | deadline (interactive 10 s, batch 30 s) |
 
 Only a 503 may leave the box, and a restricted request never does. 0 left (fuzz test and alert).
+
+---
+
+## Who waits where, and what runs next
+
+![h:380](figures/queue_waiting.png)
+
+- The overload waits in the gateway's queue, in priority order. vLLM's own queue held at most 2, with 8 preemptions in
+  a whole sweep (F41).
+- A 10.5k-token batch prompt left the agents' inter-token latency p95 at 49 ms (F42).
+- A deleted worker was back in 5 min 37 s. Its two in-flight runs failed on a 502 (F44).
+- vLLM's abort counter didn't move when clients left, so freeing their KV is unconfirmed (F43).
 
 ---
 
@@ -134,7 +147,7 @@ promtool tests check that each rule fires on its condition and stays quiet just 
 - A second trigger adds a worker on any capacity shed. A tenant over quota doesn't count.
 - It scales up after a minute and down after 15 quiet minutes, never to zero, because a new worker takes 8 minutes to load (F39).
 
-Both signals are recording rules with promtool tests. Rehearsed on kind (F38); measured on the H100 in session 5.
+Both signals are recording rules with promtool tests. Rehearsed on kind (F38), then measured on the H100 (F39).
 
 ---
 
@@ -161,7 +174,8 @@ The code behind each one is in `design/walkthrough.md`.
 - Retune the cap to 6–8 per H100 half, or lengthen the interactive queue deadline.
 - A second gateway replica needs a shared run table or runs partitioned by id.
 - An overflow backend for non-restricted work turns refusals into slower answers. Superlinked is blocked on billing (F22).
-- The KV hop pays off once contexts grow. It completed 8 hops on hardware; the transfer itself is unconfirmed (F35).
+- The KV hop pays off once contexts grow. It completed 53 hops on hardware with none failed; the transfer itself is
+  unconfirmed (F35, F45).
 - Settings that don't fit this workload: the 768-token output cap never bound (F30).
 
 ---
@@ -169,6 +183,6 @@ The code behind each one is in `design/walkthrough.md`.
 ## Evidence
 
 - `report/report.ipynb` rebuilds every chart from `metrics/` (`make report`).
-- `design/findings.md` gives F1–F39 with the file behind each number.
+- `design/findings.md` gives F1–F47 with the file behind each number.
 - `design/decisions.md` records why each choice was made (D-1 to D-51).
 - `make lint test` covers Python, Go and the alert rules; CI runs the same.

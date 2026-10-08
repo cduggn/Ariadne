@@ -201,7 +201,7 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
   tier and type, a 95 % Wilson interval, `parts_v2`, `abstained`, and run metadata (profile, model, topology, workers,
   `gpu_share`, git commit, `only`, `unique_tasks`).
 
-### C10 — Serving and node ✅ (run on A100 and H100, 2026-09-27 … 10-07)
+### C10 — Serving and node ✅ (run on A100 and H100, 2026-09-27 … 10-08)
 - `make up` (`lab/up.sh`) launches the first of H100 PCIe, H100 SXM5, GH200 and A100 with capacity in any region,
   never a second node, and writes `.cache/node.env` (GPU, model, topology, hop) for the other targets; `make resume`
   finishes a node Lambda booted slowly.
@@ -327,7 +327,7 @@ deadline), `VLLMPreempting`, `DoctorInconclusiveRateHigh` (over 20% in an hour),
 (critical). The node's Prometheus values embed the rules, and a test keeps the copy equal. `make alerts-test` runs
 promtool tests that check each rule fires on its condition and stays quiet below it.
 
-### C22 — Worker autoscaling 🟡 (`deploy/autoscale/keda-vllm.yaml`, D-49, D-51; rehearsed on kind (F38), scaled on the H100 (F39))
+### C22 — Worker autoscaling ✅ (`deploy/autoscale/keda-vllm.yaml`, D-49, D-51; rehearsed on kind (F38), scaled on the H100 (F39))
 A KEDA ScaledObject on `statefulset/vllm`, opt-in with `make autoscale` (`make autoscale-off` deletes it; `make scale`
 refuses while it exists). Between 1 and the topology's `max_replicas`. Workers wanted = ceil(demand / `GW_MAX_INFLIGHT`),
 where demand is the recording rule `doctor:vllm_demand_requests` (in flight plus queued, averaged over 2 minutes); a
@@ -423,10 +423,14 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 4. Live logs are longer than lab logs: re-measure tokens (D-29).
 5. In cascade-db the client's error line has no reason text (busybox prints nothing on refused-after-timeout); the database's `OOMKilled` status carries the proof.
 6. crashloop and job-failed `echo` their error instead of failing for real, so the stated fix would not repair them (D-41, deferred).
-7. The ruleset and tool schemas grew with D-41 (about +200 tokens): re-measure the 3,787-token prefix on the next GPU run.
+7. The ruleset and tool schemas grew with D-41. On 2026-10-08 a run's first call found 3,920 tokens cached, so the
+   shared prefix is now about 3.9k tokens, up from F8's 3,787 (F47). The figures that use 3.8k are still within 4%.
 8. The fit is 20–34% optimistic for the hybrid Qwen3.8 (F5). Correct it before it sizes a hybrid deployment.
-9. The KV hop completed the Mooncake protocol 8 times on hardware, but vLLM 0.29 exposes no transfer metric, so nobody
-   has confirmed a real pull (F35). HAMi slicing on GH200 is untested.
+9. The KV hop completed the Mooncake protocol 53 times on hardware, but vLLM 0.29 exposes no transfer metric, so nobody
+   has confirmed a real pull (F35, F45). HAMi slicing on GH200 is untested.
+10. vLLM's abort counter stayed 0 when clients left mid-request, so nobody has confirmed that a departed client's KV is
+    freed (F43). The gateway has no `client_gone` metric.
+11. A worker that disappears mid-request fails the run on a 502, because the doctor retries only 429 and 503 (F44).
 
 ## 9. Change log
 | Date | Change | Decisions |
@@ -447,3 +451,4 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-07 | Part 5 evidence: time-series export, queue probes (big prompt, client gone, worker return), notebook section 10 | D-48 |
 | 2026-10-07 | The product is named Ariadne; README rebuilt around the inference stack; identifiers unchanged | D-50 |
 | 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |
+| 2026-10-08 | Part 5 sessions on the A100 (Qwen3-8B) and H100 (Qwen3.8): full sweep at 52 runs per level, probes, time series; findings F40–F47; notebook section 10 plots fixed (pod list, merged restart series, axes) | D-48 |

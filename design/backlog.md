@@ -13,6 +13,9 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   8B cited 9–11 and failed closed after two repairs (24 times in the 8B baseline; the 2026-10-04 smoke run found the
   right root cause and still scored 0). On the last repair, keep the first 8 refs instead. About 30 min. It changes
   the scores, so re-run the golden set afterwards.
+- [ ] **Retry a step that failed on a worker that went away.** When the probe deleted `vllm-1` under load, two runs ended
+  on an HTTP 502 on each GPU (findings F44), because the doctor retries only 429 and 503. Either the gateway re-places
+  a request whose worker vanished before it answered, or the doctor retries a 502 once. About 30 min, plus a test.
 
 ## Gateway
 - [ ] **Tune the KV-sized cap (D-43, findings F36).** Cap 4 kept vLLM healthy but finished fewer runs than cap 16 at 16
@@ -28,13 +31,29 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   creates, a run that has left stays remote, `orch_overflow_total{result=sent|failed|capped}`, Go tests against a fake
   remote, and a saturation demo. About half a day. Blocked until Superlinked fixes billing (findings F22).
 - [ ] **Confirm the KV hop moves the KV** (`design/gateway.md` "KV hop"). On 2026-10-07, 8 hops completed the
-  protocol on an H100 with none failed (findings F35), but nothing showed the destination pulling the KV instead of
+  protocol on an H100 with none failed, and 45 on 2026-10-08 (findings F35, F45), but nothing showed the destination pulling the KV instead of
   recomputing it. Next session, force moves with the tunnel up and compare the hopped step's `cached_tokens` with its
   `prompt_tokens`, and read the `hop` latency stage. Then replace the guessed `GW_HOP_TRANSFER_BYTES_PER_S` and the
   paper prefill rate with measured ones.
+- [ ] **Count `client_gone` and check that vLLM aborts it (findings F43).** The gateway logs `client_gone` but has no
+  metric, and vLLM's abort counter stayed 0 through six departed clients. Add `orch_client_gone_total{pod}`, then in a
+  probe session read vLLM's running count and KV usage in the seconds after each departure.
 - [ ] **`make gateway` restarts the pod twice when the policy changes** (`set env` and `rollout restart`), and it
   uploads stale files left in `.cache/gateway/`. Restart only when nothing else changed, and stage the upload in a
   clean folder.
+
+## Dashboards (findings F46)
+- [ ] **Worker phase shows "2+" and "<1" instead of down, warming and ready.** Grafana 13.2 ignores the panel's value
+  mappings, though they are in the loaded JSON. Try a stat-style mapping on the field override, or a time series with
+  the phases as named thresholds.
+- [ ] **Container restarts shows fractions** (1.0006). The query extrapolates a counter. Use `increase` over the
+  dashboard range, rounded, or `changes`.
+- [ ] **HAMi slice memory and SM activity have no data.** Check the HAMi exporter's metric names on a live node, and
+  whether DCGM exports `DCGM_FI_PROF_SM_ACTIVE` on this driver (`gpu_sm_active` had no series in both exports).
+- [ ] **"KV hops by result" plots seconds on a req/s axis.** Move the hop p95 to its own panel.
+- [ ] **The background load ends before the deleted worker returns** (findings F44). The probe deletes it at 300 s,
+  it takes about 5.5 minutes to come back, and the golden run at concurrency 4 lasts about 440 s. Run the background
+  load with `REPEAT=4`, so a returning worker gets traffic inside the window.
 
 ## Serving and infrastructure
 - [ ] **A hybrid-model correction in `serving/fit.py` (SPEC open issue 8, F5).** The paper estimate was 20–34%

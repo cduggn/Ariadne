@@ -439,6 +439,10 @@ full Prometheus snapshot would carry every series and need Prometheus to read it
 question a known moment to look at instead of hoping the golden load produces one.
 **Revisit when:** the probes disturb the measurements they sit next to (move them to their own window), or a question
 needs a series not in the table (add one row).
+**Outcome (2026-10-08):** both GPU sessions exported 22 series with no failed query, and section 10 draws each
+question (F40–F47). Three gaps remain. The long prompts came to 10.5k tokens, not ~14k. vLLM's abort counter never
+moved, so the client-gone question is open (F43). The deleted worker returned after the background run had ended, so
+the no-ramp choice is still unmeasured (F44, backlog).
 
 ### D-49 — KEDA scales the vLLM workers on the gateway's demand (2026-10-07)
 **Context:** the presentation asks which pool scales, and how. Until now the worker count was set by hand
