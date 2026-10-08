@@ -1,4 +1,4 @@
-module github.com/cduggn/cluster-doctor/gateway
+module github.com/cduggn/ariadne/gateway
 
 go 1.27.0
 

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // fastRule hops any history over 10 tokens beyond a 0-token shared prefix.

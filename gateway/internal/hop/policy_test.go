@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // rule is a Config with round numbers: 1 MB per token over 1 GB/s is 1 ms

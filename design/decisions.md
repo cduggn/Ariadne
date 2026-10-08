@@ -58,6 +58,9 @@ What the measurements showed, with evidence for each, is in [`findings.md`](find
 ### D-27 — AWS: S3 runaway-writer scenario and Cost Explorer via ccexplorer (2026-09-27)
 **Choice:** scripts (not executed) create one private bucket with 1-day object expiry, a read-only IAM user for the doctor (Cost Explorer read + list on that bucket) and a put-only user for the writer pod; the live-only `runaway-s3-writer` scenario writes ≤ 20,000 tiny objects. The doctor reads bucket stats same-day and real AWS cost/anomalies next day through the user's `ccexplorer` CLI (flags verified against its source).
 **Because:** end-to-end behaviour on real AWS for well under $1 per run; AWS keys never reach the model.
+**Amended 2026-10-08:** the scenario and `deploy/aws/` were removed from the submission because they never ran. The
+doctor's cost and S3 tools and the `runaway_cost` category stay, because they are part of the tool contract (INV-1,
+INV-14).
 
 ### D-28 — Golden set, checker and reference solver (2026-09-27)
 **Choice:** `evals/build_golden.py` builds 12 investigate tasks (one per recorded scenario) and 2 audits from the answer keys. The checker adds, to validation: correct status, every injected fault found on the right object (or a pod it owns) with an allowed category, evidence of an expected type, no finding on a healthy object, tools called, step cap. A reference solver builds a grounded diagnosis per task from tool results only; every reference must pass before a model is scored (enforced in CI).
@@ -92,7 +95,7 @@ What the measurements showed, with evidence for each, is in [`findings.md`](find
 
 ### D-34 — First Lambda session: what to measure to back the numbers (2026-09-27)
 **Choice:** one GPU session runs `make preflight` → `up` → `deploy` → `kv` → `tunnel` → `golden TAG=baseline` → `sweep` → `metrics` → `down` (steps in `design/lambda-test-plan.md`). Evidence it must produce: measured KV pool vs the paper 79,700 tokens; prompt tokens per step vs the measured prefix 3,787 and per-tier unique sizes; cached share of prompt tokens; golden pass rate per tier; TTFT/latency p50/p95 and `vllm:kv_cache_usage_perc`, waiting and preemptions at concurrency 1/4/8/16/32; DCGM power across prefill-heavy (audits) and decode-heavy phases. The gateway comes later; this run talks to vLLM directly through the tunnel.
-**Because:** every capacity and first-limiter claim in `design/capacity-qwen3-8b.md` is paper or tokenizer-measured until vLLM and the GPU confirm it.
+**Because:** every capacity and first-limiter claim in the first capacity sheet (since removed; F5 and F6 hold the measured numbers) was paper or tokenizer-measured until vLLM and the GPU confirm it.
 
 ### D-35 — Self-healing of the serving stack: planned stretch (2026-09-27)
 **Choice (not built):** after the Kubernetes tiers are solid, add remediation for the stack this project runs — vLLM (restart a wedged worker, scale the slice count, roll back a bad flag change, drain a worker whose KV is saturated) and the gateway (restart, shed-threshold rollback). It will run as a separate LangGraph path with a **separate, write-capable identity scoped to the doctor's own namespaces**, every action behind a human-approval interrupt, a dry-run diff first, and a post-action verification step; the read-only investigator is unchanged.
@@ -488,6 +491,9 @@ and renaming the image, metrics or resources would break the pinned digest, the 
 scrapes for no gain to a reader. Dashboard uids are unchanged, so links keep working.
 **Revisit when:** the GitHub repo is renamed (then update the badge, module path and image together), or a fresh model
 run happens anyway (then the prompt can say Ariadne at no cost to comparability).
+**Amended 2026-10-08:** the GitHub repo is now `cduggn/Ariadne` (old URLs redirect). The README badge and the Go module
+path (`github.com/cduggn/ariadne/gateway`) moved with it. The gateway image keeps its name, because renaming it needs a
+new Docker Hub repository and a fresh pinned digest for no change in behaviour.
 
 ### D-51 — KEDA waits 15 quiet minutes before removing a worker (2026-10-07)
 **Context:** on the H100 (F39) a Qwen3.8 worker took 8 min 21 s from creation to ready. A golden run resumed about 9.7

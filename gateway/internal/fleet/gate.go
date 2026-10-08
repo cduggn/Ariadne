@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // TenantLimit is one tenant's token bucket shape. Burst is the bucket's

@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/cduggn/cluster-doctor/actions/workflows/ci.yml"><img src="https://github.com/cduggn/cluster-doctor/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="https://github.com/cduggn/Ariadne/actions/workflows/ci.yml"><img src="https://github.com/cduggn/Ariadne/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
   <img src="https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white" alt="Go 1.27">
   <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
   <img src="https://img.shields.io/badge/vLLM-0.29-30A2FF" alt="vLLM 0.29">

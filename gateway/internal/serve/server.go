@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
-	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
-	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/fleet"
+	"github.com/cduggn/ariadne/gateway/internal/hop"
 )
 
 // DefaultUpstreamTimeout bounds one upstream call. It sits under the

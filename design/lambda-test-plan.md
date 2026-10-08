@@ -169,7 +169,7 @@ If something goes wrong:
 
 **Ran on 2026-10-08, twice.** In the morning no H100 was free, so it ran on an A100 with Qwen3-8B. In the afternoon it
 ran on an H100 SXM5 with Qwen3.8. Results are in findings F40–F47, and the screenshots are
-`design/screenshots/q1-a100-*` and `q1-h100-*`. The first export ended before the deleted worker was ready, so
+`design/screenshots/q1-h100-*` (the A100 ones were not kept). The first export ended before the deleted worker was ready, so
 `make export` ran again before `make down`. The probe deletes the worker at 300 s, and on the H100 it took about
 5.5 minutes to return, after the background golden run had finished (backlog).
 

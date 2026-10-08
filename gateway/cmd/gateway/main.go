@@ -21,11 +21,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
-	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
-	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
-	"github.com/cduggn/cluster-doctor/gateway/internal/metrics"
-	"github.com/cduggn/cluster-doctor/gateway/internal/serve"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/fleet"
+	"github.com/cduggn/ariadne/gateway/internal/hop"
+	"github.com/cduggn/ariadne/gateway/internal/metrics"
+	"github.com/cduggn/ariadne/gateway/internal/serve"
 )
 
 const defaultWorkers = "vllm-0=http://vllm-0.vllm.default.svc.cluster.local:8000," +

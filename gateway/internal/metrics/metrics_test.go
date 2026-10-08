@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
-	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
-	"github.com/cduggn/cluster-doctor/gateway/internal/serve"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/fleet"
+	"github.com/cduggn/ariadne/gateway/internal/serve"
 )
 
 var pods = []string{"vllm-0", "vllm-1"}

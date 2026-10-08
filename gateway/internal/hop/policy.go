@@ -16,7 +16,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // Outcome is what one move did. It is the result label on orch_hop_total.

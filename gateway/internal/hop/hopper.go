@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // Move is one placement as the hop sees it. From is the worker the run was

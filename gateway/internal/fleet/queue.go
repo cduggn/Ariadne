@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // Refusal is Acquire's error when the queue turns a request away. Reason is

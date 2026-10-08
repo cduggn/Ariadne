@@ -13,10 +13,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
-	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
-	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
-	"github.com/cduggn/cluster-doctor/gateway/internal/serve"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/fleet"
+	"github.com/cduggn/ariadne/gateway/internal/hop"
+	"github.com/cduggn/ariadne/gateway/internal/serve"
 )
 
 // MetricNames lists every orch_ family the gateway exports. The dashboard

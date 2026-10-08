@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // fakeVLLM serves /metrics and /v1/chat/completions the way the fleet

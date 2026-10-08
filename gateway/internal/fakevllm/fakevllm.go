@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // Settings are the knobs a test or a demo turns. KVUsage, PoolBlocks and

@@ -8,7 +8,7 @@ another language without reading the history.
 | Last updated | 2026-09-28 (model profiles, topologies, fit, matrix: D-40; observation ledger and v2 score: D-41) |
 | Why things are the way they are | [`design/decisions.md`](design/decisions.md) |
 | Course mapping | [`design/course-objectives.md`](design/course-objectives.md) |
-| Capacity and measurements | [`design/capacity-qwen3-8b.md`](design/capacity-qwen3-8b.md) · every model: [`design/model-matrix.md`](design/model-matrix.md) (generated) |
+| Capacity and measurements | [`design/findings.md`](design/findings.md) (F5, F6) · every model: [`design/model-matrix.md`](design/model-matrix.md) (generated) |
 | Architecture | [`design/architecture.md`](design/architecture.md) |
 
 **Status legend:** ✅ built and tested offline · 🟡 built, not yet run on a GPU or live cluster · ⬜ planned.
@@ -46,7 +46,7 @@ or non-certificate ConfigMap values. Model-written PromQL or shell. Sending clus
 | multi_hop (6) | tls-expired (identity: auth-api cert expired, errors on session-svc) · cascade-db (inventory: stock-db OOM, stock-api victim) · limitrange-oom (finance: LimitRange injects 32Mi) · quota-exhausted (batch: ResourceQuota pods=2 blocks scale-out) · init-wait (accounts: init waits for renamed service) · eviction (media: sidecar fills ephemeral storage) |
 | red_herring (4) | tls-truststore (payments: checkout-web trusts legacy CA; payments-api healthy) · throttled-liveness (search: exec probe starved by 10m CPU) · port-mismatch (pricing: Service targetPort 8080 vs 80) · dns-misconfig (notifications: dead nameserver; smtp-relay healthy) |
 | rightsizing (1) | rightsizing (analytics: reporting-api over-provisioned; ingest-worker throttled trap; cache right-sized control) |
-| live-only (4) | gpu-unavailable · gpu-slice-oom · kv-saturation · runaway-s3-writer (recorded on the Lambda node / AWS later) |
+| live-only (3) | gpu-unavailable · gpu-slice-oom · kv-saturation (recorded on the Lambda node later) |
 
 Answer-key fields: `tier`, `task_type`, `category`, `allowed`, `objects` (roots: `kind`, `name`, optional
 per-object `category`, `affects` = victims, `alternatives` = equally valid roots, `resize_band`),
@@ -221,7 +221,6 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
 - `deploy/doctor/rbac.yaml`: read-only ClusterRole (get/list/watch on the readable kinds incl. limitranges,
   resourcequotas, networkpolicies, persistentvolumeclaims, ingresses; `pods/log`; `metrics.k8s.io`) — no Secrets,
   no writes, no exec.
-- `deploy/aws/`: dry-run-by-default `setup.sh` / `teardown.sh`, 1-day lifecycle, read-only and put-only policies.
 
 ### C18 — Command line ✅ (`doctor/cli.py`, `python -m doctor`, D-36)
 - `python -m doctor {investigate|audit|rightsize} -n ns1,ns2 ["report"]`; source is `--context`/`--kubeconfig`
@@ -340,7 +339,7 @@ demand per worker, sheds, worker phase).
 ### Planned ⬜
 | Id | Component | Summary |
 |---|---|---|
-| C12 | Live fixtures | record the 4 live-only scenarios on the Lambda cluster / AWS |
+| C12 | Live fixtures | record the 3 live-only scenarios on the Lambda cluster |
 | C15 | CVE rehydration (batch tenant) | post-course |
 | C16 | Self-healing of vLLM and the gateway (stretch, D-35) | separate write-scoped identity, approval interrupt, dry-run diff, post-action verification; the read-only path never gains write access |
 | C17 | Multi-agent roles | orchestrator (code) → parallel collectors → diagnoser → reviewer → approval → solutioner, as graph nodes over the same tools |
@@ -418,7 +417,7 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 ## 8. Open issues
 1. The KV-sized cap (D-43) kept vLLM healthy but finished fewer runs than cap 16 at high concurrency (F36). The
    backlog tunes it (6–8 on an H100 half, or a longer interactive deadline).
-2. Live-only scenarios need recording on the Lambda cluster and AWS (C12).
+2. Live-only scenarios need recording on the Lambda cluster (C12).
 3. OpenCost pricing units and HAMi half-GPU attribution unverified (D-26).
 4. Live logs are longer than lab logs: re-measure tokens (D-29).
 5. In cascade-db the client's error line has no reason text (busybox prints nothing on refused-after-timeout); the database's `OOMKilled` status carries the proof.
@@ -450,5 +449,7 @@ prefixes (tests key on them); the fail-closed shape; the DER walk order in `doct
 | 2026-10-07 | Part 5 evidence: time-series export, queue probes (big prompt, client gone, worker return), notebook section 10 | D-48 |
 | 2026-10-07 | The product is named Ariadne; README rebuilt around the inference stack; identifiers unchanged | D-50 |
 | 2026-10-07 | Worker autoscaling with KEDA on tested recording rules; the cluster dashboard (cluster, outcomes, scaling); presentation walkthrough | D-49 |
+| 2026-10-08 | Submission pruned: the AWS runaway-writer scenario and `deploy/aws/` (never run), the agent guides, the first capacity sheet (replaced by F5, F6), the A100 screenshots, and two unused metrics files | D-27 |
+| 2026-10-08 | GitHub repo renamed to `cduggn/Ariadne`; README badge and Go module path follow; the image and runtime identifiers keep `cluster-doctor` | D-50 |
 | 2026-10-08 | The doctor retries a 502 `upstream_error` like a refusal, so a worker that disappears mid-step no longer ends the run (F44) | D-44 |
 | 2026-10-08 | Part 5 sessions on the A100 (Qwen3-8B) and H100 (Qwen3.8): full sweep at 52 runs per level, probes, time series; findings F40–F47; notebook section 10 plots fixed (pod list, merged restart series, axes) | D-48 |

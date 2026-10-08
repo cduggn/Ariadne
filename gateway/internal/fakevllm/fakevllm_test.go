@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
+	"github.com/cduggn/ariadne/gateway/internal/fleet"
 )
 
 // bodyOfLength builds a chat body of exactly n bytes by padding the user

@@ -1,9 +1,0 @@
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {"Sid": "CostExplorerRead", "Effect": "Allow",
-     "Action": ["ce:GetCostAndUsage", "ce:GetCostForecast", "ce:GetAnomalies", "ce:GetAnomalyMonitors"], "Resource": "*"},
-    {"Sid": "LabBucketList", "Effect": "Allow",
-     "Action": ["s3:ListBucket", "s3:GetBucketLocation"], "Resource": "arn:aws:s3:::__BUCKET__"}
-  ]
-}

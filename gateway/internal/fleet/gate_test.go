@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
 )
 
 // fakeClock is a settable clock. It starts at the real time so the queue,

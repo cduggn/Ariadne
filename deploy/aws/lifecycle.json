@@ -1,2 +1,0 @@
-{"Rules": [{"ID": "expire-lab-objects-after-1-day", "Status": "Enabled", "Filter": {"Prefix": ""},
-            "Expiration": {"Days": 1}, "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1}}]}

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/decide"
-	"github.com/cduggn/cluster-doctor/gateway/internal/fakevllm"
-	"github.com/cduggn/cluster-doctor/gateway/internal/fleet"
-	"github.com/cduggn/cluster-doctor/gateway/internal/hop"
+	"github.com/cduggn/ariadne/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/fakevllm"
+	"github.com/cduggn/ariadne/gateway/internal/fleet"
+	"github.com/cduggn/ariadne/gateway/internal/hop"
 )
 
 // doctorBody is a step-1 request shaped like the doctor's, and the body the

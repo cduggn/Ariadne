@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cduggn/cluster-doctor/gateway/internal/fakevllm"
+	"github.com/cduggn/ariadne/gateway/internal/fakevllm"
 )
 
 func main() {
