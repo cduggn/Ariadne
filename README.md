@@ -30,8 +30,7 @@
 </p>
 
 > *In Greek myth, Ariadne gave Theseus a ball of thread so he could find his way through the Minotaur's labyrinth and
-> back out. Kubernetes is the modern labyrinth. Ariadne is the thread that leads an engineer straight to the beast:
-> the root cause.*
+> back out.*
 
 Ariadne is the final project for *AI Inference Engineering & Systems Design* (Track B). The app is an agent that
 investigates a broken cluster with read-only tools and names the object that has to change. The subject is the stack
