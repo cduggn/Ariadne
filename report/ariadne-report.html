@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ariadne results report</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+  :root { --ink: #1b1b1a; --ink2: #52514e; --rule: #dcdbd6; --accent: #2a78d6; --soft: #f4f3ef; }
+  html { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 10pt; color: var(--ink); line-height: 1.45; }
+  body { margin: 0; background: #fff; }
+  h1 { font-size: 22pt; margin: 0 0 4pt; }
+  h2 { font-size: 15pt; margin: 0 0 8pt; padding-bottom: 4pt; border-bottom: 2px solid var(--accent); break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 14pt 0 5pt; break-after: avoid; }
+  p { margin: 0 0 7pt; }
+  ul, ol { margin: 0 0 8pt; padding-left: 16pt; }
+  li { margin-bottom: 3pt; }
+  code { font-family: Menlo, Consolas, monospace; font-size: 8.6pt; background: var(--soft); padding: 0 2pt; border-radius: 2px; }
+  pre { font-family: Menlo, Consolas, monospace; font-size: 8.4pt; background: var(--soft); padding: 7pt 9pt; border-radius: 4px; white-space: pre-wrap; break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 6pt; font-size: 8.8pt; break-inside: avoid; }
+  th, td { text-align: left; vertical-align: top; padding: 3pt 5pt; border-bottom: 1px solid var(--rule); }
+  th { background: var(--soft); font-weight: 600; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  .cap { font-size: 8.6pt; color: var(--ink2); margin: 0 0 10pt; }
+  .cap b { color: var(--ink); }
+  figure { margin: 6pt 0 10pt; break-inside: avoid; }
+  figure img { width: 100%; display: block; border: 1px solid var(--rule); }
+  figure.narrow img { width: 78%; margin: 0 auto; }
+  figcaption { font-size: 8.6pt; color: var(--ink2); margin-top: 4pt; }
+  figcaption b { color: var(--ink); }
+  .part { break-before: page; }
+  .keep { break-inside: avoid; }
+  .cover { height: 255mm; display: flex; flex-direction: column; }
+  .cover .logo { width: 70pt; margin-bottom: 14pt; }
+  .cover .sub { font-size: 13pt; color: var(--ink2); margin-bottom: 18pt; }
+  .cover table { font-size: 9.2pt; }
+  .cover th { width: 24%; background: none; }
+  .toc { margin-top: auto; }
+  .toc ol { columns: 2; font-size: 9.5pt; }
+  .callout { background: var(--soft); border-left: 3px solid var(--accent); padding: 6pt 9pt; margin: 6pt 0 10pt; break-inside: avoid; }
+  .label { font-size: 7.8pt; color: var(--ink2); }
+  svg text { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ============================== cover ============================== -->
+<section class="cover">
+  <img class="logo" src="../design/assets/ariadne-light.png" alt="Ariadne logo">
+  <h1>Ariadne on a single H100</h1>
+  <div class="sub">Results report: cluster setup, capacity, benchmarks, queue probes and agent validation</div>
+  <table>
+    <tr><th>App</th><td>Ariadne, a read-only root-cause agent for Kubernetes (Track B). It names the object that has to change and cites only evidence it was shown, or answers <code>inconclusive</code>.</td></tr>
+    <tr><th>Model</th><td>Qwen3.8-27B in FP8 on vLLM 0.29.0, one worker per HAMi half</td></tr>
+    <tr><th>Cluster</th><td>One NVIDIA H100 80 GB on Lambda Cloud, single-node k3s, split by HAMi into two halves of 39 GiB and 50% of the compute</td></tr>
+    <tr><th>Gateway</th><td>Go gateway that guards, admits, places and queues every call, with an opt-in Mooncake KV hop and KEDA scaling of the vLLM pool</td></tr>
+    <tr><th>Agent workload</th><td>A LangGraph agent with 11 read-only tools, 5 to 16 chained model calls per run, replaying a golden set of 26 faults recorded from a real cluster</td></tr>
+    <tr><th>Measured</th><td>27 September to 8 October 2026, across four GPU sessions (A100, H100 PCIe, H100 SXM5)</td></tr>
+    <tr><th>Data</th><td><code>metrics/</code> (golden rows and summaries, Prometheus scrapes, time series), <code>report/report.ipynb</code>, <code>design/findings.md</code> (F1 to F47), <code>design/decisions.md</code> (D-1 to D-51)</td></tr>
+    <tr><th>Repository</th><td>github.com/cduggn/Ariadne</td></tr>
+  </table>
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li>Executive summary</li>
+      <li>Setup overview</li>
+      <li>Part 1. Cluster setup</li>
+      <li>Part 2. Capacity on paper and measured</li>
+      <li>Part 3. Benchmarks: routing, the knee, admission</li>
+      <li>Part 4. Who waits where: the queue probes</li>
+      <li>Part 5. Scaling the worker pool</li>
+      <li>Part 6. Validation with agent runs</li>
+      <li>Part 7. Operating it: alerts, 10× traffic, open questions</li>
+      <li>Exhibits. Grafana screenshots</li>
+      <li>Appendix. Reproducing the runs</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================== summary ============================== -->
+<section class="part">
+<h2>Executive summary</h2>
+<p>Ariadne is an agent that diagnoses Kubernetes faults by calling read-only tools, and the system around it is a self-hosted
+inference stack: a Go gateway in front of two vLLM workers that share one H100 through HAMi. Cluster data is restricted, so
+it never leaves the team's own GPUs. Every number below comes from a committed file in <code>metrics/</code>, and each
+carries its finding number (F) from <code>design/findings.md</code>.</p>
+
+<ul>
+  <li><b>The model is the biggest lever on answers.</b> Qwen3.8-27B diagnoses 86.5% of the golden set [95% CI 74.7–93.3],
+    against 51.9% [38.7–64.9] for Qwen3-8B. It scores 100% on red herrings, the tier where a rule or dashboard points at the
+    wrong object (F1).</li>
+  <li><b>KV cache is the first limit.</b> One H100 half holds 51,092 tokens of KV, about two full-length (24,576-token)
+    runs. The fit calculator was 34% optimistic for this hybrid model, though within 1% for the standard-attention 8B (F5, F6).</li>
+  <li><b>The knee is between 8 and 16 concurrent agent runs.</b> With 52 runs per level the pass rate holds at 83–87% up to 8,
+    then falls to 63.5% at 16 and 23.1% at 32 (F24, F40).</li>
+  <li><b>Sizing admission to KV moves the waiting from vLLM to the gateway.</b> An in-flight cap of 4 per worker cut vLLM
+    preemptions by about 95% on the same node and lowered tail latency about 15%, but finished fewer runs at 16 and 32,
+    because queued requests hit their deadline (F36). Across the full sweep vLLM's own queue never held more than 2
+    requests (F41).</li>
+  <li><b>Keeping a run on its worker saves prefill without changing answers.</b> Without stickiness vLLM recomputed 10% more
+    prompt tokens and steps were 8–11% slower, at the same pass rate (F29). The prefix cache serves 87.8% of prompt tokens (F9).</li>
+  <li><b>Recovery and scaling are measured in minutes.</b> A deleted worker was serving again in 5 min 37 s (F44). KEDA asks
+    for a second worker about a minute after a capacity shed, but a new worker takes 8 min 21 s to load, so scale-down waits
+    15 quiet minutes (F39, D-51).</li>
+  <li><b>Two things are unconfirmed.</b> The Mooncake KV hop completed its protocol 53 times with no failures, but nobody
+    has confirmed that the destination pulled the KV rather than recomputing it (F35, F45). vLLM's abort counter didn't move
+    when clients left, so freeing their KV is also unconfirmed (F43).</li>
+</ul>
+
+<div class="callout"><b>How the evaluation works.</b> Every measured run replays the golden set: 26 faults recorded from a
+real Kubernetes cluster, in four tiers (easy, multi-hop, red herring, right-sizing). The model and its tool calls are real
+and go through the gateway; only the tool answers come from the recordings, so every run sees identical evidence and the
+pass rates are comparable. The same agent reads a live cluster through a read-only kubectl, but no live-cluster run was
+measured.</div>
+
+<h3>Setup overview</h3>
+<table>
+  <tr><th>Item</th><th>Value</th></tr>
+  <tr><td>Model</td><td>Qwen3.8-27B, FP8 weights (28.8 GiB). A hybrid model: Gated DeltaNet layers keep a fixed recurrent state, and only its full-attention layers hold KV (64 KiB per token)</td></tr>
+  <tr><td>Engine</td><td>vLLM 0.29.0 (<code>vllm-openai:v0.29.0-cu129</code>, pinned by digest). v0.30.0 crash-loops on start (F19)</td></tr>
+  <tr><td>Engine settings</td><td>context 24,576 tokens; at most 32 sequences; 8,192 batched tokens per step (chunked prefill); prefix caching on; <code>gpu_memory_utilization</code> 0.90 of the slice</td></tr>
+  <tr><td>Sampling</td><td>Qwen3 non-thinking: temperature 0.7, top_p 0.8, top_k 20; at most 768 output tokens per call; <code>tool_choice</code> auto (D-38)</td></tr>
+  <tr><td>Agent</td><td>LangGraph state graph over LangChain tools; 11 read-only tools; step caps of 16 (investigate), 30 (audit) and 12 (right-size); stops before a 23,000-token context</td></tr>
+  <tr><td>Golden set</td><td>26 tasks: 14 easy, 7 multi-hop, 4 red herring, 1 right-sizing. Scored deterministically by <code>evals/checker.py</code> (v2, D-41)</td></tr>
+  <tr><td>Access path</td><td>Agent on the laptop → SSH tunnel → gateway Service on the node → vLLM worker. Every call carries <code>X-Request-Id</code>, <code>X-Tenant</code>, <code>X-Priority</code> and <code>X-Data-Class: restricted</code></td></tr>
+</table>
+</section>
+
+<!-- ============================== part 1 ============================== -->
+<section class="part">
+<h2>Part 1. Cluster setup</h2>
+<p>Everything runs on one Lambda Cloud instance with a single H100 80 GB, managed as a one-node k3s cluster. <code>make up</code>
+takes the first GPU with capacity (GH200, then H100, then A100), and one cloud-init detects the card and deploys the matching
+topology (F18). HAMi splits the card into two slices so two vLLM workers share it. Prometheus scrapes every component, and
+Grafana shows three dashboards.</p>
+
+<figure class="keep">
+<svg viewBox="0 0 720 300" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram">
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#52514e"/></marker></defs>
+  <rect x="10" y="40" width="150" height="110" rx="6" fill="#f4f3ef" stroke="#52514e"/>
+  <text x="85" y="62" text-anchor="middle" font-size="12" font-weight="700">Laptop</text>
+  <rect x="22" y="72" width="126" height="34" rx="4" fill="#fff" stroke="#2a78d6"/>
+  <text x="85" y="87" text-anchor="middle" font-size="10" font-weight="700">Ariadne agent</text>
+  <text x="85" y="99" text-anchor="middle" font-size="8.5">LangGraph · 11 read-only tools</text>
+  <rect x="22" y="112" width="126" height="30" rx="4" fill="#fff" stroke="#52514e"/>
+  <text x="85" y="125" text-anchor="middle" font-size="9">golden set: 26 recorded</text>
+  <text x="85" y="136" text-anchor="middle" font-size="9">faults, v2 checker</text>
+
+  <rect x="200" y="10" width="510" height="280" rx="6" fill="#fbfbf9" stroke="#52514e"/>
+  <text x="455" y="28" text-anchor="middle" font-size="12" font-weight="700">Lambda node · k3s · HAMi</text>
+  <rect x="215" y="60" width="160" height="80" rx="4" fill="#fff" stroke="#2a78d6"/>
+  <text x="295" y="78" text-anchor="middle" font-size="10.5" font-weight="700">gateway (Go)</text>
+  <text x="295" y="93" text-anchor="middle" font-size="9">guard → admit → place → queue</text>
+  <text x="295" y="106" text-anchor="middle" font-size="9">cap 4 in flight per worker</text>
+  <text x="295" y="119" text-anchor="middle" font-size="9">warm-up · orch_* metrics</text>
+  <text x="295" y="132" text-anchor="middle" font-size="9">restricted never leaves</text>
+
+  <rect x="420" y="40" width="275" height="150" rx="5" fill="#f4f3ef" stroke="#52514e" stroke-dasharray="4 3"/>
+  <text x="557" y="56" text-anchor="middle" font-size="10" font-weight="700">H100 80 GB, two HAMi halves</text>
+  <rect x="432" y="66" width="120" height="70" rx="4" fill="#fff" stroke="#eb6834"/>
+  <text x="492" y="84" text-anchor="middle" font-size="10" font-weight="700">vllm-0</text>
+  <text x="492" y="98" text-anchor="middle" font-size="8.5">39 GiB · 50% compute</text>
+  <text x="492" y="110" text-anchor="middle" font-size="8.5">Qwen3.8-27B FP8</text>
+  <text x="492" y="122" text-anchor="middle" font-size="8.5">KV 51,092 tokens</text>
+  <rect x="563" y="66" width="120" height="70" rx="4" fill="#fff" stroke="#eb6834"/>
+  <text x="623" y="84" text-anchor="middle" font-size="10" font-weight="700">vllm-1</text>
+  <text x="623" y="98" text-anchor="middle" font-size="8.5">39 GiB · 50% compute</text>
+  <text x="623" y="110" text-anchor="middle" font-size="8.5">Qwen3.8-27B FP8</text>
+  <text x="623" y="122" text-anchor="middle" font-size="8.5">KV 51,092 tokens</text>
+  <text x="557" y="168" text-anchor="middle" font-size="8.5">KV hop (Mooncake, opt-in), histories ≥ 8,192 tokens</text>
+  <text x="557" y="182" text-anchor="middle" font-size="8.5">KEDA scales the pool from 1 to 2 workers</text>
+
+  <rect x="215" y="215" width="480" height="60" rx="4" fill="#fff" stroke="#52514e"/>
+  <text x="455" y="234" text-anchor="middle" font-size="10" font-weight="700">Observability</text>
+  <text x="455" y="249" text-anchor="middle" font-size="9">Prometheus · Grafana (cluster, gateway, vLLM + GPU) · DCGM exporter</text>
+  <text x="455" y="262" text-anchor="middle" font-size="9">5 alert rules with promtool tests · <tspan font-family="Menlo, monospace">make export</tspan> saves time series to metrics/</text>
+
+  <line x1="160" y1="95" x2="213" y2="95" stroke="#52514e" marker-end="url(#a)"/>
+  <text x="186" y="88" text-anchor="middle" font-size="8">tunnel</text>
+  <line x1="375" y1="100" x2="418" y2="100" stroke="#52514e" marker-end="url(#a)"/>
+  <text x="397" y="93" text-anchor="middle" font-size="8">sticky</text>
+</svg>
+<figcaption><b>Figure 1.</b> The agent runs on the laptop and reaches the gateway through an SSH tunnel. The gateway places each
+call on one of two vLLM workers that share the H100 through HAMi.</figcaption>
+</figure>
+
+<h3>As deployed</h3>
+<table>
+  <tr><th>Pod</th><th>Role</th><th class="n">GPU memory</th><th class="n">Compute</th><th class="n">KV cache (tokens)</th><th class="n">24,576-token runs that fit</th></tr>
+  <tr><td>vllm-0</td><td>prefill and decode</td><td class="n">39 GiB</td><td class="n">50%</td><td class="n">51,092</td><td class="n">2.08</td></tr>
+  <tr><td>vllm-1</td><td>prefill and decode</td><td class="n">39 GiB</td><td class="n">50%</td><td class="n">51,092</td><td class="n">2.08</td></tr>
+  <tr><td>Total</td><td></td><td class="n">78 of 80 GB</td><td class="n">100%</td><td class="n">102,184</td><td class="n">4.2</td></tr>
+</table>
+<p class="cap"><b>Table 1.</b> The inference pods, their HAMi slices, and the KV pool vLLM reported at start-up
+(<code>metrics/kv-qwen3.8-27b-fp8-h100-half-20261006-125054.log</code>). Each worker does its own prefill and decode;
+there is no prefill/decode split.</p>
+
+<table>
+  <tr><th>Component</th><th>Deployment</th><th>Configuration</th></tr>
+  <tr><td>Gateway</td><td>1 pod, Go, public image pinned by digest</td><td>Guard (400), tenant token quota (429), KV and queue deadline (503); in-flight cap 4 per worker (D-43); priority queue per worker with deadlines of 10 s (interactive) and 30 s (batch); <code>prefix_then_load</code> placement; warm-up probes before a worker takes traffic</td></tr>
+  <tr><td>KV hop</td><td>vLLM's MooncakeConnector, gateway flag</td><td>Moves a run's KV to the other worker when its history is at least 8,192 tokens and the copy is cheaper than recomputing it (D-42)</td></tr>
+  <tr><td>KEDA</td><td>ScaledObject on <code>statefulset/vllm</code></td><td>1 to 2 workers; demand trigger (in flight + queued ÷ 4) and a capacity-shed trigger; 15-minute scale-down window (D-49, D-51)</td></tr>
+  <tr><td>Observability</td><td>kube-prometheus-stack, Grafana, DCGM exporter</td><td>Scrapes the gateway, both workers and the GPU; three dashboards; five alert rules (D-45)</td></tr>
+  <tr><td>Agent</td><td>laptop, Python 3.12, <code>python -m agent</code></td><td>Read-only by construction: a kubectl verb allowlist, no Secrets, no exec; LangSmith tracing forced off</td></tr>
+</table>
+<p class="cap"><b>Table 2.</b> Other components.</p>
+
+<h3>Request path</h3>
+<ol>
+  <li>The agent sends an OpenAI chat completion with its headers. The run id ties the 5 to 16 calls of one diagnosis together.</li>
+  <li><b>Guard.</b> Malformed bodies, streaming and client-supplied <code>kv_transfer_params</code> get a 400.</li>
+  <li><b>Admit.</b> A tenant over its token quota gets a 429. A request whose worker is below 20% free KV, or that would miss its
+    queue deadline, gets a 503 with its reason (<code>kv_free</code>, <code>timeout_queue</code>) and a <code>Retry-After</code>.
+    Only a 503 may leave the box, and a restricted request never does (fuzz test and alert).</li>
+  <li><b>Place.</b> A run stays on the worker that holds its history, unless that worker is much busier or has restarted.</li>
+  <li><b>Queue.</b> At most 4 requests run per worker. The rest wait in priority order; batch audits are shed before interactive investigations.</li>
+  <li>The agent waits out a 429 or 503 (and, since 10-08, a 502 from a worker that went away) for up to about 15 s before the run fails (D-44).</li>
+</ol>
+
+<h3>Deployment notes</h3>
+<table>
+  <tr><th>Issue</th><th>Cause</th><th>Resolution</th></tr>
+  <tr><td>vLLM v0.30.0 crash-loops at start</td><td>The image ships a cu130 torch with a cu129 torchvision (vllm#59157)</td><td>Stay on v0.29.0, pinned by digest (F19)</td></tr>
+  <tr><td>Agent's tool calls collapsed into whitespace (0/5)</td><td><code>tool_choice="required"</code> made vLLM constrain decoding with a grammar that degenerated</td><td><code>tool_choice="auto"</code> with the model card's sampling; the agent nudges a reply with no tool call (D-38)</td></tr>
+  <tr><td>Malformed tool-call arguments crashed a run</td><td>The model sometimes sent a JSON string holding a Python dict</td><td>Turned into an invalid tool call the model is told about; the run continues (D-39)</td></tr>
+  <tr><td>Three billed nodes after a slow boot</td><td><code>make up</code> retried a launch that had already created the instance</td><td><code>make up</code> refuses while a node exists; <code>make resume</code> finishes a slow boot (F20, F21)</td></tr>
+  <tr><td>Overflow backend unavailable</td><td>The provider returned HTTP 402 for every call despite a credit grant</td><td>Overflow decided but left null; restricted traffic never overflows anyway (F22)</td></tr>
+  <tr><td>Sweep rows for Qwen3.8 written to one file</td><td><code>Path.with_suffix</code> cut the tag at the dot in "qwen3.8"</td><td>Fixed in the runner, with a test; summaries were unaffected (F37)</td></tr>
+</table>
+<p class="cap"><b>Table 3.</b> Problems met on the way and how each was resolved.</p>
+</section>
+
+<!-- ============================== part 2 ============================== -->
+<section class="part">
+<h2>Part 2. Capacity on paper and measured</h2>
+<p><code>serving/fit.py</code> predicts, for every model and topology, the weights, the KV bytes per token, the KV pool, and how
+many requests fit at full length and at the app's length. vLLM then reports the pool it actually allocated. A gate refuses
+to deploy a pairing that can't hold one full-length request.</p>
+
+<table>
+  <tr><th>Model, where</th><th class="n">Weights</th><th class="n">KV per token</th><th class="n">Paper pool</th><th class="n">Measured</th><th class="n">Gap</th></tr>
+  <tr><td>Qwen3-8B-AWQ, A100 20 GiB slice</td><td class="n">5.7 GiB</td><td class="n">144 KiB</td><td class="n">79,699</td><td class="n">79,056</td><td class="n">−0.8%</td></tr>
+  <tr><td>Qwen3-30B-A3B AWQ, whole A100</td><td class="n">16.9 GiB</td><td class="n">96 KiB</td><td class="n">197,563</td><td class="n">185,136</td><td class="n">−6.3%</td></tr>
+  <tr><td>Qwen3.8-27B-FP8, whole H100</td><td class="n">28.8 GiB</td><td class="n">64 KiB</td><td class="n">653,004</td><td class="n">525,797</td><td class="n">−19.5%</td></tr>
+  <tr><td><b>Qwen3.8-27B-FP8, H100 39 GiB half</b></td><td class="n">28.8 GiB</td><td class="n">64 KiB</td><td class="n">77,926</td><td class="n"><b>51,092</b></td><td class="n"><b>−34.4%</b></td></tr>
+</table>
+<p class="cap"><b>Table 4.</b> KV pool in tokens, paper against vLLM's own start-up report. Qwen3.8 also keeps about 147 MiB
+of recurrent state per sequence, which the token count doesn't show.</p>
+
+<figure class="narrow">
+  <img src="../design/figures/kv_fit.png" alt="Paper against measured KV pool per model and topology">
+  <figcaption><b>Figure 2.</b> The fit is accurate for standard attention and over-optimistic for the hybrid model. The fixed costs it
+  underestimates (recurrent state, the vision encoder and multi-token-prediction head in the checkpoint, larger activations)
+  weigh more on a smaller slice (F5; the cause is unverified).</figcaption>
+</figure>
+
+<h3>What that means for concurrency</h3>
+<ul>
+  <li><b>About two full-length runs per half.</b> vLLM reports a maximum concurrency of 2.08 at 24,576 tokens, against the fit's 2.9.
+    KV, not the 32-sequence cap, is the first limiter (F6).</li>
+  <li><b>An agent run is shorter than the maximum on average, but grows.</b> Each run starts at about 4.7k tokens and adds a few
+    hundred per step. Audits reach about 15k tokens.</li>
+  <li><b>So the gateway allows 4 in flight per worker.</b> D-43 sizes the cap from the measured pool: four runs at the app's
+    length of about 12k tokens, with the shared prefix cached once, need about 36k of the 51k tokens. The earlier cap of 16 was
+    sized for the 8B on an A100 slice and let more work into vLLM than its KV holds (F26).</li>
+</ul>
+
+<h3>Shared and unique tokens</h3>
+<figure class="narrow">
+  <img src="../design/figures/prompt_per_step.png" alt="Prompt tokens per step, cached and computed">
+  <figcaption><b>Figure 3.</b> Every call starts with the same prefix (ruleset, tool schemas, cluster card), now about 3.9k
+  tokens (F47). Each step adds a few hundred tokens. By step 10 the median prompt is 9,337 tokens, and vLLM computes only
+  713 of them. Across the golden run, 87.8% of prompt tokens came from the prefix cache. That is lower than the 8B's 94.9%
+  because the hybrid layers can only resume from block-boundary checkpoints (F8–F10, F9's cause unverified).</figcaption>
+</figure>
+</section>
+
+<!-- ============================== part 3 ============================== -->
+<section class="part">
+<h2>Part 3. Benchmarks: routing, the knee, admission</h2>
+<p>All benchmarks are the agent itself: the golden set at a fixed number of concurrent runs, through the gateway, each run
+making its chained calls. Pass rates are v2 with 95% Wilson intervals.</p>
+
+<h3>3.1 Placement: does keeping a run on its worker matter? (10-06)</h3>
+<table>
+  <tr><th></th><th class="n"><code>prefix_then_load</code> (sticky)</th><th class="n"><code>least_loaded</code></th></tr>
+  <tr><td>v2 pass [95% CI]</td><td class="n">86.5% [74.7–93.3]</td><td class="n">88.5% [77.0–94.6]</td></tr>
+  <tr><td>Cached share of prompt</td><td class="n"><b>87.8%</b></td><td class="n">85.6%</td></tr>
+  <tr><td>Uncached prompt tokens prefilled</td><td class="n"><b>416,445</b></td><td class="n">459,909 (+10.4%)</td></tr>
+  <tr><td>Step latency p50</td><td class="n"><b>2.86 s</b></td><td class="n">3.10 s (+8%)</td></tr>
+  <tr><td>Step latency p95, steps after the first</td><td class="n"><b>25.3 s</b></td><td class="n">28.1 s (+11%)</td></tr>
+  <tr><td>Continuing steps back on their run's worker</td><td class="n">94%</td><td class="n">77%</td></tr>
+</table>
+<p class="cap"><b>Table 5.</b> The routing A/B: the golden set twice per arm at 4 concurrent runs, only the pick policy changed (F29).</p>
+<figure>
+  <img src="../design/figures/routing_ab.png" alt="Routing A/B bar charts">
+  <figcaption><b>Figure 4.</b> Stickiness saves prefill and time without changing answers. The gap is modest at this load,
+  because <code>least_loaded</code> picks the run's previous worker 77% of the time anyway and both workers hold the shared
+  prefix from warm-up. We expect it to widen under uneven or heavier load, which no run has tested (F29).</figcaption>
+</figure>
+
+<h3>3.2 Under load: the knee</h3>
+<figure>
+  <img src="../design/figures/knee.png" alt="v2 pass rate against concurrent runs, four configurations">
+  <figcaption><b>Figure 5.</b> The pass rate against concurrent agent runs for four configurations. The thick line is the 10-08
+  full sweep with 52 runs per level, the most robust of the four (F24, F36, F40).</figcaption>
+</figure>
+<table>
+  <tr><th class="n">Concurrent runs</th><th class="n">v2 pass [95% CI]</th><th>Refused by the gateway</th></tr>
+  <tr><td class="n">1</td><td class="n">82.7% [70.3–90.6]</td><td>0</td></tr>
+  <tr><td class="n">4</td><td class="n">84.6% [72.5–92.0]</td><td>0</td></tr>
+  <tr><td class="n">8</td><td class="n">82.7% [70.3–90.6]</td><td><code>kv_free</code> 1</td></tr>
+  <tr><td class="n">16</td><td class="n">63.5% [49.9–75.2]</td><td><code>timeout_queue</code> 127, <code>kv_free</code> 38</td></tr>
+  <tr><td class="n">32</td><td class="n">23.1% [13.7–36.1]</td><td><code>timeout_queue</code> 220, <code>kv_free</code> 33</td></tr>
+</table>
+<p class="cap"><b>Table 6.</b> The 10-08 sweep on an H100 SXM5: cap 4, refusal retries, 52 runs per level. The 8B on an A100
+stayed at 48–56% at every level, so its limit is the model, not capacity (F40).</p>
+<ul>
+  <li><b>KV is the limiter.</b> Each half holds about two full contexts; 16 runs put about 8 per worker at 5–15k tokens each (F24).</li>
+  <li><b>At 32, most runs fail on the queue deadline.</b> Requests wait in the gateway's queue past their deadline, and that wait
+    outlasts the agent's ~15 s of retries (F34, F40).</li>
+</ul>
+
+<h3>3.3 Shed at the door, or preempt in the engine? (10-07, same node)</h3>
+<table>
+  <tr><th></th><th class="n">Cap 4 (sized to KV)</th><th class="n">Cap 16 (old)</th></tr>
+  <tr><td>v2 pass at 16 / 32 concurrent runs</td><td class="n">69.2% / 53.8%</td><td class="n">84.6% / 61.5%</td></tr>
+  <tr><td>vLLM preemptions added (16 / 32)</td><td class="n"><b>1 / 2</b></td><td class="n">9 / 34</td></tr>
+  <tr><td>Cached share of prompt (16 / 32)</td><td class="n"><b>81.3% / 81.6%</b></td><td class="n">73.3% / 72.7%</td></tr>
+  <tr><td>Step latency p95 (16 / 32)</td><td class="n"><b>21.8 s / 21.7 s</b></td><td class="n">25.3 s / 26.9 s</td></tr>
+  <tr><td>Refusals</td><td class="n"><code>timeout_queue</code> 42 / 83</td><td class="n"><code>kv_free</code> 58 / 132</td></tr>
+</table>
+<p class="cap"><b>Table 7.</b> Same node, both with retries. Sizing admission to KV keeps the engine healthy (about 95% fewer
+preemptions, 8 points more cache, about 15% lower tail latency) but finishes fewer runs, because queued requests hit their
+deadline before the retries run out. The pass-rate intervals overlap at 26 runs per level, so the completion gap is
+suggestive. The next step is a cap of 6–8, or a longer interactive deadline (F36).</p>
+
+<h3>3.4 Inside the engine</h3>
+<figure class="narrow">
+  <img src="../design/figures/engine_steps.png" alt="Histogram of tokens per engine step">
+  <figcaption><b>Figure 6.</b> Continuous batching appears only when requests overlap: of 44,121 engine steps on one worker,
+  31,169 processed a single token. Chunked prefill is configured but rarely binds; only 8 steps fell in the 4,097–8,192-token
+  range, because the prefix cache keeps each step's uncached tail to a few hundred tokens (F14, F15).</figcaption>
+</figure>
+</section>
+
+<!-- ============================== part 4 ============================== -->
+<section class="part">
+<h2>Part 4. Who waits where: the queue probes (10-08)</h2>
+<p><code>make bench</code> ends with three probes against a golden run at 4 concurrent runs, then <code>make export</code> saves
+the node's Prometheus history for the whole window. The probes are: three 10.5k-token batch prompts, three clients that
+disconnect after 3 s, and deleting one worker. The marks on each chart are the probe times.</p>
+
+<figure>
+  <img src="../design/figures/queue_waiting.png" alt="Requests waiting and in service per worker, gateway against vLLM">
+  <figcaption><b>Figure 7.</b> The overload waits in the gateway's queue, not in vLLM's. Across the H100 bench the gateway queue
+  held requests in 104 of about 2,000 five-second samples; vLLM's waiting queue was above 0 in 29 and never above 2. vLLM
+  preempted 8 requests over the whole sweep (F41).</figcaption>
+</figure>
+
+<figure>
+  <img src="../design/figures/queue_shed.png" alt="Gateway refusals per second by reason">
+  <figcaption><b>Figure 8.</b> Refusals by reason. Once admission is sized to KV, most refusals are <code>timeout_queue</code>
+  (a request waited past its deadline) rather than <code>kv_free</code> (F32).</figcaption>
+</figure>
+
+<div class="keep">
+<figure>
+  <img src="../design/figures/queue_kv_full.png" alt="KV use and preemptions per worker around the probes">
+  <figcaption><b>Figure 9.</b> KV use and preemptions around the probes. The long prompts and the departed clients cause no
+  preemption. After the worker is deleted, the remaining worker's KV rises to about 70% as it takes every run.</figcaption>
+</figure>
+</div>
+
+<table>
+  <tr><th>Probe</th><th>Result</th><th>Finding</th></tr>
+  <tr><td>A 10.5k-token batch prompt</td><td>Each returned in 2.1–2.5 s. The agents' inter-token latency p95 stayed at 49 ms, as in the minute before. One prompt adds two large prefill steps among many small decode steps, so a p95 can't show it.</td><td>F42</td></tr>
+  <tr><td>A client leaves after 3 s</td><td>vLLM's abort counter stayed at 0 on both workers. Either the cancellation doesn't reach vLLM, or vLLM 0.29 doesn't count a disconnect as an abort. The gateway logs <code>client_gone</code> but has no metric for it.</td><td>F43 (open)</td></tr>
+  <tr><td>A worker is deleted</td><td>The gateway marked it down 12 s later and the other worker took every placement. It was warming 5 min 35 s after deletion and ready 2 s later. Two in-flight runs ended on a 502; the agent now retries that 502.</td><td>F44</td></tr>
+</table>
+<p class="cap"><b>Table 8.</b> What each probe showed.</p>
+
+<figure>
+  <img src="../design/figures/queue_worker_return.png" alt="Latency, placement and phase around the deleted worker's return">
+  <figcaption><b>Figure 10.</b> Around the deleted worker. Placements move to vllm-0, peaking at about 1.7 a second, while
+  end-to-end p99 stays at 45–50 s. vllm-1 goes from down to ready in one step after its two warm-up probes. The golden run had
+  finished before vllm-1 returned, so the ramp after a return under load is still unmeasured (F44).</figcaption>
+</figure>
+</section>
+
+<!-- ============================== part 5 ============================== -->
+<section class="part">
+<h2>Part 5. Scaling the worker pool</h2>
+<p>The vLLM pool is the only pool, and KV per worker is the limit, so KEDA adds workers rather than slots. It scales
+<code>statefulset/vllm</code> from 1 to 2 workers (the two halves of one H100) on two triggers, both Prometheus recording
+rules with promtool tests:</p>
+<ul>
+  <li><b>Demand:</b> workers wanted = ⌈(in flight + queued) ÷ 4⌉, the same cap admission uses, averaged over 2 minutes.</li>
+  <li><b>Capacity sheds:</b> any capacity refusal (<code>kv_free</code>, <code>queue_full</code>, <code>timeout_queue</code> and the like) adds a worker.
+    A tenant over its quota doesn't count, because that isn't a capacity problem.</li>
+</ul>
+
+<table>
+  <tr><th>Run (10-07, H100)</th><th>Workers</th><th class="n">v2 pass</th><th>What happened</th></tr>
+  <tr><td><code>as-up</code></td><td>1, then 2</td><td class="n">59.6%</td><td>Concurrency 8 on one worker shed about 0.4 requests a second. The shed trigger asked for a second worker about 80 s in; it was created at 23:30:49 and ready at 23:39:10, 8 min 21 s later, after the run had ended.</td></tr>
+  <tr><td><code>as-up2</code></td><td>flapped</td><td class="n">57.7%</td><td>KEDA removed the second worker 40 s into the next run, because the 10-minute window ran out before the new load reached the 2-minute averages, then re-created it.</td></tr>
+  <tr><td><code>as-up3</code></td><td>2</td><td class="n">84.6%</td><td>With the window at 15 minutes (D-51) both workers stayed, and the run shed nothing. KEDA removed the second worker 15 quiet minutes after the run.</td></tr>
+</table>
+<p class="cap"><b>Table 9.</b> The autoscaling session (F39). vLLM reported no errors or aborts. The runs lost on one worker
+ended on gateway refusals (18 in <code>as-up</code>, 16 in <code>as-up2</code>), and with two workers none did. The pass rate
+follows the worker count, and two workers come back near the 86.5% baseline.</p>
+<div class="callout"><b>The design consequence.</b> The scaler reacts in about a minute, but a worker takes 8 minutes to load a
+27B model and warm up. Scale-down must therefore wait longer than a typical gap between bursts, and the useful signal for
+scaling up is a capacity shed, not demand alone: under cap 4 the queue drains by shedding, so demand sat at the threshold and
+the demand trigger never fired (F39). The same pattern was rehearsed on kind first, with no GPU (F38).</div>
+</section>
+
+<!-- ============================== part 6 ============================== -->
+<section class="part">
+<h2>Part 6. Validation with agent runs</h2>
+<p>Each golden task is a fault recorded from a real cluster plus an answer key the agent never sees. The checker is
+deterministic: nothing is judged by a model. A run passes v2 when the diagnosis names the right root object and category,
+states the right mechanism, cites only evidence the tools actually showed it during the run, and blames no victim or red
+herring (D-41).</p>
+
+<table>
+  <tr><th>Model, where</th><th class="n">v2 pass [95% CI]</th><th>By tier (v2)</th></tr>
+  <tr><td>Qwen3-8B-AWQ, A100 slice, direct</td><td class="n">51.9% [38.7–64.9]</td><td>easy 68, multi-hop 43, red herring 25, right-sizing 0</td></tr>
+  <tr><td>Qwen3-8B-AWQ, two A100 slices, through the gateway</td><td class="n">48.1% [35.1–61.3]</td><td>easy 61, multi-hop 43, red herring 25, right-sizing 0</td></tr>
+  <tr><td>Qwen3-30B-A3B AWQ, whole A100</td><td class="n">67.3% [53.8–78.5]</td><td>easy 75, multi-hop 50, red herring 75, right-sizing 50</td></tr>
+  <tr><td><b>Qwen3.8-27B-FP8, two H100 halves, through the gateway</b></td><td class="n"><b>86.5% [74.7–93.3]</b></td><td>easy 89, multi-hop 71, <b>red herring 100, right-sizing 100</b></td></tr>
+</table>
+<p class="cap"><b>Table 10.</b> Model quality on the golden set, 26 tasks run twice each (F1, F2).</p>
+
+<figure class="narrow">
+  <img src="../design/figures/model_quality.png" alt="v2 pass rate per model with intervals">
+  <figcaption><b>Figure 11.</b> Qwen3.8-27B's interval sits above the 8B's. Against the 30B-A3B the intervals overlap slightly,
+  so "better" there is likely but not established at 52 runs (F1). The gateway changes placement, not answers (F2).</figcaption>
+</figure>
+
+<h3>Where the runs fail</h3>
+<ul>
+  <li><b>Qwen3.8's failures are mostly the audits.</b> Five of its seven failed runs are the three multi-namespace audits: 22 to
+    24 steps, then <code>inconclusive</code> after the allowed repairs. They run out of steps rather than reasoning wrongly. The
+    other two each passed on their repeat (F3).</li>
+  <li><b>The 8B lost points to two agent-side defects.</b> The <code>describe</code> tool rejected a capitalised kind 101 times, and
+    diagnoses with more than 8 evidence refs failed validation 24 times, including runs that had found the right cause (F4).</li>
+  <li><b>Failing closed is a feature.</b> A diagnosis that fails validation gets two repairs, then becomes <code>inconclusive</code>
+    instead of an ungrounded answer (D-24).</li>
+</ul>
+
+<h3>Why a model and not rules</h3>
+<table>
+  <tr><th>Tier</th><th>What it tests</th><th>Rules and dashboards</th></tr>
+  <tr><td>easy</td><td>The pod's own status names the cause</td><td>Find these without a model</td></tr>
+  <tr><td>multi-hop</td><td>The symptom is on a victim and the cause elsewhere: an expired upstream certificate, an OOM-killed database, a LimitRange, a ResourceQuota</td><td>Point at the victim</td></tr>
+  <tr><td>red herring</td><td>The obvious suspect is healthy: a wrong CA bundle, a probe starved of CPU, a Service port, pod DNS</td><td>Point at the suspect</td></tr>
+  <tr><td>right-sizing</td><td>Idle against throttled against not worth changing</td><td>Give numbers, not judgement</td></tr>
+</table>
+<p class="cap"><b>Table 11.</b> The tiers (D-31). Qwen3.8-27B scores 71% on multi-hop and 100% on red herrings, where the 8B
+scored 43% and 25%.</p>
+</section>
+
+<!-- ============================== part 7 ============================== -->
+<section class="part">
+<h2>Part 7. Operating it: alerts, 10× traffic, open questions</h2>
+<h3>Production alerts</h3>
+<table>
+  <tr><th>Alert</th><th>Fires when</th></tr>
+  <tr><td><code>KVCacheSaturated</code></td><td>KV above the gateway's 0.80 shed line for 5 minutes</td></tr>
+  <tr><td><code>GatewayQueueWaitHigh</code></td><td>Queue wait p95 above 5 s, half the interactive deadline</td></tr>
+  <tr><td><code>VLLMPreempting</code></td><td>Any preemption for 5 minutes</td></tr>
+  <tr><td><code>DoctorInconclusiveRateHigh</code></td><td>Over 20% of diagnoses inconclusive in an hour</td></tr>
+  <tr><td><code>RestrictedRequestOffBox</code></td><td>Any restricted request leaves the box (critical)</td></tr>
+</table>
+<p class="cap"><b>Table 12.</b> promtool tests check that each rule fires on its condition and stays quiet just below it (D-45).
+<code>orch_restricted_offbox_total</code> was 0 in all 13 gateway scrapes.</p>
+
+<h3>At 10× traffic</h3>
+<ul>
+  <li>Add workers, not bigger slices: KV per worker is the limit. On one node that means a second card; KEDA's maximum grows with it.</li>
+  <li>Retune the in-flight cap to 6–8 per H100 half, or lengthen the interactive queue deadline (F36).</li>
+  <li>A second gateway replica needs a shared run table, or runs partitioned by id, so stickiness survives.</li>
+  <li>An overflow backend for non-restricted work turns refusals into slower answers.</li>
+  <li>The KV hop pays off once contexts grow, if its transfer is confirmed.</li>
+  <li>Settings that don't fit this workload: the 768-token output cap never bound (F30), and chunked prefill rarely does (F15).</li>
+  <li>Watch power, not utilisation: DCGM's utilisation read 100% at any load, while power rose from about 450 W at up to 8
+    runs to about 600 W at 16 and 32 (F46).</li>
+</ul>
+
+<h3>Still open</h3>
+<table>
+  <tr><th>Question</th><th>What would settle it</th></tr>
+  <tr><td>Does the KV hop move the KV, or does the destination recompute?</td><td>Force a hop and compare the hopped step's cached tokens; vLLM 0.29 has no transfer metric (F35, F45)</td></tr>
+  <tr><td>Does vLLM free a departed client's KV?</td><td>A gateway counter for <code>client_gone</code>, plus vLLM's running count and KV in the seconds after (F43)</td></tr>
+  <tr><td>What is the right cap?</td><td>Sweep caps 6 and 8 at 52 runs per level against Table 7</td></tr>
+  <tr><td>How does a returning worker ramp under load?</td><td>Background load that outlasts its 5.5-minute return (F44)</td></tr>
+  <tr><td>How does the agent do on a live cluster?</td><td>Inject faults on the node's k3s and time detection and diagnosis with <code>agent watch</code></td></tr>
+</table>
+<p class="cap"><b>Table 13.</b> Each needs a GPU session of 10 to 30 minutes.</p>
+</section>
+
+<!-- ============================== exhibits ============================== -->
+<section class="part">
+<h2>Exhibits. Grafana screenshots</h2>
+<p>From the 10-08 H100 session, covering the golden run, the sweep from 1 to 32 concurrent runs, and the probes (about 100
+minutes). Five panels have known display problems, listed in F46.</p>
+<figure><img src="../design/screenshots/q1-h100-gateway-admission-latency.png" alt="Gateway admission and latency"><figcaption><b>Exhibit A.</b> Gateway: admission and latency.</figcaption></figure>
+<figure><img src="../design/screenshots/q1-h100-gateway-workers-output.png" alt="Gateway workers and output"><figcaption><b>Exhibit B.</b> Gateway's view of the workers: KV free, in flight and queued, worker phase, the warm-up TTFT it re-quotes, upstream errors, KV hops by result, and responses cut at the 768-token cap. The worker phase and KV hop panels have the display problems in F46.</figcaption></figure>
+<figure><img src="../design/screenshots/q1-h100-vllm-engine-latency.png" alt="vLLM engine and latency"><figcaption><b>Exhibit C.</b> vLLM: engine state and latency.</figcaption></figure>
+<figure><img src="../design/screenshots/q1-h100-vllm-e2e-gpu.png" alt="vLLM end-to-end latency and GPU"><figcaption><b>Exhibit D.</b> vLLM end-to-end latency and prompt length, then the GPU from DCGM. Utilisation reads 100% at any load, while power tracks it: about 450 W, rising toward 600 W at the high concurrency levels, and about 110 W idle (F46). The dip in framebuffer at 12:39 is the deleted worker.</figcaption></figure>
+<figure><img src="../design/screenshots/q1-h100-vllm-batching.png" alt="vLLM batching"><figcaption><b>Exhibit E.</b> vLLM: batching.</figcaption></figure>
+<figure><img src="../design/screenshots/q1-h100-cluster-node-outcomes.png" alt="Cluster node and request outcomes"><figcaption><b>Exhibit F.</b> Cluster: the node, its pods, GPU memory, and every request's outcome by reason. The refusal spikes around 12:25–12:32 are the 16 and 32 concurrency levels.</figcaption></figure>
+<figure><img src="../design/screenshots/q1-h100-cluster-scaling.png" alt="Cluster scaling"><figcaption><b>Exhibit G.</b> Cluster: scaling.</figcaption></figure>
+</section>
+
+<!-- ============================== appendix ============================== -->
+<section class="part">
+<h2>Appendix. Reproducing the runs</h2>
+<h3>Offline, no GPU</h3>
+<pre>uv sync && make lint test          # Python, Go and the alert rules; CI runs the same
+make report                         # rebuild the notebook and figures from metrics/
+make matrix                         # regenerate the model matrix (CI fails if stale)
+# break a local kind cluster on purpose
+make lab-up && make inject FAULTS=oom</pre>
+
+<h3>A GPU session</h3>
+<pre>make preflight && make up           # lint + tests + fit gate, then the first GPU with capacity
+make bringup                        # deploy → scale → measure KV → gateway → dashboards
+make tunnel                         # terminal 2: the gateway at localhost:8000
+make grafana                        # terminal 3: Grafana at localhost:3000
+make check                          # both workers ready through the gateway, KV hop on or off
+make bench TAG=q1-h100              # golden set + sweep 1→32 + metrics + probes + export
+# the routing A/B's control arm
+make gateway POLICY=least_loaded && make bench TAG=q1-h100-ll
+git add metrics && git commit       # the node's Prometheus keeps nothing
+make down                           # billing stops</pre>
+
+<h3>Where the evidence is</h3>
+<table>
+  <tr><th>Path</th><th>What</th></tr>
+  <tr><td><code>metrics/golden-*.jsonl</code>, <code>*.summary.json</code></td><td>One row per agent run (every step's latency, tokens, refusals, tool calls, the diagnosis and its score), and the summary per run tag</td></tr>
+  <tr><td><code>metrics/{gateway,vllm-0,vllm-1}-*.prom</code></td><td>Prometheus scrapes taken at the end of each level</td></tr>
+  <tr><td><code>metrics/ts-*.json</code>, <code>events-*.jsonl</code></td><td>Time series for the bench window, and the probe times</td></tr>
+  <tr><td><code>report/report.ipynb</code></td><td>Every chart in this report, rebuilt from <code>metrics/</code></td></tr>
+  <tr><td><code>design/findings.md</code></td><td>F1–F47, each labelled measured, estimate, observed or unverified, with its file</td></tr>
+  <tr><td><code>design/decisions.md</code></td><td>D-1–D-51: what was chosen, why, and when to revisit it</td></tr>
+  <tr><td><code>evals/golden/</code>, <code>faults/</code>, <code>fixtures/</code></td><td>The tasks and answer keys, the fault manifests, and the recorded cluster output</td></tr>
+</table>
+</section>
+
+</body>
+</html>
