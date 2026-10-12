@@ -92,6 +92,11 @@ def test_no_data_in_any_series_exits_1(lab):
 class Fake(BaseHTTPRequestHandler):
     """The gateway as the probes see it: scripted chat answers and a /debug/workers phase sequence."""
     chat_status, chat_delay, phases, requests = 200, 0.0, [], []
+    vllm = ('vllm:num_requests_running{engine="0",model_name="m"} 1.0\n'
+            'vllm:kv_cache_usage_perc{engine="0",model_name="m"} 0.12\n'
+            'vllm:generation_tokens_total{engine="0",model_name="m"} 500.0\n'
+            'vllm:request_success_total{engine="0",finished_reason="stop",model_name="m"} 7.0\n'
+            'vllm:request_success_total{engine="0",finished_reason="abort",model_name="m"} 1.0\n')
 
     def log_message(self, *a):
         pass
@@ -113,6 +118,12 @@ class Fake(BaseHTTPRequestHandler):
         self.send(200, {"choices": [{"message": {"role": "assistant", "content": "ok"}}], "usage": {"prompt_tokens": 19480}})
 
     def do_GET(self):
+        if self.path.endswith("/metrics"):
+            raw = self.vllm.encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            return self.wfile.write(raw)
         phase = self.phases.pop(0) if len(self.phases) > 1 else self.phases[0]
         self.send(200, [{"pod": "vllm-0", "phase": "ready"}, {"pod": "vllm-1", "phase": phase}])
 
@@ -162,10 +173,30 @@ def test_client_gone_hangs_up_before_a_slow_answer(ctx, monkeypatch):
     t0 = time.monotonic()
     probes.PROBES["client-gone"](ctx, 1)
     assert time.monotonic() - t0 < 2
-    sent, gone = events(ctx)
+    got = events(ctx)
+    sent, gone = (e for e in got if e["kind"] != "vllm_sample")
     assert (sent["kind"], gone["kind"]) == ("client_gone_sent", "client_gone_aborted")
     assert 0.3 <= gone["detail"]["seconds"] < 2
     assert Fake.requests[0]["headers"]["X-Request-Id"] == "probe-gone-1-s1" and Fake.requests[0]["body"]["max_tokens"] == 768
+    samples = [e["detail"] for e in got if e["kind"] == "vllm_sample"]
+    # both workers before the send, then both at every SAMPLE_AT offset after the hang-up (sleep is a no-op here)
+    assert [(s["pod"], s["at_s"]) for s in samples][:3] == [("vllm-0", -1.0), ("vllm-1", -1.0), ("vllm-0", 1.0)]
+    assert len(samples) == 2 * (1 + len(probes.SAMPLE_AT))
+    assert samples[0]["running"] == 1.0 and samples[0]["kv_usage"] == 0.12 and samples[0]["generation_tokens"] == 500.0
+    assert samples[0]["finished"] == {"stop": 7.0, "abort": 1.0}
+
+
+def test_parse_vllm_sums_label_sets_and_skips_comments_and_nan():
+    text = ("# HELP vllm:num_requests_running x\n"
+            'vllm:num_requests_running{engine="0"} 2\nvllm:num_requests_running{engine="1"} 3\n'
+            'vllm:gpu_cache_usage_perc{engine="0"} NaN\nvllm:something_else 9\n')
+    assert probes.parse_vllm(text) == {"finished": {}, "running": 5.0}
+
+
+def test_parse_schedule_reads_offset_probe_pairs_and_rejects_unknown_probes():
+    assert probes.parse_schedule("30:worker-return, 60:client-gone") == [(30.0, "worker-return"), (60.0, "client-gone")]
+    with pytest.raises(SystemExit):
+        probes.parse_schedule("30:nope")
 
 
 def test_worker_return_deletes_the_pod_and_follows_its_phase_back_to_ready(ctx, monkeypatch):

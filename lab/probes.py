@@ -4,20 +4,25 @@
     python -m lab.probes session --tag run1-probes --load-cmd "make golden CONC=4 TAG=run1-probes"
     python -m lab.probes big-prompt --tag manual -n 1
     python -m lab.probes worker-return --tag manual --pod vllm-1
+    python -m lab.probes session --tag ramp --schedule "30:worker-return" --load-cmd "make golden CONC=4 REPEAT=4 TAG=ramp"
 
 big-prompt     one unique ~14k-token batch prompt: a long prefill next to the agents' decodes
-client-gone    a long answer whose client hangs up after --abort-after seconds: who frees the KV
+client-gone    a long answer whose client hangs up after --abort-after seconds: who frees the KV. Samples each worker's
+               vLLM metrics through the gateway before the request and at SAMPLE_AT seconds after the hang-up, so
+               lab/verify.py can tell whether the engine stopped generating and gave the KV back (F43)
 worker-return  delete a vLLM pod and follow its phase on the gateway until it is ready again
 
-`session` starts --load-cmd as background load and fires SCHEDULE's probes at their offsets. Each event is one JSON
-line, appended and flushed as it happens, so a crash leaves a valid partial log. lab/export.py pairs the events with
-the node's time series.
+`session` starts --load-cmd as background load and fires the schedule's probes at their offsets (SCHEDULE, or
+--schedule "offset:probe,..."). Each event is one JSON line, appended and flushed as it happens, so a crash leaves a
+valid partial log. lab/export.py pairs the events with the node's time series; lab/verify.py reads the verdicts.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
+import re
 import shlex
 import subprocess
 import sys
@@ -42,6 +47,47 @@ TOKENS_PER_WORD = 1.3
 BIG_WORDS = 10_000
 SCHEDULE: list[tuple[float, str]] = [(60, "big-prompt"), (90, "big-prompt"), (120, "big-prompt"), (180, "client-gone"),
                                      (200, "client-gone"), (220, "client-gone"), (300, "worker-return")]
+# Seconds after the client hangs up at which client-gone samples the workers. An abort shows within 2 s; a request that
+# runs on for its 768 tokens keeps vllm:generation_tokens_total climbing past 5 s.
+SAMPLE_AT = (1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 40.0)
+METRIC_RE = re.compile(r"^([A-Za-z_:][A-Za-z0-9_:]*)(\{[^}]*\})?\s+(\S+)")
+SAMPLED = {"vllm:num_requests_running": "running", "vllm:num_requests_waiting": "waiting",
+           "vllm:kv_cache_usage_perc": "kv_usage", "vllm:gpu_cache_usage_perc": "kv_usage",
+           "vllm:generation_tokens_total": "generation_tokens", "vllm:num_preemptions_total": "preemptions"}
+
+
+def parse_schedule(text: str) -> list[tuple[float, str]]:
+    """"30:worker-return,60:client-gone" as (offset, probe) pairs; an unknown probe is a usage error."""
+    out = []
+    for item in filter(None, (part.strip() for part in text.split(","))):
+        offset, _, name = item.partition(":")
+        if name not in PROBES:
+            raise SystemExit(f"unknown probe {name!r} in --schedule; choose from {', '.join(PROBES)}")
+        out.append((float(offset), name))
+    return out
+
+
+def parse_vllm(text: str) -> dict:
+    """The vLLM series the verdicts need, summed over their labels, with request_success_total split by finished_reason."""
+    out: dict = {"finished": {}}
+    for line in text.splitlines():
+        m = METRIC_RE.match(line)
+        if not m:
+            continue
+        name, labels, raw = m.groups()
+        try:
+            v = float(raw)
+        except ValueError:
+            continue
+        if not math.isfinite(v):
+            continue
+        if name in SAMPLED:
+            out[SAMPLED[name]] = out.get(SAMPLED[name], 0.0) + v
+        elif name == "vllm:request_success_total":
+            reason = re.search(r'finished_reason="([^"]*)"', labels or "")
+            key = reason.group(1) if reason else "?"
+            out["finished"][key] = out["finished"].get(key, 0.0) + v
+    return out
 
 
 @dataclass
@@ -55,6 +101,7 @@ class ProbeContext:
     abort_after: float = 3.0
     pod: str = "vllm-1"
     return_timeout: float = 1200.0
+    pods: tuple[str, ...] = ("vllm-0", "vllm-1")
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def event(self, kind: str, probe: str, **detail) -> None:
@@ -103,8 +150,25 @@ def big_prompt(ctx: ProbeContext, n: int) -> None:
         ctx.event("big_prompt_refused", "big-prompt", run=run, status=status, reason=err.get("code") or err.get("message"))
 
 
+def vllm_sample(ctx: ProbeContext, pod: str) -> dict | None:
+    """One worker's vLLM metrics through the gateway's /debug/workers/{pod}/metrics, or None if unreachable."""
+    url = ctx.base_url.rstrip("/").removesuffix("/v1") + f"/debug/workers/{pod}/metrics"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as r:
+            return parse_vllm(r.read().decode(errors="replace"))
+    except (urllib.error.URLError, TimeoutError):
+        return None
+
+
+def sample_pods(ctx: ProbeContext, probe: str, run: str, at_s: float) -> None:
+    for pod in ctx.pods:
+        sample = vllm_sample(ctx, pod)
+        ctx.event("vllm_sample", probe, run=run, pod=pod, at_s=at_s, **(sample if sample is not None else {"error": "unreachable"}))
+
+
 def client_gone(ctx: ProbeContext, n: int) -> None:
     run = f"probe-gone-{n}"
+    sample_pods(ctx, "client-gone", run, at_s=-1.0)
     ctx.event("client_gone_sent", "client-gone", run=run)
     t0 = ctx.now()
     try:
@@ -113,7 +177,11 @@ def client_gone(ctx: ProbeContext, n: int) -> None:
     except (TimeoutError, urllib.error.URLError) as e:  # urllib wraps a timeout before the response in URLError
         if not isinstance(e, TimeoutError) and not isinstance(e.reason, TimeoutError):
             raise
-        ctx.event("client_gone_aborted", "client-gone", run=run, seconds=round(ctx.now() - t0, 3))
+        gone = ctx.now()
+        ctx.event("client_gone_aborted", "client-gone", run=run, seconds=round(gone - t0, 3))
+        for at in SAMPLE_AT:
+            ctx.sleep(max(0.0, gone + at - ctx.now()))
+            sample_pods(ctx, "client-gone", run, at_s=at)
         return
     ctx.event("client_gone_finished_early", "client-gone", run=run, status=status)
 
@@ -183,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--model", help="served model name override (default: the profile's)")
     ap.add_argument("--node", default="cluster-doctor", help="the lam instance worker-return deletes a pod on")
     ap.add_argument("--load-cmd", help="session: the background load, one shell command line")
+    ap.add_argument("--schedule", help='session: "offset:probe,..." instead of SCHEDULE, e.g. "30:worker-return"')
+    ap.add_argument("--pods", default="vllm-0,vllm-1", help="client-gone: the workers to sample, comma-separated")
     ap.add_argument("--abort-after", type=float, default=3.0, help="client-gone: seconds before the client hangs up")
     ap.add_argument("--pod", default="vllm-1", help="worker-return: the pod to delete")
     ap.add_argument("--return-timeout", type=float, default=1200.0, help="worker-return: seconds to wait for ready")
@@ -190,9 +260,10 @@ def main(argv: list[str] | None = None) -> int:
     events = Path(a.events) if a.events else ROOT / "metrics" / f"events-{a.tag}-{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
     events.parent.mkdir(parents=True, exist_ok=True)
     ctx = ProbeContext(a.base_url, a.model or load_profile(a.profile)["serve"]["served_name"], events, lam_remote(a.node),
-                       abort_after=a.abort_after, pod=a.pod, return_timeout=a.return_timeout)
+                       abort_after=a.abort_after, pod=a.pod, return_timeout=a.return_timeout,
+                       pods=tuple(filter(None, a.pods.split(","))))
     if a.what == "session":
-        return session(ctx, a.load_cmd)
+        return session(ctx, a.load_cmd, parse_schedule(a.schedule) if a.schedule else SCHEDULE)
     PROBES[a.what](ctx, a.n)
     return 0
 

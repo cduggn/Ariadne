@@ -38,6 +38,8 @@
 #   make check                      pods, both workers Ready through the gateway, KV hop on or off
 #   make bench TAG=…                golden set + concurrency sweep + metrics + queue probes + export, through the gateway
 #                                   (PROBES=0 skips the probes; make export alone re-pulls the time series, D-48)
+#   make verify TAG=…               the F43/F44/F45 verdicts from a session's events and gateway log (lab/verify.py)
+#   make gateway-log TAG=…          save the gateway's request log (metrics/gateway-log-*.jsonl) before make down
 #   make gateway POLICY=least_loaded && make bench TAG=…-ll   the control arm of the stickiness A/B
 #   git add metrics && git commit   before make down. The node's Prometheus keeps nothing (make down warns if the
 #                                   last bench was never exported)
@@ -85,7 +87,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale autoscale autoscale-off logs kv tunnel dashboards grafana golden metrics down probes export
+.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale autoscale autoscale-off logs kv tunnel dashboards grafana golden metrics down probes export gateway-log verify
 
 .DEFAULT_GOAL := help
 
@@ -121,10 +123,26 @@ bench:
 # metrics/events-*.jsonl; make export pairs them with the node's time series.
 # The load command lives in a variable: a recipe line that names $(MAKE) directly runs even under make -n, which would
 # start real probes (and delete a worker) during a dry run.
-PROBE_LOAD = $(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=2 TAG=$(TAG)-probes
+# SCHEDULE="30:worker-return" replaces the default probe schedule; PROBE_REPEAT=4 lengthens the load so it outlasts a
+# worker's return (F44). make gateway-log afterwards, then make verify.
+PROBE_REPEAT ?= 2
+PROBE_LOAD = $(MAKE) golden WORKERS=$(MAXREP) CONC=4 REPEAT=$(PROBE_REPEAT) TAG=$(TAG)-probes
 probes:
 	$(PY) -m lab.probes session --tag $(TAG)-probes --profile $(MODEL) --base-url $(BASE) --node $(NAME) \
-	  --load-cmd "$(PROBE_LOAD)"
+	  $(if $(SCHEDULE),--schedule "$(SCHEDULE)") --load-cmd "$(PROBE_LOAD)"
+
+# The gateway's one-line-per-request log, which make down deletes with the node. LOG_SINCE is kubectl's --since.
+LOG_SINCE ?= 6h
+gateway-log:
+	@mkdir -p metrics
+	$(REMOTE) kubectl logs deployment/gateway --since=$(LOG_SINCE) > metrics/gateway-log-$(TAG)-$(STAMP).jsonl
+	@wc -l metrics/gateway-log-$(TAG)-$(STAMP).jsonl
+
+# The verdicts for F43 (client-gone), F45 (hop) and F44 (ramp), from the newest events and gateway log for TAG.
+verify:
+	$(PY) -m lab.verify client-gone $$(ls -t metrics/events-$(TAG)-probes-*.jsonl | head -1)
+	$(PY) -m lab.verify hop $$(ls -t metrics/gateway-log-$(TAG)-*.jsonl | head -1)
+	$(PY) -m lab.verify ramp $$(ls -t metrics/events-$(TAG)-probes-*.jsonl | head -1) $$(ls -t metrics/gateway-log-$(TAG)-*.jsonl | head -1)
 
 # The node's Prometheus history over the last bench window (.cache/bench.json) as metrics/ts-*.json, before make down
 # destroys it. SINCE=<unix seconds> sets the window by hand; PROM=http://127.0.0.1:9090 reads through make prom.
