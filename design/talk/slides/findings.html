@@ -1,0 +1,22 @@
+<section id="findings" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">The ledger · what we found and what broke</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:52px;font-weight:600;line-height:1.08;letter-spacing:-1px">Eleven findings, four from the final session. Six fixed, five named with a next step.</h2>
+<table style="width:1664px;font-size:23px;color:#1F2A26;border:1px solid #D8D2C4">
+<tr style="background:#FFFDF8"><th style="width:52%;text-align:left;padding:7px 14px">Finding</th><th style="width:12%;text-align:left">Where</th><th style="width:36%;text-align:left">Status</th></tr>
+<tr><td>The paper KV pool was 34% too optimistic for the hybrid model</td><td>F5</td><td>fixed: the measured pool drives the cap</td></tr>
+<tr style="background:#FFFDF8"><td>The in-flight cap was sized for the A100; vLLM preempted and thrashed</td><td>F26, F36</td><td>fixed: cap 4 from the pool, preemptions down 95%</td></tr>
+<tr><td>Past the knee the queue deadline ends runs, not KV</td><td>F34, F36</td><td>open: cap 6 to 8, or a longer deadline</td></tr>
+<tr style="background:#FFFDF8"><td>tool_choice required collapsed decoding into whitespace on vLLM 0.29</td><td>D-38</td><td>fixed: auto, Qwen sampling</td></tr>
+<tr><td>A dying worker ended runs with a 502; client aborts were counted as worker errors</td><td>F44, F28</td><td>fixed: the agent retries a 502, aborts are client_gone</td></tr>
+<tr style="background:#FFFDF8"><td>GPU utilisation reads 100% from one run to a full sweep; power is the load signal</td><td>F46</td><td>fixed on the dashboards, never a scaling signal</td></tr>
+<tr><td>Prefix-then-load beats least-loaded by 10% prefill and 8 to 11% step time, same answers</td><td>F29</td><td>kept as the shipped policy</td></tr>
+<tr style="background:#FFFDF8"><td><b>A long run breaks its own stickiness on a quiet cluster and ping-pongs</b></td><td>10-12</td><td>open: exclude the run's own history from the KV share</td></tr>
+<tr><td><b>A hop from a restarted worker hangs 114 s on a stale engine id and leaks 22% of the destination's KV</b></td><td>10-12</td><td>open: forget the id on restart, receive deadline, consumer cleanup</td></tr>
+<tr style="background:#FFFDF8"><td><b>Mooncake TCP moves KV at 1.6 GB/s idle and 0.1 GB/s under load; the policy assumes 2</b></td><td>10-12</td><td>open: measured constants, recompute when loaded</td></tr>
+<tr><td><b>Three vLLM panels mislead at low sample counts; the request log is the ground truth</b></td><td>10-12</td><td>open: fix the queries, keep the log</td></tr>
+</table>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">design/findings.md F1 to F47 and design/decisions.md D-1 to D-51 for the rest. The 10-12 four come from metrics/gateway-log-*-20261012-*.jsonl and the vLLM pod logs.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">10</p>
+<aside>If there is time for one slide beyond the stories, it is this one. The bold rows are from the final session. The point to land: every number on the earlier slides came from a run we can show the log for, and the bugs we found in our own system are the ones we would fix first with more GPU time.</aside>
+</section>

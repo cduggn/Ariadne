@@ -1,0 +1,35 @@
+<section id="broke" data-transition="fade" style="background:#B5452B;color:#F6F3EC;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#F3D9CF"></div>
+<p style="font-size:24px;color:#F6F3EC;letter-spacing:4px;text-transform:uppercase;font-weight:600">3 · What broke after recovery</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">The first KV hop out of the restarted worker hung for 114 seconds on a stale engine id.</h2>
+<div style="display:flex;flex-direction:row;gap:36px;align-items:stretch">
+<div style="width:960px;display:flex;flex-direction:column;gap:12px">
+<table style="width:960px;font-size:23px;color:#1F2A26;font-family:'Fira Code', 'Courier New', monospace;font-variant-numeric:tabular-nums;border:1px solid #F3D9CF">
+<tr style="background:#1E3A2F"><th style="width:9%;text-align:left;padding:6px 10px;color:#F6F3EC">step</th><th style="width:13%;text-align:left;color:#F6F3EC">pod</th><th style="width:22%;text-align:left;color:#F6F3EC">sticky</th><th style="width:14%;text-align:left;color:#F6F3EC">hop</th><th style="width:10%;text-align:right;color:#F6F3EC">code</th><th style="width:16%;text-align:right;color:#F6F3EC">upstream</th><th style="width:16%;text-align:right;color:#F6F3EC">cached</th></tr>
+<tr style="background:#FFFDF8"><td>15</td><td>vllm-1</td><td>hit</td><td>-</td><td style="text-align:right">200</td><td style="text-align:right">1.2 s</td><td style="text-align:right">10,192</td></tr>
+<tr style="background:#F3EBE0"><td>16</td><td>vllm-0</td><td>broken_load</td><td>hopped</td><td style="text-align:right">502</td><td style="text-align:right">114.1 s</td><td style="text-align:right">0</td></tr>
+<tr style="background:#FFFDF8"><td>16</td><td>vllm-0</td><td>hit</td><td>-</td><td style="text-align:right">200</td><td style="text-align:right">1.1 s</td><td style="text-align:right">3,920</td></tr>
+<tr style="background:#F3EBE0"><td>17</td><td>vllm-0</td><td>hit</td><td>-</td><td style="text-align:right">200</td><td style="text-align:right">0.6 s</td><td style="text-align:right">10,192</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.45;color:#F6F3EC">dx-audit-2 at 12:27:31. The source hold took 0.9 s and reported the blocks held. The destination then waited for KV that never came until the 115 s upstream timeout. The agent retried, recomputed the 10k-token history from the shared prefix, and finished the diagnosis.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="../figs/rec-e2e.png" alt="Gateway end-to-end p50 and p95: a spike to 1.67 minutes at 12:28 after a flat 20 s" style="width:668px;height:303px;object-fit:contain;background:#181B1F;border:1px solid #F3D9CF;border-radius:6px">
+<p style="font-size:24px;line-height:1.4;color:#F3D9CF">The only spike in 16 minutes, and it came after recovery, not during the outage.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:row;gap:32px;align-items:stretch">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#1E3A2F;border-radius:6px;padding:22px 28px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">What we observed</p>
+<p style="font-size:24px;line-height:1.45;color:#F6F3EC">The gateway keeps each worker's Mooncake engine id from the first hop and only clears it if a hold call fails. vllm-1 came back with a new id. The hold on it still succeeded, so vllm-0 tried to pull from the old id and waited. The hop's 10 s timeout only covers the hold, so nothing cut the wait short of the 115 s upstream limit.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#FFFDF8;color:#1F2A26;border-radius:6px;padding:22px 28px">
+<p style="font-size:22px;color:#B5452B;letter-spacing:2px;text-transform:uppercase;font-weight:600">The fix, and why the dashboards missed it</p>
+<p style="font-size:24px;line-height:1.45;color:#3E4A45">Clear the cached id whenever a worker leaves Ready, and bound the receive with its own deadline. On the dashboards, "KV hops by result" counted this as a successful hop because the hold succeeded, and "Upstream errors" only plots transport errors. Only the request log showed it.</p>
+<p style="font-size:24px;line-height:1.45;color:#B5452B;font-weight:600">It also leaked. vllm-1 freed its held blocks after 480 s. vllm-0 never freed the blocks it had set aside for the receive, and 22% of its KV stayed in use from 12:27 onward with nothing running.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#F3D9CF">gateway/internal/hop/mooncake.go, hopper.go; DefaultUpstreamTimeout 115 s. vLLM logs: producer "timed out after 480 seconds", consumer "transfer failed: Resource temporarily unavailable". Mooncake TCP measured at 1.6 GB/s idle, 0.1 GB/s under the 32-run load.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#F6F3EC;font-weight:600">8</p>
+<aside>This is the bug found in the final session. The outage itself behaved. The surprise was afterwards: the first hop whose source was the restarted worker hung because the gateway remembered the old engine id. The system still finished the run because the agent retries a 502 and the destination had the shared prefix cached. Two telemetry gaps made it invisible on the dashboards, which is a finding in itself.</aside>
+</section>

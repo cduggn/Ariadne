@@ -1,0 +1,29 @@
+<section id="workload" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">1 · The workload the engine sees</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:52px;font-weight:600;line-height:1.08;letter-spacing:-1px">Every call is the same 3.8k prefix plus the run's own history, and the history grows every step.</h2>
+<div style="display:flex;flex-direction:row;gap:40px;align-items:start">
+<table style="width:1000px;font-size:25px;color:#1F2A26;border:1px solid #D8D2C4;font-variant-numeric:tabular-nums">
+<tr style="background:#FFFDF8"><th style="width:22%;text-align:left;padding:8px 14px">Tier, 26 tasks</th><th style="width:20%;text-align:left">priority</th><th style="width:20%;text-align:right">unique tokens</th><th style="width:16%;text-align:right">steps</th><th style="width:22%;text-align:right">peak prompt</th></tr>
+<tr><td>easy</td><td><b>interactive</b></td><td style="text-align:right">2,459</td><td style="text-align:right">6 to 7</td><td style="text-align:right">7.1k</td></tr>
+<tr style="background:#FFFDF8"><td>multi-hop</td><td><b>interactive</b></td><td style="text-align:right">3,570</td><td style="text-align:right">8</td><td style="text-align:right">9.0k</td></tr>
+<tr><td>red herring</td><td><b>interactive</b></td><td style="text-align:right">4,768</td><td style="text-align:right">8</td><td style="text-align:right">8.7k</td></tr>
+<tr style="background:#FFFDF8"><td>right-sizing</td><td><b>batch</b></td><td style="text-align:right">5,200</td><td style="text-align:right">3 to 4</td><td style="text-align:right">6.0k</td></tr>
+<tr><td>audits</td><td><b>batch</b></td><td style="text-align:right">7.7k to 11.2k</td><td style="text-align:right">23 to 25</td><td style="text-align:right">14.7k to 15.8k</td></tr>
+</table>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#1E3A2F;color:#F6F3EC;border-radius:6px;padding:32px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">The token ladder</p>
+<table style="width:560px;font-size:24px;color:#F6F3EC;font-variant-numeric:tabular-nums;border:1px solid #3C6151">
+<tr><td style="width:34%;text-align:right;padding:5px 12px">3,787</td><td style="width:66%">shared prefix: rules and tool schemas</td></tr>
+<tr style="background:#2A4B3E"><td style="text-align:right">12,000</td><td>planning length, sets the cap of 4</td></tr>
+<tr><td style="text-align:right">15,831</td><td>largest prompt seen</td></tr>
+<tr style="background:#2A4B3E"><td style="text-align:right">23,000</td><td>the agent stops itself</td></tr>
+<tr><td style="text-align:right">24,576</td><td>vLLM max-model-len, a 400 past it</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.4;color:#C5D1CB">Each step re-sends everything so far. 88% of prompt tokens come from the prefix cache. In the queue, interactive goes before batch, then arrival order, each with a deadline: 10 s interactive, 30 s batch.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">Unique tokens: medians per tier, D-29. Steps and peak prompt: medians from the 10-12 concurrency 1 and 4 runs. Cached share F8 to F10, F47.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">2</p>
+<aside>The mental model: an investigation is a growing conversation. Prefix is shared and cached, history is unique to the run, and each step pays for the whole history unless it lands on the worker that already holds it. That is why stickiness, the hop and the KV cap all exist. The ladder on the right is where every length limit in the system sits.</aside>
+</section>

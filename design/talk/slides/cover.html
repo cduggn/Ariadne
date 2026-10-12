@@ -1,0 +1,28 @@
+<section id="cover" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:row;gap:96px;align-items:center">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:32px">
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">Ariadne · final project demo · 2026-10-12</p>
+<h1 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:88px;font-weight:600;line-height:1.04;letter-spacing:-2px">Ariadne on one H100.<br>Capacity, the knee, a worker dying, one long run.</h1>
+<p style="font-size:32px;color:#3E4A45;line-height:1.4">A read-only root-cause agent for Kubernetes, served by two vLLM workers on one H100, behind a gateway that decides who waits.</p>
+<hr style="width:280px;border-top:3px solid #B5452B">
+<p style="font-size:28px;color:#5F6B66;line-height:1.4">Four stories, each with its chart and its log line. The thread through them: KV ran out first, and the overload moved out of the engine into the gateway's queue.</p>
+</div>
+<div style="width:560px;display:flex;flex-direction:column;gap:28px;background:#FFFDF8;border:2px solid #B5452B;border-radius:6px;padding:48px">
+<p style="font-size:24px;color:#B5452B;letter-spacing:3px;text-transform:uppercase;font-weight:600">Measured on the live cluster</p>
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Fira Code', 'Courier New', monospace;font-size:56px;font-weight:600;color:#1F2A26">51k</p>
+<p style="font-size:24px;color:#5F6B66">KV tokens per half, measured. The paper number was 78k, likely the hybrid model's fixed costs.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Fira Code', 'Courier New', monospace;font-size:56px;font-weight:600;color:#1E3A2F">4</p>
+<p style="font-size:24px;color:#5F6B66">runs in flight per worker. One number drives admission, scaling and the hop.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Fira Code', 'Courier New', monospace;font-size:56px;font-weight:600;color:#1F2A26">5 min 26 s</p>
+<p style="font-size:24px;color:#5F6B66">for a deleted worker to come back under load. Two runs lost a step, none lost a diagnosis.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1400px;font-size:24px;color:#7A847F">Qwen3.8-27B FP8 · vLLM 0.29 · two HAMi halves of one H100 PCIe · Go gateway · KEDA · Mooncake KV hop. Leave-behind deck has the full findings.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">1</p>
+<aside>Ariadne is a LangGraph agent with read-only Kubernetes tools. Each diagnosis is 5 to 24 chained model calls, and each call's prompt extends the last, so the serving problem is long, growing contexts sharing a KV pool. Two headline results: KV was the first limiter, and once admission was sized to KV the overload moved into the gateway's queue, where priority and deadlines apply.</aside>
+</section>

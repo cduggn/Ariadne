@@ -1,0 +1,19 @@
+{
+  "v": 4,
+  "createdOnFiles": {"v": 1, "at": "2026-10-12T12:50:00Z"},
+  "lists": "css",
+  "title": "Ariadne demo talk",
+  "order": ["cover", "workload", "capacity", "knee", "panels", "ab", "worker", "broke", "context", "findings"],
+  "sections": {
+    "s1": {"description": "The workload, then capacity: calculated first, then measured.", "start": "cover"},
+    "s2": {"description": "The knee under load, the panels, and the routing A/B.", "start": "knee"},
+    "s3": {"description": "A worker dies: recovery, and what broke after it.", "start": "worker"},
+    "s4": {"description": "A long run on a quiet cluster, and the full ledger of findings.", "start": "context"}
+  },
+  "faces": {
+    "space-grotesk": {"family": "Space Grotesk", "href": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap"},
+    "public-sans": {"family": "Public Sans", "href": "https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&display=swap"},
+    "fira-code": {"family": "Fira Code", "href": "https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap"}
+  },
+  "designSystems": []
+}

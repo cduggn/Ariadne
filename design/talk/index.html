@@ -1,0 +1,318 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Ariadne demo talk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=Fira+Code:wght@400;600&display=swap">
+<style>body{margin:0;background:#2b2b2b}section{position:relative;width:1920px;height:1080px;margin:24px auto;box-sizing:border-box;overflow:hidden}section *{box-sizing:border-box;margin:0}aside{display:none}table{border-collapse:collapse}td,th{padding:6px 12px;border-bottom:1px solid rgba(128,128,128,.3)}h1,h2,h3,p{margin:0}ul{margin:0}</style></head><body>
+<section id="cover" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:row;gap:96px;align-items:center">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:32px">
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">Ariadne · final project demo · 2026-10-12</p>
+<h1 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:88px;font-weight:600;line-height:1.04;letter-spacing:-2px">Ariadne on one H100.<br>Capacity, the knee, a worker dying, one long run.</h1>
+<p style="font-size:32px;color:#3E4A45;line-height:1.4">A read-only root-cause agent for Kubernetes, served by two vLLM workers on one H100, behind a gateway that decides who waits.</p>
+<hr style="width:280px;border-top:3px solid #B5452B">
+<p style="font-size:28px;color:#5F6B66;line-height:1.4">Four stories, each with its chart and its log line. The thread through them: KV ran out first, and the overload moved out of the engine into the gateway's queue.</p>
+</div>
+<div style="width:560px;display:flex;flex-direction:column;gap:28px;background:#FFFDF8;border:2px solid #B5452B;border-radius:6px;padding:48px">
+<p style="font-size:24px;color:#B5452B;letter-spacing:3px;text-transform:uppercase;font-weight:600">Measured on the live cluster</p>
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Fira Code', 'Courier New', monospace;font-size:56px;font-weight:600;color:#1F2A26">51k</p>
+<p style="font-size:24px;color:#5F6B66">KV tokens per half, measured. The paper number was 78k, likely the hybrid model's fixed costs.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Fira Code', 'Courier New', monospace;font-size:56px;font-weight:600;color:#1E3A2F">4</p>
+<p style="font-size:24px;color:#5F6B66">runs in flight per worker. One number drives admission, scaling and the hop.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<p style="font-family:'Fira Code', 'Courier New', monospace;font-size:56px;font-weight:600;color:#1F2A26">5 min 26 s</p>
+<p style="font-size:24px;color:#5F6B66">for a deleted worker to come back under load. Two runs lost a step, none lost a diagnosis.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1400px;font-size:24px;color:#7A847F">Qwen3.8-27B FP8 · vLLM 0.29 · two HAMi halves of one H100 PCIe · Go gateway · KEDA · Mooncake KV hop. Leave-behind deck has the full findings.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">1</p>
+<aside>Ariadne is a LangGraph agent with read-only Kubernetes tools. Each diagnosis is 5 to 24 chained model calls, and each call's prompt extends the last, so the serving problem is long, growing contexts sharing a KV pool. Two headline results: KV was the first limiter, and once admission was sized to KV the overload moved into the gateway's queue, where priority and deadlines apply.</aside>
+</section>
+<section id="workload" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">1 · The workload the engine sees</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:52px;font-weight:600;line-height:1.08;letter-spacing:-1px">Every call is the same 3.8k prefix plus the run's own history, and the history grows every step.</h2>
+<div style="display:flex;flex-direction:row;gap:40px;align-items:start">
+<table style="width:1000px;font-size:25px;color:#1F2A26;border:1px solid #D8D2C4;font-variant-numeric:tabular-nums">
+<tr style="background:#FFFDF8"><th style="width:22%;text-align:left;padding:8px 14px">Tier, 26 tasks</th><th style="width:20%;text-align:left">priority</th><th style="width:20%;text-align:right">unique tokens</th><th style="width:16%;text-align:right">steps</th><th style="width:22%;text-align:right">peak prompt</th></tr>
+<tr><td>easy</td><td><b>interactive</b></td><td style="text-align:right">2,459</td><td style="text-align:right">6 to 7</td><td style="text-align:right">7.1k</td></tr>
+<tr style="background:#FFFDF8"><td>multi-hop</td><td><b>interactive</b></td><td style="text-align:right">3,570</td><td style="text-align:right">8</td><td style="text-align:right">9.0k</td></tr>
+<tr><td>red herring</td><td><b>interactive</b></td><td style="text-align:right">4,768</td><td style="text-align:right">8</td><td style="text-align:right">8.7k</td></tr>
+<tr style="background:#FFFDF8"><td>right-sizing</td><td><b>batch</b></td><td style="text-align:right">5,200</td><td style="text-align:right">3 to 4</td><td style="text-align:right">6.0k</td></tr>
+<tr><td>audits</td><td><b>batch</b></td><td style="text-align:right">7.7k to 11.2k</td><td style="text-align:right">23 to 25</td><td style="text-align:right">14.7k to 15.8k</td></tr>
+</table>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#1E3A2F;color:#F6F3EC;border-radius:6px;padding:32px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">The token ladder</p>
+<table style="width:560px;font-size:24px;color:#F6F3EC;font-variant-numeric:tabular-nums;border:1px solid #3C6151">
+<tr><td style="width:34%;text-align:right;padding:5px 12px">3,787</td><td style="width:66%">shared prefix: rules and tool schemas</td></tr>
+<tr style="background:#2A4B3E"><td style="text-align:right">12,000</td><td>planning length, sets the cap of 4</td></tr>
+<tr><td style="text-align:right">15,831</td><td>largest prompt seen</td></tr>
+<tr style="background:#2A4B3E"><td style="text-align:right">23,000</td><td>the agent stops itself</td></tr>
+<tr><td style="text-align:right">24,576</td><td>vLLM max-model-len, a 400 past it</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.4;color:#C5D1CB">Each step re-sends everything so far. 88% of prompt tokens come from the prefix cache. In the queue, interactive goes before batch, then arrival order, each with a deadline: 10 s interactive, 30 s batch.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">Unique tokens: medians per tier, D-29. Steps and peak prompt: medians from the 10-12 concurrency 1 and 4 runs. Cached share F8 to F10, F47.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">2</p>
+<aside>The mental model: an investigation is a growing conversation. Prefix is shared and cached, history is unique to the run, and each step pays for the whole history unless it lands on the worker that already holds it. That is why stickiness, the hop and the KV cap all exist. The ladder on the right is where every length limit in the system sits.</aside>
+</section>
+<section id="capacity" data-transition="fade" style="background:#1e3a2f">
+  <div style="position:absolute; top:96px; left:128px; width:96px; height:8px; display:flex; flex-direction:column; background:#e8b08c">
+  </div>
+  <p id="e2-tfrt6x" style="position:absolute; bottom:64px; left:128px; width:1500px; font-family:'Public Sans', Arial, sans-serif; font-size:24px; color:#9db3a8">serving/fit.py, deploy/models/qwen3.8-27b-fp8.json, deploy/serving.json. Measured pool from vLLM's startup log. Planning length 12,000; largest prompt seen 15,821; agent stops at 23,000; max-model-len 24,576.</p>
+  <p id="e3-tfrt6x" style="position:absolute; right:128px; bottom:64px; width:80px; font-family:'Public Sans', Arial, sans-serif; font-size:24px; font-weight:600; text-align:right; color:#e8b08c">3</p>
+  <p id="pe3b0387e994dr0-d1c3f715" style="position:absolute; top:128px; left:128px; width:1664px; font-family:'Public Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:4px; text-transform:uppercase; color:#e8b08c">1 · Capacity, calculated first</p>
+  <h2 id="pe3b0387e994dr1-d1c3f715" style="position:absolute; top:183px; left:128px; width:1664px; font-family:'Space Grotesk', Arial, sans-serif; font-size:56px; font-weight:600; line-height:1.08; letter-spacing:-1px; color:#f6f3ec">The calculator said 4.5 runs fit a half. vLLM measured a pool 34% smaller, and the cap is 4.</h2>
+  <div id="pe3b0387e994dr2-d1c3f715" style="position:absolute; top:298px; left:128px; width:1664px; height:623px; display:flex; flex-direction:row; gap:40px">
+    <div style="width:900px; display:flex; flex-direction:column; gap:12px; padding:24px 28px; background:#2a4b3e; border:1px solid #3c6151; border-radius:6px">
+      <table style="width:844px; font-family:'Public Sans', Arial, sans-serif; font-size:23px; font-variant-numeric:tabular-nums; color:#f6f3ec; border:1px solid #3c6151">
+        <tr style="background:#1e3a2f"><th style="padding:4px 12px; width:64%">Qwen3.8-27B FP8 on one HAMi half, 39 GiB</th><th style="padding:4px 12px; width:36%; text-align:right">GiB</th></tr>
+        <tr><td style="padding:4px 12px">budget, 90% of the slice</td><td style="padding:4px 12px; text-align:right">35.1</td></tr>
+        <tr style="background:#1e3a2f"><td style="padding:4px 12px">weights</td><td style="padding:4px 12px; text-align:right">28.75</td></tr>
+        <tr><td style="padding:4px 12px">activation peak at 8,192 batched tokens</td><td style="padding:4px 12px; text-align:right">0.84</td></tr>
+        <tr style="background:#1e3a2f"><td style="padding:4px 12px">CUDA context</td><td style="padding:4px 12px; text-align:right">0.75</td></tr>
+        <tr><td style="padding:4px 12px">KV pool left</td><td style="padding:4px 12px; text-align:right">4.76</td></tr>
+      </table>
+      <p style="font-family:'Public Sans', Arial, sans-serif; font-size:23px; line-height:1.35; color:#c5d1cb">KV per token: 16 attention layers × 4 KV heads × 256 × K and V × 2 bytes = <b>64 KiB</b>. The 48 linear layers keep a fixed 147 MiB per sequence instead.</p>
+      <p style="font-family:'Fira Code', 'Courier New', monospace; font-size:26px; font-weight:600; line-height:1.3; color:#e8b08c">paper 77,926 tokens → measured 51,092</p>
+      <p style="font-family:'Public Sans', Arial, sans-serif; font-size:23px; line-height:1.35; color:#c5d1cb">The 34% gap is likely the hybrid model's fixed costs the calculator does not charge: the recurrent state, a vision encoder and an MTP head in the checkpoint. Within 1% on plain-attention models.</p>
+      <p style="font-family:'Public Sans', Arial, sans-serif; font-size:23px; line-height:1.35; color:#c5d1cb">One run: 3,787-token shared prefix + 2.5k to 11k unique tokens over 5 to 25 steps, each step re-sending the whole history. Planning length 12,000.</p>
+      <p style="font-family:'Fira Code', 'Courier New', monospace; font-size:25px; font-weight:600; line-height:1.3; color:#f6f3ec">51,092 ÷ (12,000 − 3,787 shared once) ≈ 4.5 runs → cap 4</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px; flex:1">
+      <img src="figs/fit-gate.png" alt="The fit gate printed by make bringup: budget, weights, pool, sequences, and the verdict fits, tight" style="width:724px; height:470px; background:#14281f; border:1px solid #3c6151; border-radius:6px; object-fit:contain">
+      <p style="font-family:'Public Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#c5d1cb">The gate runs before every deploy and exits non-zero if the model does not fit. It emits three numbers the gateway reads at start: GW_MAX_INFLIGHT=4, GW_HOP_KV_BYTES_PER_TOKEN=65536, GW_HOP_PREFILL_TOKENS_PER_S=2721. They drive admission, the KEDA rule and the hop cost.</p>
+    </div>
+  </div>
+  <aside>Start with the subtraction: slice budget, weights, activations, CUDA context, and what is left is KV. 64 KiB per token is small because only 16 of 64 layers are attention. The paper pool was 34 percent too optimistic because the hybrid model's fixed costs were not in the calculator. The output of all this is one line of three numbers: in-flight cap, bytes per token, prefill rate. The gateway reads them at start. KEDA's rule is workers equals in flight plus queued over 4. The hop policy uses the other two.</aside>
+</section>
+<section id="knee" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">2 · The knee, measured</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:52px;font-weight:600;line-height:1.08;letter-spacing:-1px">Pass rate holds to 16 runs and falls at 32. KV sets the knee, the queue deadline ends the runs.</h2>
+<div style="display:flex;flex-direction:row;gap:40px;align-items:center">
+<div style="width:760px;display:flex;flex-direction:column;gap:18px">
+<table style="width:760px;font-size:23px;color:#1F2A26;border:1px solid #D8D2C4;font-variant-numeric:tabular-nums">
+<tr style="background:#FFFDF8"><th style="width:24%;text-align:left;padding:5px 14px">Concurrent</th><th style="width:30%;text-align:left">Pass rate</th><th style="width:46%;text-align:left">Runs refused</th></tr>
+<tr><td>1</td><td>88.5%</td><td>0</td></tr>
+<tr style="background:#FFFDF8"><td>4</td><td>92.3%</td><td>0</td></tr>
+<tr><td>8</td><td>76.9%</td><td>0</td></tr>
+<tr style="background:#FFFDF8"><td>16</td><td>80.8%</td><td>2 on 503</td></tr>
+<tr><td>32</td><td>42.3%</td><td>12 on 503</td></tr>
+</table>
+<div style="display:flex;flex-direction:column;gap:8px;background:#FFFDF8;border:1px solid #D8D2C4;border-radius:6px;padding:20px 24px">
+<p style="font-size:22px;color:#B5452B;letter-spacing:2px;text-transform:uppercase;font-weight:600">The gateway log, 1,232 requests, four rows</p>
+<table style="width:712px;font-size:21px;color:#1F2A26;font-family:'Fira Code', 'Courier New', monospace;font-variant-numeric:tabular-nums;border:1px solid #D8D2C4">
+<tr style="background:#F6F3EC"><th style="width:14%;text-align:left;padding:4px 8px">time</th><th style="width:26%;text-align:left">run</th><th style="width:8%;text-align:left">st</th><th style="width:12%;text-align:left">pod</th><th style="width:20%;text-align:left">outcome</th><th style="width:20%;text-align:right">queued</th></tr>
+<tr><td>10:55:36</td><td>dx-init-wait</td><td>1</td><td>-</td><td>503 timeout_queue</td><td style="text-align:right">refused at the gate</td></tr>
+<tr style="background:#F6F3EC"><td>10:58:39</td><td>dx-oom</td><td>1</td><td>-</td><td>503 kv_free</td><td style="text-align:right">refused at the gate</td></tr>
+<tr><td>10:56:39</td><td>dx-audit-1</td><td>2</td><td>vllm-1</td><td>200 hit</td><td style="text-align:right">11.1 s</td></tr>
+<tr style="background:#F6F3EC"><td>10:58:47</td><td>dx-crashloop</td><td>3</td><td>vllm-1</td><td>200 broken_shed</td><td style="text-align:right">0.3 s</td></tr>
+</table>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="figs/knee.png" alt="Pass rate against concurrent runs, the 10-12 curve over the 10-08 curve: flat to 16 on 10-12, flat to 8 on 10-08, both falling by 32" style="width:864px;height:441px;object-fit:contain;background:#FFFDF8;border:1px solid #D8D2C4;border-radius:6px">
+<p style="font-size:24px;color:#5F6B66;line-height:1.4">26 runs per level on 10-12, 52 on 10-08. With 52 the knee sits at 8 to 16, because 32 are truly in flight. Same cap, same KV: each half holds about two full contexts.</p>
+<p style="font-size:22px;color:#7A847F;line-height:1.4">153 timeout_queue, 30 kv_free, 84% of continuing steps sticky, 27 hops. metrics/golden-sweep-*-20261012-*, metrics/gateway-log-knee-20261012-121022.jsonl.</p>
+</div>
+</div>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">4</p>
+<aside>Two curves, same system, same cap. The 10-12 sweep had 26 runs per level, the 10-08 sweep 52, so on 10-12 a level of 32 is really 26 in flight and the knee moves right. The mechanism does not move: the pool holds about two full contexts, admission refuses at 80 percent, and the refusals that end runs are queue deadlines, not KV. That is the F32 story: once admission is sized to KV the queue becomes the limiter.</aside>
+</section>
+<section id="panels" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">2 · Where the time went, per hop</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">The gate held at 4 per worker, KV rode the 20% line, and the cost was waiting, not slower decode.</h2>
+<div style="display:flex;flex-direction:row;gap:32px;align-items:stretch">
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="figs/knee-inflight-queued.png" alt="In flight and queued per pod: in-flight lines flat at 4, queue rising above them at each level" style="width:533px;height:247px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<h3 style="font-size:26px;font-weight:600;color:#1E3A2F">In flight and queued per pod</h3>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">In flight flattens at 4 on each worker at every level. Everything above the cap sits in the gateway queue with a deadline, not inside vLLM.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="figs/knee-kv-free.png" alt="KV free ratio per pod with the green 20% admission line, free hugging the line at the humps" style="width:533px;height:247px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<h3 style="font-size:26px;font-weight:600;color:#1E3A2F">KV free ratio, gateway view</h3>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">New runs are refused below 20% free. Runs already resident may continue to 5%. Free hugs the line because the pool is full of resident runs, which is the cap doing its job.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="figs/knee-upstream-by-stage.png" alt="Upstream p95 by stage: queue p95 climbing to about 10 s while local stays near 20 s" style="width:533px;height:247px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<h3 style="font-size:26px;font-weight:600;color:#1E3A2F">p95 by stage</h3>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">Queue p95 climbs to 10 s. Local, the engine's time, stays near 20 s throughout. Inter-token latency moved from 45 to 95 ms. The engine was never the slow hop.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:row;gap:32px;align-items:center;background:#FFFDF8;border:1px solid #D8D2C4;border-radius:6px;padding:20px 28px">
+<img src="figs/knee-preemptions.png" alt="vLLM preemptions per second: zero until the last level, then a short burst" style="width:300px;height:139px;object-fit:contain;background:#181B1F;border-radius:4px">
+<p style="flex:1;font-size:24px;line-height:1.45;color:#3E4A45"><b>Preemptions stayed at zero through 16 and appeared only at 32.</b> Admission protected the engine up to the knee and was overrun past it. GPU utilisation read 100% from the first run to the last, so it cannot be the scaling signal. Power draw tracks load.</p>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">Gateway and vLLM dashboards, 11:50 to 12:05 on 10-12, levels 8, 16 and 32. The stacked "Request outcomes" panel shows the same three humps with refusals on top.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">5</p>
+<aside>Three panels, three hops. Queue time is the gateway's choice. First-token time is prefill contention. Inter-token time is batch size, and it barely moved. If asked why prefix-then-load over least-loaded: 94 percent of prompt tokens are the run's own history, so moving a run throws away its cache; the A/B on 10-08 showed least-loaded landed on the right worker by luck about half the time.</aside>
+</section>
+<section id="ab" data-transition="fade" style="background:#1E3A2F;color:#F6F3EC;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#E8B08C"></div>
+<p style="font-size:24px;color:#E8B08C;letter-spacing:4px;text-transform:uppercase;font-weight:600">2 · Why this placement policy · the A/B</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">Prefix-then-load against least-loaded: same answers, 10% less prefill, 8 to 11% faster steps.</h2>
+<div style="display:flex;flex-direction:row;gap:40px;align-items:start">
+<table style="width:1040px;font-size:26px;color:#F6F3EC;font-variant-numeric:tabular-nums;border:1px solid #3C6151">
+<tr style="background:#2A4B3E"><th style="width:46%;text-align:left;padding:10px 16px">Same node, same golden set, concurrency 4</th><th style="width:27%;text-align:right">prefix_then_load</th><th style="width:27%;text-align:right">least_loaded</th></tr>
+<tr><td>pass rate</td><td style="text-align:right">86.5%</td><td style="text-align:right">88.5%</td></tr>
+<tr style="background:#2A4B3E"><td>continuing steps back on their run's worker</td><td style="text-align:right">94%</td><td style="text-align:right">77%</td></tr>
+<tr><td>uncached prompt tokens prefilled</td><td style="text-align:right">416,445</td><td style="text-align:right">459,909</td></tr>
+<tr style="background:#2A4B3E"><td>cached share of prompt</td><td style="text-align:right">87.8%</td><td style="text-align:right">85.6%</td></tr>
+<tr><td>step latency p50</td><td style="text-align:right">2.86 s</td><td style="text-align:right">3.10 s</td></tr>
+<tr style="background:#2A4B3E"><td>step latency p95, after the first step</td><td style="text-align:right">25.3 s</td><td style="text-align:right">28.1 s</td></tr>
+</table>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#2A4B3E;border:1px solid #3C6151;border-radius:6px;padding:32px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">Why the gap is small here</p>
+<p style="font-size:24px;line-height:1.45;color:#F6F3EC">At concurrency 4 load is low and even, so least-loaded lands on the right worker 77% of the time by luck. Both workers hold the 3.9k shared prefix from warm-up, so only each run's own history is at stake.</p>
+<p style="font-size:24px;line-height:1.45;color:#C5D1CB">The 2-point pass difference is inside the 95% interval on 26 tasks. The policy is the only thing that changed between arms.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#9DB3A8">F29, 10-08, metrics/golden-gw-38-* and the least_loaded arm; 1,204 and 388 continuing steps. power-of-two was the third arm and sat between them.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#E8B08C;font-weight:600">6</p>
+<aside>The lecturer asks why this policy over the alternatives. Answer: 94 percent of prompt tokens are the run's own history, so moving a run throws its cache away. The A/B measured that cost at ten percent more prefill and eight to eleven percent slower steps, with no change in answers. The gap is modest at low concurrency and we expect it to widen when load is uneven, which is exactly when least-loaded moves runs.</aside>
+</section>
+<section id="worker" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">3 · A worker dies under load</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">vllm-1 was deleted 30 s into a 16-minute load and was back in 5 min 26 s. Admission carried the gap.</h2>
+<img src="figs/rec-worker-phase.png" alt="Worker phase as the gateway sees it: vllm-1 drops to 0 at 12:13 and returns at 12:18:30, vllm-0 stays at 2+" style="width:1664px;height:183px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<div style="display:flex;flex-direction:row;gap:32px;align-items:stretch">
+<div style="width:560px;display:flex;flex-direction:column;gap:10px">
+<img src="figs/rec-request-outcomes.png" alt="Request outcomes: answered in green, a kv_free band and a thin upstream_error sliver during the outage" style="width:560px;height:181px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">No scrape for 10 s marks a worker down, and a down worker gets no placements. The two steps already on it got a 502. New runs then got a 503 kv_free while vllm-0 alone held four resident runs under the 20% line.</p>
+</div>
+<div style="width:560px;display:flex;flex-direction:column;gap:10px">
+<table style="width:560px;font-size:20px;color:#1F2A26;font-family:'Fira Code', 'Courier New', monospace;font-variant-numeric:tabular-nums;border:1px solid #D8D2C4">
+<tr style="background:#FFFDF8"><th style="width:16%;text-align:left;padding:4px 8px">time</th><th style="width:28%;text-align:left">run</th><th style="width:8%;text-align:left">st</th><th style="width:14%;text-align:left">pod</th><th style="width:34%;text-align:left">status · why here</th></tr>
+<tr><td>12:13:33</td><td>dx-dns-misconfig</td><td>11</td><td>vllm-1</td><td>502 after 38.5 s</td></tr>
+<tr style="background:#FFFDF8"><td>12:13:33</td><td>dx-healthy</td><td>3</td><td>vllm-1</td><td>502 after 31.8 s</td></tr>
+<tr><td>12:13:35</td><td>dx-healthy</td><td>3</td><td>vllm-0</td><td>200 broken_gone</td></tr>
+<tr style="background:#FFFDF8"><td>12:13:36</td><td>dx-dns-misconfig</td><td>11</td><td>vllm-0</td><td>200 broken_gone</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">The two steps caught on the dead worker were retried on the survivor two seconds later with the shared prefix still cached. The StatefulSet recreated vllm-1 on its own. KEDA scales replicas 1 to 2 on two gateway signals: demand, in flight plus queued over the cap of 4, and any capacity shed in the last minute. Both fired here, but 2 is the maximum. A larger card, or more cards, is the next scale-out step.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#1E3A2F;color:#F6F3EC;border-radius:6px;padding:24px 28px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">What it cost</p>
+<table style="width:456px;font-size:24px;color:#F6F3EC;font-variant-numeric:tabular-nums;border:1px solid #3C6151">
+<tr><td style="width:62%;padding:6px 12px">deleted → gateway marks down</td><td style="width:38%;text-align:right">11 s</td></tr>
+<tr style="background:#2A4B3E"><td>deleted → Ready again</td><td style="text-align:right">5 min 26 s</td></tr>
+<tr><td>steps on the dead worker, 502, retried on vllm-0</td><td style="text-align:right">2</td></tr>
+<tr style="background:#2A4B3E"><td>503 kv_free refusals across 19 runs, 4 retries each</td><td style="text-align:right">32</td></tr>
+<tr><td>runs that got in on a retry</td><td style="text-align:right">18</td></tr>
+<tr style="background:#2A4B3E"><td>runs lost, retries exhausted on 503</td><td style="text-align:right">1</td></tr>
+<tr><td>pass rate, baseline 86.5%</td><td style="text-align:right">83.7%</td></tr>
+</table>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">104 runs at concurrency 4, 12:12 to 12:28 on 10-12. metrics/events-recover-probes-20261012-121231.jsonl, metrics/gateway-log-recover-20261012-130245.jsonl. On 10-08 the same probe took 5 min 37 s.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">7</p>
+<aside>The failure scenario the lecturer asks for. The gateway noticed in 11 seconds through its staleness rule, re-placed the two broken runs on the survivor with their prefix still cached, and refused new arrivals rather than letting vLLM thrash. vllm-0 alone did preempt once, which is the live KV-undersized case. Pass rate fell three points. An eight-minute worker means the scaler is for the shape of the day, so admission and the queue carry the burst.</aside>
+</section>
+<section id="broke" data-transition="fade" style="background:#B5452B;color:#F6F3EC;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#F3D9CF"></div>
+<p style="font-size:24px;color:#F6F3EC;letter-spacing:4px;text-transform:uppercase;font-weight:600">3 · What broke after recovery</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">The first KV hop out of the restarted worker hung for 114 seconds on a stale engine id.</h2>
+<div style="display:flex;flex-direction:row;gap:36px;align-items:stretch">
+<div style="width:960px;display:flex;flex-direction:column;gap:12px">
+<table style="width:960px;font-size:23px;color:#1F2A26;font-family:'Fira Code', 'Courier New', monospace;font-variant-numeric:tabular-nums;border:1px solid #F3D9CF">
+<tr style="background:#1E3A2F"><th style="width:9%;text-align:left;padding:6px 10px;color:#F6F3EC">step</th><th style="width:13%;text-align:left;color:#F6F3EC">pod</th><th style="width:22%;text-align:left;color:#F6F3EC">sticky</th><th style="width:14%;text-align:left;color:#F6F3EC">hop</th><th style="width:10%;text-align:right;color:#F6F3EC">code</th><th style="width:16%;text-align:right;color:#F6F3EC">upstream</th><th style="width:16%;text-align:right;color:#F6F3EC">cached</th></tr>
+<tr style="background:#FFFDF8"><td>15</td><td>vllm-1</td><td>hit</td><td>-</td><td style="text-align:right">200</td><td style="text-align:right">1.2 s</td><td style="text-align:right">10,192</td></tr>
+<tr style="background:#F3EBE0"><td>16</td><td>vllm-0</td><td>broken_load</td><td>hopped</td><td style="text-align:right">502</td><td style="text-align:right">114.1 s</td><td style="text-align:right">0</td></tr>
+<tr style="background:#FFFDF8"><td>16</td><td>vllm-0</td><td>hit</td><td>-</td><td style="text-align:right">200</td><td style="text-align:right">1.1 s</td><td style="text-align:right">3,920</td></tr>
+<tr style="background:#F3EBE0"><td>17</td><td>vllm-0</td><td>hit</td><td>-</td><td style="text-align:right">200</td><td style="text-align:right">0.6 s</td><td style="text-align:right">10,192</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.45;color:#F6F3EC">dx-audit-2 at 12:27:31. The source hold took 0.9 s and reported the blocks held. The destination then waited for KV that never came until the 115 s upstream timeout. The agent retried, recomputed the 10k-token history from the shared prefix, and finished the diagnosis.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="figs/rec-e2e.png" alt="Gateway end-to-end p50 and p95: a spike to 1.67 minutes at 12:28 after a flat 20 s" style="width:668px;height:303px;object-fit:contain;background:#181B1F;border:1px solid #F3D9CF;border-radius:6px">
+<p style="font-size:24px;line-height:1.4;color:#F3D9CF">The only spike in 16 minutes, and it came after recovery, not during the outage.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:row;gap:32px;align-items:stretch">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#1E3A2F;border-radius:6px;padding:22px 28px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">What we observed</p>
+<p style="font-size:24px;line-height:1.45;color:#F6F3EC">The gateway keeps each worker's Mooncake engine id from the first hop and only clears it if a hold call fails. vllm-1 came back with a new id. The hold on it still succeeded, so vllm-0 tried to pull from the old id and waited. The hop's 10 s timeout only covers the hold, so nothing cut the wait short of the 115 s upstream limit.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#FFFDF8;color:#1F2A26;border-radius:6px;padding:22px 28px">
+<p style="font-size:22px;color:#B5452B;letter-spacing:2px;text-transform:uppercase;font-weight:600">The fix, and why the dashboards missed it</p>
+<p style="font-size:24px;line-height:1.45;color:#3E4A45">Clear the cached id whenever a worker leaves Ready, and bound the receive with its own deadline. On the dashboards, "KV hops by result" counted this as a successful hop because the hold succeeded, and "Upstream errors" only plots transport errors. Only the request log showed it.</p>
+<p style="font-size:24px;line-height:1.45;color:#B5452B;font-weight:600">It also leaked. vllm-1 freed its held blocks after 480 s. vllm-0 never freed the blocks it had set aside for the receive, and 22% of its KV stayed in use from 12:27 onward with nothing running.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#F3D9CF">gateway/internal/hop/mooncake.go, hopper.go; DefaultUpstreamTimeout 115 s. vLLM logs: producer "timed out after 480 seconds", consumer "transfer failed: Resource temporarily unavailable". Mooncake TCP measured at 1.6 GB/s idle, 0.1 GB/s under the 32-run load.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#F6F3EC;font-weight:600">8</p>
+<aside>This is the bug found in the final session. The outage itself behaved. The surprise was afterwards: the first hop whose source was the restarted worker hung because the gateway remembered the old engine id. The system still finished the run because the agent retries a 502 and the destination had the shared prefix cached. Two telemetry gaps made it invisible on the dashboards, which is a finding in itself.</aside>
+</section>
+<section id="context" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">4 · One long run on a quiet cluster</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">A 23-step audit fills a third of its worker's KV, and our stickiness rule reads that as load and moves it.</h2>
+<div style="display:flex;flex-direction:row;gap:36px;align-items:stretch">
+<div style="width:900px;display:flex;flex-direction:column;gap:12px">
+<table style="width:900px;font-size:23px;color:#1F2A26;font-family:'Fira Code', 'Courier New', monospace;font-variant-numeric:tabular-nums;border:1px solid #D8D2C4">
+<tr style="background:#FFFDF8"><th style="width:9%;text-align:left;padding:6px 10px">step</th><th style="width:13%;text-align:left">pod</th><th style="width:22%;text-align:left">sticky</th><th style="width:14%;text-align:left">hop</th><th style="width:14%;text-align:right">hop ms</th><th style="width:14%;text-align:right">prompt</th><th style="width:14%;text-align:right">cached</th></tr>
+<tr><td>20</td><td>vllm-0</td><td>hit</td><td>-</td><td style="text-align:right">0</td><td style="text-align:right">13,583</td><td style="text-align:right">12,544</td></tr>
+<tr style="background:#FFFDF8"><td>21</td><td>vllm-1</td><td>broken_load</td><td>hopped</td><td style="text-align:right">409</td><td style="text-align:right">14,545</td><td style="text-align:right">14,544</td></tr>
+<tr><td>22</td><td>vllm-0</td><td>broken_load</td><td>hopped</td><td style="text-align:right">1,563</td><td style="text-align:right">14,645</td><td style="text-align:right">14,644</td></tr>
+<tr style="background:#FFFDF8"><td>23</td><td>vllm-0</td><td>hit</td><td>-</td><td style="text-align:right">0</td><td style="text-align:right">14,745</td><td style="text-align:right">14,112</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.45;color:#3E4A45">The first run. The hop works: 14,544 of 14,545 tokens were already on the destination. Receiving about 1 GB over Mooncake TCP cost about 1.1 s against 5.3 s to recompute. Moving at all was the wrong call.</p>
+<div style="display:flex;flex-direction:row;gap:24px">
+<div style="flex:1;display:flex;flex-direction:column;gap:6px;background:#1E3A2F;color:#F6F3EC;border-radius:6px;padding:20px 24px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">Why</p>
+<p style="font-size:24px;line-height:1.4">A worker's load is its in-flight share plus its KV in use. The run's own 14.5k tokens are 0.35 of the 51k pool, so the worker holding it looks 0.35 busier than an empty one. The rule allows a gap of 0.25, so the run is moved. On the new worker the same thing happens, and it moves back.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px;background:#FFFDF8;border:1px solid #D8D2C4;border-radius:6px;padding:20px 24px">
+<p style="font-size:22px;color:#B5452B;letter-spacing:2px;text-transform:uppercase;font-weight:600">Fix</p>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">When comparing, leave the run's own history out of its worker's KV. The run cannot be a reason to move the run. It only shows above about 12k tokens of history with the other worker near empty, so audits on a quiet cluster. The 10-08 A/B never hit it: runs were short and both workers were busy.</p>
+</div>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:10px;background:#FFFDF8;border:1px solid #D8D2C4;border-radius:6px;padding:28px 32px">
+<p style="font-size:22px;color:#B5452B;letter-spacing:2px;text-transform:uppercase;font-weight:600">The same run again, as the control</p>
+<table style="width:640px;font-size:24px;color:#1F2A26;font-variant-numeric:tabular-nums;border:1px solid #D8D2C4">
+<tr style="background:#F6F3EC"><th style="width:50%;text-align:left;padding:6px 12px">dx-audit-3, concurrency 1</th><th style="width:25%;text-align:right">run 1</th><th style="width:25%;text-align:right">run 2</th></tr>
+<tr><td>steps</td><td style="text-align:right">23</td><td style="text-align:right">25</td></tr>
+<tr style="background:#F6F3EC"><td>largest prompt, tokens</td><td style="text-align:right">14,745</td><td style="text-align:right">15,831</td></tr>
+<tr><td>idle worker's KV in use</td><td style="text-align:right">3%</td><td style="text-align:right">22%</td></tr>
+<tr style="background:#F6F3EC"><td>run's own KV share at peak</td><td style="text-align:right">0.35</td><td style="text-align:right">0.33</td></tr>
+<tr><td>moves, KV hops</td><td style="text-align:right">2, 2</td><td style="text-align:right">0, 0</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.45;color:#3E4A45">Same rule, opposite outcome. Whether a long run keeps its worker is decided by how empty the <b>other</b> worker happens to be, not by anything about the run.</p>
+</div>
+<p style="font-size:24px;line-height:1.4;color:#5F6B66">vLLM's own counter on vllm-0 shows 89,784 tokens received through Mooncake on 10-12, the transfer evidence the 10-08 findings lacked.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">gateway/internal/decide/pick.go, DefaultStickSlack 0.25; metrics/gateway-log-audit3-20261011-212533.jsonl. Not in the submitted findings. The two vLLM prefill panels disagree with this log at low sample counts; the log is the ground truth.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">9</p>
+<aside>The story: one long run on a quiet cluster moves itself, the hop carries the context so nothing is recomputed, and the rule that moved it is wrong. Say that the hop was the right call and the move was the wrong call. It is in the submitted code and was masked in the A/B because those runs were short.</aside>
+</section>
+<section id="findings" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">The ledger · what we found and what broke</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:52px;font-weight:600;line-height:1.08;letter-spacing:-1px">Eleven findings, four from the final session. Six fixed, five named with a next step.</h2>
+<table style="width:1664px;font-size:23px;color:#1F2A26;border:1px solid #D8D2C4">
+<tr style="background:#FFFDF8"><th style="width:52%;text-align:left;padding:7px 14px">Finding</th><th style="width:12%;text-align:left">Where</th><th style="width:36%;text-align:left">Status</th></tr>
+<tr><td>The paper KV pool was 34% too optimistic for the hybrid model</td><td>F5</td><td>fixed: the measured pool drives the cap</td></tr>
+<tr style="background:#FFFDF8"><td>The in-flight cap was sized for the A100; vLLM preempted and thrashed</td><td>F26, F36</td><td>fixed: cap 4 from the pool, preemptions down 95%</td></tr>
+<tr><td>Past the knee the queue deadline ends runs, not KV</td><td>F34, F36</td><td>open: cap 6 to 8, or a longer deadline</td></tr>
+<tr style="background:#FFFDF8"><td>tool_choice required collapsed decoding into whitespace on vLLM 0.29</td><td>D-38</td><td>fixed: auto, Qwen sampling</td></tr>
+<tr><td>A dying worker ended runs with a 502; client aborts were counted as worker errors</td><td>F44, F28</td><td>fixed: the agent retries a 502, aborts are client_gone</td></tr>
+<tr style="background:#FFFDF8"><td>GPU utilisation reads 100% from one run to a full sweep; power is the load signal</td><td>F46</td><td>fixed on the dashboards, never a scaling signal</td></tr>
+<tr><td>Prefix-then-load beats least-loaded by 10% prefill and 8 to 11% step time, same answers</td><td>F29</td><td>kept as the shipped policy</td></tr>
+<tr style="background:#FFFDF8"><td><b>A long run breaks its own stickiness on a quiet cluster and ping-pongs</b></td><td>10-12</td><td>open: exclude the run's own history from the KV share</td></tr>
+<tr><td><b>A hop from a restarted worker hangs 114 s on a stale engine id and leaks 22% of the destination's KV</b></td><td>10-12</td><td>open: forget the id on restart, receive deadline, consumer cleanup</td></tr>
+<tr style="background:#FFFDF8"><td><b>Mooncake TCP moves KV at 1.6 GB/s idle and 0.1 GB/s under load; the policy assumes 2</b></td><td>10-12</td><td>open: measured constants, recompute when loaded</td></tr>
+<tr><td><b>Three vLLM panels mislead at low sample counts; the request log is the ground truth</b></td><td>10-12</td><td>open: fix the queries, keep the log</td></tr>
+</table>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">design/findings.md F1 to F47 and design/decisions.md D-1 to D-51 for the rest. The 10-12 four come from metrics/gateway-log-*-20261012-*.jsonl and the vLLM pod logs.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">10</p>
+<aside>If there is time for one slide beyond the stories, it is this one. The bold rows are from the final session. The point to land: every number on the earlier slides came from a run we can show the log for, and the bugs we found in our own system are the ones we would fix first with more GPU time.</aside>
+</section>
+
+</body></html>

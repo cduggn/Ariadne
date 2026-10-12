@@ -1,0 +1,37 @@
+<section id="worker" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">3 · A worker dies under load</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">vllm-1 was deleted 30 s into a 16-minute load and was back in 5 min 26 s. Admission carried the gap.</h2>
+<img src="../figs/rec-worker-phase.png" alt="Worker phase as the gateway sees it: vllm-1 drops to 0 at 12:13 and returns at 12:18:30, vllm-0 stays at 2+" style="width:1664px;height:183px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<div style="display:flex;flex-direction:row;gap:32px;align-items:stretch">
+<div style="width:560px;display:flex;flex-direction:column;gap:10px">
+<img src="../figs/rec-request-outcomes.png" alt="Request outcomes: answered in green, a kv_free band and a thin upstream_error sliver during the outage" style="width:560px;height:181px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">No scrape for 10 s marks a worker down, and a down worker gets no placements. The two steps already on it got a 502. New runs then got a 503 kv_free while vllm-0 alone held four resident runs under the 20% line.</p>
+</div>
+<div style="width:560px;display:flex;flex-direction:column;gap:10px">
+<table style="width:560px;font-size:20px;color:#1F2A26;font-family:'Fira Code', 'Courier New', monospace;font-variant-numeric:tabular-nums;border:1px solid #D8D2C4">
+<tr style="background:#FFFDF8"><th style="width:16%;text-align:left;padding:4px 8px">time</th><th style="width:28%;text-align:left">run</th><th style="width:8%;text-align:left">st</th><th style="width:14%;text-align:left">pod</th><th style="width:34%;text-align:left">status · why here</th></tr>
+<tr><td>12:13:33</td><td>dx-dns-misconfig</td><td>11</td><td>vllm-1</td><td>502 after 38.5 s</td></tr>
+<tr style="background:#FFFDF8"><td>12:13:33</td><td>dx-healthy</td><td>3</td><td>vllm-1</td><td>502 after 31.8 s</td></tr>
+<tr><td>12:13:35</td><td>dx-healthy</td><td>3</td><td>vllm-0</td><td>200 broken_gone</td></tr>
+<tr style="background:#FFFDF8"><td>12:13:36</td><td>dx-dns-misconfig</td><td>11</td><td>vllm-0</td><td>200 broken_gone</td></tr>
+</table>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">The two steps caught on the dead worker were retried on the survivor two seconds later with the shared prefix still cached. The StatefulSet recreated vllm-1 on its own. KEDA scales replicas 1 to 2 on two gateway signals: demand, in flight plus queued over the cap of 4, and any capacity shed in the last minute. Both fired here, but 2 is the maximum. A larger card, or more cards, is the next scale-out step.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#1E3A2F;color:#F6F3EC;border-radius:6px;padding:24px 28px">
+<p style="font-size:22px;color:#E8B08C;letter-spacing:2px;text-transform:uppercase;font-weight:600">What it cost</p>
+<table style="width:456px;font-size:24px;color:#F6F3EC;font-variant-numeric:tabular-nums;border:1px solid #3C6151">
+<tr><td style="width:62%;padding:6px 12px">deleted → gateway marks down</td><td style="width:38%;text-align:right">11 s</td></tr>
+<tr style="background:#2A4B3E"><td>deleted → Ready again</td><td style="text-align:right">5 min 26 s</td></tr>
+<tr><td>steps on the dead worker, 502, retried on vllm-0</td><td style="text-align:right">2</td></tr>
+<tr style="background:#2A4B3E"><td>503 kv_free refusals across 19 runs, 4 retries each</td><td style="text-align:right">32</td></tr>
+<tr><td>runs that got in on a retry</td><td style="text-align:right">18</td></tr>
+<tr style="background:#2A4B3E"><td>runs lost, retries exhausted on 503</td><td style="text-align:right">1</td></tr>
+<tr><td>pass rate, baseline 86.5%</td><td style="text-align:right">83.7%</td></tr>
+</table>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">104 runs at concurrency 4, 12:12 to 12:28 on 10-12. metrics/events-recover-probes-20261012-121231.jsonl, metrics/gateway-log-recover-20261012-130245.jsonl. On 10-08 the same probe took 5 min 37 s.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">7</p>
+<aside>The failure scenario the lecturer asks for. The gateway noticed in 11 seconds through its staleness rule, re-placed the two broken runs on the survivor with their prefix still cached, and refused new arrivals rather than letting vLLM thrash. vllm-0 alone did preempt once, which is the live KV-undersized case. Pass rate fell three points. An eight-minute worker means the scaler is for the shape of the day, so admission and the queue carry the burst.</aside>
+</section>

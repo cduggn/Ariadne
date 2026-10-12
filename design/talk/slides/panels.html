@@ -1,0 +1,29 @@
+<section id="panels" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">2 · Where the time went, per hop</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:56px;font-weight:600;line-height:1.08;letter-spacing:-1px">The gate held at 4 per worker, KV rode the 20% line, and the cost was waiting, not slower decode.</h2>
+<div style="display:flex;flex-direction:row;gap:32px;align-items:stretch">
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="../figs/knee-inflight-queued.png" alt="In flight and queued per pod: in-flight lines flat at 4, queue rising above them at each level" style="width:533px;height:247px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<h3 style="font-size:26px;font-weight:600;color:#1E3A2F">In flight and queued per pod</h3>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">In flight flattens at 4 on each worker at every level. Everything above the cap sits in the gateway queue with a deadline, not inside vLLM.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="../figs/knee-kv-free.png" alt="KV free ratio per pod with the green 20% admission line, free hugging the line at the humps" style="width:533px;height:247px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<h3 style="font-size:26px;font-weight:600;color:#1E3A2F">KV free ratio, gateway view</h3>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">New runs are refused below 20% free. Runs already resident may continue to 5%. Free hugs the line because the pool is full of resident runs, which is the cap doing its job.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<img src="../figs/knee-upstream-by-stage.png" alt="Upstream p95 by stage: queue p95 climbing to about 10 s while local stays near 20 s" style="width:533px;height:247px;object-fit:contain;background:#181B1F;border:1px solid #D8D2C4;border-radius:6px">
+<h3 style="font-size:26px;font-weight:600;color:#1E3A2F">p95 by stage</h3>
+<p style="font-size:24px;line-height:1.4;color:#3E4A45">Queue p95 climbs to 10 s. Local, the engine's time, stays near 20 s throughout. Inter-token latency moved from 45 to 95 ms. The engine was never the slow hop.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:row;gap:32px;align-items:center;background:#FFFDF8;border:1px solid #D8D2C4;border-radius:6px;padding:20px 28px">
+<img src="../figs/knee-preemptions.png" alt="vLLM preemptions per second: zero until the last level, then a short burst" style="width:300px;height:139px;object-fit:contain;background:#181B1F;border-radius:4px">
+<p style="flex:1;font-size:24px;line-height:1.45;color:#3E4A45"><b>Preemptions stayed at zero through 16 and appeared only at 32.</b> Admission protected the engine up to the knee and was overrun past it. GPU utilisation read 100% from the first run to the last, so it cannot be the scaling signal. Power draw tracks load.</p>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">Gateway and vLLM dashboards, 11:50 to 12:05 on 10-12, levels 8, 16 and 32. The stacked "Request outcomes" panel shows the same three humps with refusals on top.</p>
+<p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">5</p>
+<aside>Three panels, three hops. Queue time is the gateway's choice. First-token time is prefill contention. Inter-token time is batch size, and it barely moved. If asked why prefix-then-load over least-loaded: 94 percent of prompt tokens are the run's own history, so moving a run throws away its cache; the A/B on 10-08 showed least-loaded landed on the right worker by luck about half the time.</aside>
+</section>
