@@ -1,0 +1,6 @@
+{"t": 1791803551.19206, "kind": "session_start", "probe": "session", "detail": {"load_cmd": "/Library/Developer/CommandLineTools/usr/bin/make golden WORKERS=2 CONC=4 REPEAT=4 TAG=recover-probes", "schedule": [[30.0, "worker-return"]]}}
+{"t": 1791803583.063982, "kind": "worker_deleted", "probe": "worker-return", "detail": {"pod": "vllm-1"}}
+{"t": 1791803583.289548, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "ready"}}
+{"t": 1791803594.385203, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "down"}}
+{"t": 1791803909.1755362, "kind": "worker_phase", "probe": "worker-return", "detail": {"pod": "vllm-1", "phase": "ready"}}
+{"t": 1791804488.17696, "kind": "session_end", "probe": "session", "detail": {"load_exit": 0}}

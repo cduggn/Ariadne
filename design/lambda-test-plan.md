@@ -240,3 +240,35 @@ If something goes wrong:
   returns a value on `make prom`.
 - `make scale` refuses: KEDA owns the replica count until `make autoscale-off`.
 - `make deploy` resets the StatefulSet to 1 replica; under KEDA the HPA puts it back within a minute.
+
+## Session 6: the three open findings (F43, F44, F45)
+
+**Goal.** Close the three "Still to measure" items in `design/findings.md` with evidence a script reads, not a
+judgement: does a hopped step find its history on the destination (F45), does a client that hangs up free its KV
+(F43), and how does a returned worker ramp under traffic that outlasts its return (F44). `lab/verify.py` prints one
+verdict per question and says "unclear" when the data cannot settle it. About 1 to 1.5 h of H100 time.
+
+| # | Command | Expect |
+|---|---|---|
+| 1 | `make up` (or reuse a node), `make deploy HOP=1 && make scale N=2 && make gateway HOP=1`, `make tunnel` (terminal 2) | Both workers Ready through the gateway; `kubectl logs deployment/gateway \| head` shows `kv hop on` |
+| 2 | `date +%s` | The export window's start, for step 10 |
+| 3 | On a quiet cluster, three times: `uv run python -m lab.probes client-gone --tag f43 --profile qwen3.8-27b-fp8 -n 1` (then `-n 2`, `-n 3`) | Each writes `vllm_sample` events for both workers before the send and 1, 2, 3, 5, 10, 20 and 40 s after the hang-up (`/debug/workers/{pod}/metrics` through the tunnel) |
+| 4 | `uv run python -m lab.verify client-gone metrics/events-f43-*.jsonl` (one file per probe; run it on each) | `aborted` means generation stopped within 2 s of the hang-up and `vllm:num_requests_running` fell back, and the row says whether KV usage returned to its level before the request. `ran_on` means vLLM kept decoding for the dead client, with the token count. `under_load` must be False, or the counters belong to someone else |
+| 5 | `lam ssh cluster-doctor -- kubectl set env deployment/gateway GW_HOP_MIN_TOKENS=1`, restart the tunnel, `make golden TAG=f45 CONC=8 REPEAT=2` | Load at c8 breaks some bindings; every move now hops, so `orch_hop_total{result="hopped"}` climbs |
+| 6 | `make gateway-log TAG=f45 && uv run python -m lab.verify hop metrics/gateway-log-f45-*.jsonl` | Three groups of steps: `hopped`, `moved_recompute` (a move with no copy) and `same_pod`. `found_history` is the share whose `cached_tokens` covers the previous step's whole prompt. `transferred` needs the hopped share at or above 0.8 with the recompute share at or below 0.2; `not_transferred` means the two shares match. `hop_ms` against `upstream_ms` gives the hop's real cost |
+| 7 | `lam ssh cluster-doctor -- kubectl set env deployment/gateway GW_HOP_MIN_TOKENS-`, restart the tunnel | The 8,192-token threshold is back (the trailing `-` unsets the variable) |
+| 8 | `make probes TAG=f44 SCHEDULE="30:worker-return" PROBE_REPEAT=4` | The load (`make golden CONC=4 REPEAT=4`) runs 15 to 20 min; `vllm-1` is deleted at 30 s and returns about 6 min later with roughly 10 min of traffic still to serve |
+| 9 | `make gateway-log TAG=f44 && make verify TAG=f44` | The ramp table: per 30 s window after `vllm-1` is Ready, its placements, median `upstream_ms`, cached share and errors next to `vllm-0`'s, and runs finished. The header gives the downtime and the requests that failed during it. `ramped` names the window where its latency came within 25% of `vllm-0`'s |
+| 10 | `uv run python -m lab.export --tag session6 --start <step 2>`, commit `metrics/`, `make down` | The time series behind the verdicts, before the node's Prometheus and the gateway's log are gone |
+
+What each verdict settles, and what it does not:
+- F43. `aborted` with KV back shows the gateway's cancellation reaches vLLM and the blocks are reusable. `ran_on`
+  shows they are not until the answer finishes, which is the finding to record. Neither needs vLLM's abort counter,
+  which did not move on 10-08 (F43); the verdict uses `generation_tokens_total`, `num_requests_running` and
+  `kv_cache_usage_perc` instead.
+- F45. `transferred` is read from the destination's own `cached_tokens`, so it covers the KV being loaded and used,
+  not just the protocol completing. Recomputed moves in the same log are the control. It does not measure copy
+  bandwidth (test plan H3 still does that from `hop_ms` against the history size).
+- F44. The ramp is placements and latency on the returned worker against the one that stayed up, with finished runs
+  per window. `errors_while_down` counts the requests the gap cost; D-44's 502 retry should make it 0 at the doctor
+  even when the gateway logs them.

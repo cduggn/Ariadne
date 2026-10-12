@@ -1,0 +1,133 @@
+{
+  "tag": "recover-probes",
+  "profile": "qwen3.8-27b-fp8",
+  "model": "Qwen/Qwen3.8-27B-FP8",
+  "topology": "h100-half",
+  "workers": 2,
+  "gpu_share": 1.0,
+  "base_url": "http://127.0.0.1:8000/v1",
+  "concurrency": 4,
+  "repeat": 4,
+  "harness": true,
+  "scorers": [
+    "v1",
+    "v2"
+  ],
+  "only": null,
+  "git_commit": "5ee23c3",
+  "wall_s": 936.5,
+  "timestamp": "20261012-121231",
+  "tasks": 104,
+  "unique_tasks": 26,
+  "passed": 79,
+  "pass_rate": 0.76,
+  "pass_rate_by_type": {
+    "audit": 0.0,
+    "investigate": 0.852,
+    "rightsize": 1.0
+  },
+  "pass_rate_by_tier": {
+    "easy": 0.786,
+    "multi_hop": 0.714,
+    "red_herring": 0.688,
+    "rightsizing": 1.0
+  },
+  "passed_v2": 87,
+  "pass_rate_v2": 0.837,
+  "pass_rate_v2_ci95": [
+    0.754,
+    0.895
+  ],
+  "pass_rate_by_type_v2": {
+    "audit": 0.333,
+    "investigate": 0.898,
+    "rightsize": 1.0
+  },
+  "pass_rate_by_tier_v2": {
+    "easy": 0.929,
+    "multi_hop": 0.75,
+    "red_herring": 0.625,
+    "rightsizing": 1.0
+  },
+  "parts_v2": {
+    "submitted": 0.856,
+    "grounded": 0.856,
+    "status": 0.856,
+    "root": 0.846,
+    "category": 0.846,
+    "mechanism": 0.837,
+    "chain": 0.846,
+    "no_false_positive": 0.856
+  },
+  "top_failed_rules_v2": [
+    [
+      "inconclusive",
+      11
+    ],
+    [
+      "no-diagnosis",
+      4
+    ],
+    [
+      "mechanism",
+      1
+    ],
+    [
+      "found",
+      1
+    ]
+  ],
+  "advisory_v2": [
+    [
+      "tools-called",
+      1
+    ]
+  ],
+  "stop_reasons": {
+    "submitted": 89,
+    "step_cap": 3,
+    "inconclusive": 11,
+    "http_503": 1
+  },
+  "inconclusive": 11,
+  "abstained": 0,
+  "http_refusals": {
+    "503": 1
+  },
+  "refusal_reasons": {
+    "502 upstream_error": 3,
+    "503 kv_free": 32
+  },
+  "runs_that_waited_out_a_refusal": 18,
+  "top_failed_rules": [
+    [
+      "inconclusive",
+      11
+    ],
+    [
+      "category",
+      8
+    ],
+    [
+      "no-diagnosis",
+      4
+    ],
+    [
+      "tools-called",
+      1
+    ],
+    [
+      "found",
+      1
+    ]
+  ],
+  "repairs": 66,
+  "tool_errors": 46,
+  "steps_per_task_mean": 9.31,
+  "prompt_tokens_last_step_p50": 7837,
+  "prompt_tokens_last_step_max": 16525,
+  "completion_tokens_per_step_p50": 52,
+  "cached_share_of_prompt": 0.856,
+  "step_latency_s_p50": 1.645,
+  "step_latency_s_p95": 13.29
+}
