@@ -90,7 +90,7 @@
 </section>
 <section id="knee" data-transition="fade" style="background:#F6F3EC;color:#1F2A26;font-family:'Public Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
 <div style="position:absolute;left:128px;top:96px;width:96px;height:8px;background:#B5452B"></div>
-<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">2 · The knee, measured</p>
+<p style="font-size:24px;color:#B5452B;letter-spacing:4px;text-transform:uppercase;font-weight:600">2 · The knee: where adding load stops adding throughput</p>
 <h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:52px;font-weight:600;line-height:1.08;letter-spacing:-1px">Pass rate holds to 16 runs and falls at 32. KV sets the knee, the queue deadline ends the runs.</h2>
 <div style="display:flex;flex-direction:row;gap:40px;align-items:center">
 <div style="width:760px;display:flex;flex-direction:column;gap:18px">
@@ -308,7 +308,7 @@
 <tr style="background:#FFFDF8"><td><b>A long run breaks its own stickiness on a quiet cluster and ping-pongs</b></td><td>10-12</td><td>open: exclude the run's own history from the KV share</td></tr>
 <tr><td><b>A hop from a restarted worker hangs 114 s on a stale engine id and leaks 22% of the destination's KV</b></td><td>10-12</td><td>open: forget the id on restart, receive deadline, consumer cleanup</td></tr>
 <tr style="background:#FFFDF8"><td><b>Mooncake TCP moves KV at 1.6 GB/s idle and 0.1 GB/s under load; the policy assumes 2</b></td><td>10-12</td><td>open: measured constants, recompute when loaded</td></tr>
-<tr><td><b>Three vLLM panels mislead at low sample counts; the request log is the ground truth</b></td><td>10-12</td><td>open: fix the queries, keep the log</td></tr>
+<tr><td><b>Three vLLM percentile panels are wrong when only a few requests are in the window. One showed 8 s of prefill for a step that was really 14 s of decode. The request log is the ground truth</b></td><td>10-12</td><td>open: fix the queries, keep the log</td></tr>
 </table>
 <p style="position:absolute;left:128px;bottom:64px;width:1500px;font-size:24px;color:#7A847F">design/findings.md F1 to F47 and design/decisions.md D-1 to D-51 for the rest. The 10-12 four come from metrics/gateway-log-*-20261012-*.jsonl and the vLLM pod logs.</p>
 <p style="position:absolute;right:128px;bottom:64px;width:80px;text-align:right;font-size:24px;color:#B5452B;font-weight:600">10</p>
