@@ -305,6 +305,90 @@ and the time series in `metrics/ts-q1-h100-20261008-131201.json` and `metrics/ts
   3,920 tokens cached (49 of 52 runs), counted in whole KV blocks, out of a first prompt of 4,734. F8's 3,787 predates
   D-41's longer ruleset and tool schemas. (measured, `metrics/golden-q1-h100-20261008-114653.jsonl`)
 
+## 4g. The demo-day session (10-12)
+
+The demo-day session ran on an H100 PCIe, Qwen3.8-27B-FP8 on two 39 GiB HAMi halves with the cap at 4 per worker, and
+both pods reported the same KV pool as on 10-06 (`GPU KV cache size: 51,092 tokens` in both pod logs). It ran a single
+audit at concurrency 1 before the sweep, the knee sweep, the worker-return probe under a golden run with `REPEAT=4`,
+and a control audit after the restart. This time the pod logs were saved (`metrics/vllm-log-vllm-{0,1}-20261012.txt`).
+The gateway and vLLM logs carry UTC timestamps; the probe events and the Grafana readings quoted below are local time
+(UTC+1).
+
+- **F48. A long run breaks its own stickiness on a quiet cluster.** In `gateway/internal/decide/pick.go`, `Load()` is
+  in-flight plus queued over the cap, plus the share of KV in use, and `choosePrefixThenLoad` keeps the bound worker
+  only while its load is within `DefaultStickSlack` (0.25) of the best other worker. The KV share includes the run's
+  own history, so a long run counts as load on the worker that holds it. In
+  `metrics/gateway-log-audit3-20261011-212533.jsonl` (dx-audit-3, concurrency 1, 23 steps, prompt 4,740 → 14,745
+  tokens) steps 1–20 stayed on vllm-0 (`new`, then 19 hits); step 21, at 14,545 tokens, went `broken_load` to vllm-1
+  with a hop (hold 408.7 ms, 14,544 of 14,545 cached); step 22 went `broken_load` back to vllm-0 and hopped again
+  (hold 1,563.3 ms, 14,644 of 14,645 cached); step 23 was a hit. The dashboard showed the run's history as about 0.35
+  of vllm-0's pool against about 0.03 on the idle vllm-1 (observed). The control after the restart,
+  `metrics/gateway-log-audit3b-20261012-133615.jsonl` (same task, 25 steps, prompt up to 15,831), stayed on vllm-1
+  throughout, 24 hits and no hop, because the idle vllm-0 was reporting 21.8% of its KV in use (F50): its load was
+  0.22 and the gap never left the slack. So it bites only when one run's history is more than about a quarter of the
+  pool (0.25 × 51,092 ≈ 12.8k tokens, plus whatever the other worker reports) and that other worker is near empty:
+  audits, not the 2.5–5k investigations, and the 10-08 A/B masked it because both workers were busy. In the sweep's
+  concurrency-1 level, hops fired from 10.7k tokens (`metrics/gateway-log-knee-20261012-121022.jsonl`), lower than
+  that arithmetic, so the bound worker was carrying more than the run there (unverified; a leak like F50's would do
+  it). D-52 leaves the run's own history out of the bound worker's KV share (unmeasured yet). Also measured here:
+  `hop_ms` covers only the source's hold, and the destination's receive sits inside the upstream time. Step 21
+  (hopped) took 15,466 ms upstream against 14,363 ms for step 23, the same size, the same 768 completion tokens and
+  no hop, so receiving about 1.1 GB (14.5k tokens at 64 KiB plus the 147 MiB recurrent state) cost about 1.1 s,
+  against about 5.3 s to recompute 14.5k tokens at 2,721 tok/s. (measured; the KV shares observed)
+- **F49. A hop after a worker restart hangs on a stale engine id, and the step waits out the 115 s upstream timeout.**
+  `gateway/internal/hop/mooncake.go` caches each bootstrap URL's Mooncake engine id (`engine()` asks the registry
+  once) and forgets it only when the hold call fails (`forget()` in `Send`); `hopper.go` puts `cfg.Timeout` (10 s) on
+  the hold alone, so the destination's receive is bounded only by `serve.DefaultUpstreamTimeout`, 115 s. In
+  `metrics/gateway-log-recover-20261012-130245.jsonl`, run dx-audit-2-ba45b0c3: step 15 was a hit on vllm-1 (200 in
+  1,235 ms, 10,192 cached); step 16 went `broken_load` to vllm-0 with a hop (hold 915.6 ms), sat 114,085 ms in the
+  upstream and came back 502 `upstream_error` at 11:27:31Z; the doctor's retry (D-44) ran on vllm-0 as a hit, 200 in
+  1,088 ms with 3,920 cached, the shared prefix only, and the run finished. The source, vllm-1, was the pod the probe
+  had deleted at 12:13:03 local and seen Ready again at 12:18:29
+  (`metrics/events-recover-probes-20261012-121231.jsonl`); its log shows it came back with engine id `712e2868-…`,
+  and because the hold succeeded the gateway kept the old id, so vllm-0 tried to pull from an engine that no longer
+  existed (the connector error is in F50). The telemetry hides it: `orch_hop_total` counted the hop as `hopped`,
+  because the outcome is recorded when the hold succeeds, before the upstream call; the 502 is counted as
+  `orch_shed_total{reason="upstream_error"}` and as `orch_upstream_errors_total{kind="transport"}`, so the gateway
+  dashboard's "Upstream errors by kind" shows it only as a transport error, the same label a down worker gets; the
+  status shows in the cluster dashboard's "Request outcomes" panel; only the log row ties `hopped`, 502 and 114 s
+  together. D-52 forgets the engine id when a worker leaves Ready and puts a 30 s deadline on the receive, then
+  recomputes (unmeasured yet). (measured; the stale id as the cause is the likely explanation, with F50's connector
+  error as its evidence)
+- **F50. A failed hop leaks KV on the destination, until a restart.** The pod logs hold both ends of F49's hop. vllm-1,
+  the source, at 11:33:37Z, 480 s after the hold: `WARNING ... Request chatcmpl-xfer-… timed out after 480 seconds
+  without being sent. Freeing its blocks on the producer side.` vllm-0, the destination, at 11:34:37Z: `ERROR ...
+  MooncakeXferMetadata transfer failed for {'chatcmpl-dx-audit-2-ba45b0c3-s16-…'}: Resource temporarily unavailable`,
+  and a second one at 11:36:31Z for another transfer id. Prometheus `vllm:kv_cache_usage_perc` then showed vllm-0 flat
+  at 21.8% from 12:27 local for over 75 minutes with `num_requests_running` and `num_requests_waiting` both 0; in the
+  gateway's view that is 21.8% of 61,936 block-tokens (79 blocks of 784, `vllm:cache_config_info`), about 13.5k
+  tokens, more than the hopped step's 10,771-token prompt in whole blocks, so the second failure or the state blocks
+  are in there too (unverified). vllm-1 sat at 22% until about 12:37 local and then dropped to 0, the producer
+  timeout. So the producer frees held blocks after 480 s; the consumer never frees the blocks it allocated for a
+  receive that failed. The gateway's 115 s timeout dropped the HTTP request, but vLLM did not abort the engine
+  request, which is F43's open question (0 aborts counted when clients hang up) seen from the other side. Both halves
+  cleared on restart. (measured in the logs; the Prometheus readings observed; the no-abort link unverified)
+- **F51. Mooncake over TCP copies KV at about 1.6 GB/s into an idle worker and about 0.1 GB/s under load; the hop
+  policy assumes 2 GB/s.** vllm-0's pod log carries vLLM's `KV Transfer metrics` line for every 10 s interval in
+  which it sent KV: 18 lines, 19 successful transfers, 0 failed on 10-12. The line belongs to the sending worker: in
+  the sweep every line follows a hop out of vllm-0 within 10 s, hops into vllm-0 produce none, and the restarted
+  vllm-1, which only ever received, logs none. With the fleet at concurrency 1 (10 transfers: the morning audit and
+  the sweep's first level, 09:15–10:48Z): 196–784 MB in 0.12–0.50 s, 1,520–1,634 MB/s. With the fleet busy (9
+  transfers: the sweep's levels 4 to 32, 10:51–11:00Z, and the recover golden at 4, 11:25Z): 245–833 MB in
+  1.9–8.2 s, 102–139 MB/s, and the first slow one came at concurrency 4, not 32. The policy
+  (`gateway/internal/hop/policy.go` `DefaultConfig`, with the pair's 65,536 B/token and 2,721 tok/s from
+  `serving/fit.py --gateway-env`, as the gateway
+  logged at start) prices a 14.5k-token hop at about 0.5 s against 5.3 s to recompute, so it hops every history above
+  8,192 tokens; under load the real copy is about 15× slower than the 2 GB/s guess, 7–9 s for the same 0.95 GB, and
+  recompute wins. This closes F23's bandwidth half (whether the hybrid state passes through is still unchecked, though
+  every hopped step's destination reported the prompt less one token as cached, 14,544 of 14,545 in F48) and supplies
+  the transfer evidence F35 and F45 lacked: vllm-0's `vllm:external_prefix_cache_hits_total` stood at 82,862 tokens
+  received through the connector at the end of the sweep (`metrics/vllm-0-sweep-c32-20261012-114053.prom`; vllm-1
+  82,272) and at 89,784 by the end of the day (observed, live scrape; quoted in the talk). Still open: price the hop
+  at a measured rate, and at the busy rate when the destination is busy; D-52's 30 s receive deadline is a guess
+  until then. (measured; the sending-side attribution inferred from timing)
+
+Demo outcome: the 2026-10-12 talk placed in the course's top 5; the deck sources are in `design/talk`.
+
 ## 5. Infrastructure and operations
 
 - **F18. GPU fallback works on real hardware.** `make up` skipped GH200 (no capacity), took an H100 PCIe in us-west-3
