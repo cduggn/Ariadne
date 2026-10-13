@@ -19,17 +19,22 @@ one backend (`gateway/internal/overflow`):
    rewritten to `GW_OVERFLOW_MODEL` when set, and none of the client's headers (no run, tenant or request id leaves).
 4. A 200 is relayed unchanged (`sent`), with `X-Overflow: sent`, `X-Overflow-Backend`, `X-Gateway-Reason` (why the
    gateway could not serve it) and `Server-Timing: overflow;dur=`. No `X-Pod`, because no worker served it.
-5. Anything else (transport error, timeout, a non-200 such as 402 or 429) is `failed`: the client gets the original 503
-   and the circuit opens until the next probe passes, so a dead or out-of-credit backend costs at most one call per
-   probe interval.
+5. Anything else is `failed` and the client gets the original 503. When the fault is the backend's (no answer, a
+   timeout, 401/402/403, 429 or a 5xx) the circuit opens until the next probe passes, so a dead or out-of-credit backend
+   costs at most one call per probe interval. A 4xx about the one request (400, 413, 422) fails only that request: one
+   tenant's bad body cannot switch overflow off for everyone else.
 
 The circuit starts open. A probe (`GET` the probe path with the key; any 2xx passes) runs at startup and every
 `GW_OVERFLOW_PROBE_INTERVAL`. A failed probe never fails the gateway: it logs, keeps `orch_overflow_backend_available`
 at 0, and every 503 stays a 503.
 
+Before a request leaves, `Gate.ChargeOffbox` charges the tenant's bucket with the same estimate admission uses and
+`SettleOffbox` corrects it to the backend's reported usage afterwards, or refunds it when the backend did not answer. A
+bucket that cannot cover the estimate keeps the 503 on the box with result `quota`. Off-box answers therefore spend
+quota exactly like local ones, so a tenant cannot spend the backend's tokens without limit whenever the box is full.
+
 Not done, on purpose: a run that overflowed is not pinned to the backend. Its next step goes through admission again
-and lands on a worker if one has room (the history recomputes there), or overflows again. The tenant quota is not
-charged for an overflowed request (a refused request never is).
+and lands on a worker if one has room (the history recomputes there), or overflows again.
 
 ## Configuration
 

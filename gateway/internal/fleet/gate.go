@@ -435,6 +435,87 @@ func (g *Gate) Settle(t *Ticket, o Outcome, bodyBytes int) {
 	t.slot.Release()
 }
 
+// TenantTokens reports a tenant's bucket after refilling it to now, for
+// tests and the debug endpoints. An unknown tenant reads the shared bucket.
+func (g *Gate) TenantTokens(tenant string) float64 {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	b := g.bucketFor(tenant)
+	b.refill(g.now())
+	return b.tokens
+}
+
+// SetTenantTokensForTest overwrites a tenant's bucket. Tests only.
+func (g *Gate) SetTenantTokensForTest(tenant string, tokens float64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	b := g.bucketFor(tenant)
+	b.refill(g.now())
+	b.tokens = tokens
+}
+
+// OffboxTicket is one overflowed request's charge against its tenant. Only
+// ChargeOffbox builds one, and SettleOffbox closes it.
+type OffboxTicket struct {
+	run     decide.RunID
+	tenant  string
+	est     int
+	settled bool
+}
+
+// ChargeOffbox charges a tenant for a request that is about to leave the
+// box, with the same estimate Admit would have used, and reports false
+// without charging when the bucket cannot cover it. A refused request is
+// never charged, but an overflowed one is served and paid for by someone,
+// so it spends quota exactly like a local answer. Without this, a tenant
+// could spend the backend's tokens without limit whenever the box is full.
+func (g *Gate) ChargeOffbox(r decide.Request) (*OffboxTicket, bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	var prior *decide.RunUsage
+	if r.Run != "" {
+		if existing, ok := g.runs[r.Run]; ok {
+			usage := existing.usage
+			prior = &usage
+		}
+	}
+	est := decide.EstimateTokens(r, prior)
+	b := g.bucketFor(r.Tenant)
+	b.refill(g.now())
+	if float64(est) > b.tokens {
+		return nil, false
+	}
+	b.add(-float64(est))
+	return &OffboxTicket{run: r.Run, tenant: r.Tenant, est: est}, true
+}
+
+// SettleOffbox corrects an off-box charge to the real usage, or refunds it
+// when the backend did not answer, and records the run's usage for its next
+// step's estimate. A second call is a no-op.
+func (g *Gate) SettleOffbox(t *OffboxTicket, o Outcome, bodyBytes int) {
+	if t == nil {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if t.settled {
+		return
+	}
+	t.settled = true
+	now := g.now()
+	b := g.bucketFor(t.tenant)
+	b.refill(now)
+	if !o.OK {
+		b.add(float64(t.est))
+		return
+	}
+	b.add(float64(t.est - o.PromptTokens - o.CompletionTokens))
+	if existing, ok := g.runs[t.run]; ok && t.run != "" {
+		existing.usage = decide.RunUsage{PromptTokens: o.PromptTokens, CompletionTokens: o.CompletionTokens, BodyBytes: bodyBytes}
+		existing.seen = now
+	}
+}
+
 // View returns the per-worker states Admit would build right now, in
 // cfg.Pods order.
 func (g *Gate) View() []decide.WorkerState {

@@ -243,9 +243,15 @@ func (s *Server) leave(ctx context.Context, req decide.Request, v decide.Verdict
 		ev.Overflow = decide.OverflowNoBackend
 		return false
 	}
+	tk, ok := s.gate.ChargeOffbox(req)
+	if !ok {
+		ev.Overflow = overflow.Quota
+		return false
+	}
 	res := s.opt.Overflow.Send(ctx, permit, body)
 	ev.Overflow, ev.OverflowTime = res.Outcome, res.Took
 	if res.Err != nil {
+		s.gate.SettleOffbox(tk, fleet.Outcome{}, 0)
 		if ctx.Err() != nil {
 			ev.Status, ev.Reason = 0, "client_gone"
 			return false
@@ -258,6 +264,7 @@ func (s *Server) leave(ctx context.Context, req decide.Request, v decide.Verdict
 	ev.Status, ev.Reason = res.Status, ""
 	u, _ := usageOf(res.Body)
 	ev.PromptTokens, ev.CachedTokens, ev.CompletionTokens, ev.FinishReason = u.prompt, u.cached, u.completion, u.finish
+	s.gate.SettleOffbox(tk, fleet.Outcome{OK: true, PromptTokens: u.prompt, CompletionTokens: u.completion, Latency: res.Took}, len(body))
 	relayOverflow(w, res, v, s.opt.Overflow.Name())
 	return true
 }

@@ -43,10 +43,14 @@ const (
 	Unavailable = "unavailable"
 	// Capped means MaxInflight overflow calls were already running.
 	Capped = "capped"
+	// Quota means the tenant's token bucket could not cover the estimate,
+	// so the request stayed on the box with its 503. Off-box answers are
+	// charged like local ones; the serve package sets this result.
+	Quota = "quota"
 )
 
 // Outcomes lists every result, for pre-registering the metric's labels.
-var Outcomes = []string{Blocked, NoBackend, Sent, Failed, Unavailable, Capped}
+var Outcomes = []string{Blocked, NoBackend, Sent, Failed, Unavailable, Capped, Quota}
 
 // ErrNoPermit is returned when Send is called with an Offboxable that did
 // not come from decide.MayLeave.
@@ -175,9 +179,12 @@ func (o *Overflow) Run(ctx context.Context) {
 
 // Send forwards body to the backend when the permit is valid, the circuit
 // is closed and a slot is free. Anything else is a Result without a Body,
-// and the caller answers the original 503. A failed send opens the circuit
-// until the next probe passes, so a backend that is down or out of credit
-// costs at most one call per probe interval.
+// and the caller answers the original 503. A send that fails on the
+// backend's side opens the circuit until the next probe passes, so a
+// backend that is down or out of credit costs at most one call per probe
+// interval. A 4xx about the request itself (400, 413, 422 and the like)
+// fails only that request: one tenant's bad body must not switch overflow
+// off for every other tenant.
 func (o *Overflow) Send(ctx context.Context, permit decide.Offboxable, body []byte) Result {
 	if !permit.Valid() {
 		return Result{Outcome: Blocked, Err: ErrNoPermit}
@@ -198,10 +205,25 @@ func (o *Overflow) Send(ctx context.Context, permit decide.Offboxable, body []by
 		err = fmt.Errorf("overflow: backend answered %d", ans.Status)
 	}
 	if err != nil {
-		if ctx.Err() == nil { // the client leaving is not the backend's fault
+		if ctx.Err() == nil && opensCircuit(ans.Status, err) {
 			o.up.Store(false)
 		}
 		return Result{Outcome: Failed, Took: took, Err: err}
 	}
 	return Result{Outcome: Sent, Status: ans.Status, ContentType: ans.ContentType, Body: ans.Body, Took: took}
+}
+
+// opensCircuit reports whether a failed send says the backend itself is
+// unusable: no answer at all, an auth or credit refusal, a rate limit, or a
+// server error. Any other 4xx is about the one request and keeps the
+// circuit closed. The client having left is handled by the caller.
+func opensCircuit(status int, err error) bool {
+	if status == 0 {
+		return err != nil // transport error or timeout
+	}
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusPaymentRequired, http.StatusTooManyRequests:
+		return true
+	}
+	return status >= 500
 }

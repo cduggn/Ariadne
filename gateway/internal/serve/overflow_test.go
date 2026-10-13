@@ -268,3 +268,47 @@ func TestAdmittedRequestNeverReachesTheOverflowBackend(t *testing.T) {
 		t.Errorf("backend saw %d requests while a worker had room", n)
 	}
 }
+
+func TestOverflowedAnswersAreChargedToTheTenant(t *testing.T) {
+	ov, fake := withOverflow(t, nil)
+	const burst = 50000.0
+	h := start(t, tuning{options: Options{Overflow: ov}, config: func(c *fleet.Config) {
+		c.Tenants["platform"] = fleet.TenantLimit{RatePerS: 0, Burst: burst}
+	}})
+	h.ready()
+	h.saturate()
+	if got := h.gate.TenantTokens("platform"); got != burst {
+		t.Fatalf("bucket before = %v, want %v", got, burst)
+	}
+
+	resp := h.postAs("chg-1-s1", "internal", doctorBody)
+	if resp.status != http.StatusOK || resp.header.Get("X-Overflow") != overflow.Sent {
+		t.Fatalf("status = %d, X-Overflow %q, want 200 sent", resp.status, resp.header.Get("X-Overflow"))
+	}
+	u, _ := usageOf(resp.body)
+	want := burst - float64(u.prompt+u.completion)
+	if got := h.gate.TenantTokens("platform"); got != want {
+		t.Errorf("bucket after a sent answer = %v, want %v: the off-box usage must be charged like a local one", got, want)
+	}
+
+	fake.Set(func(s *fakeoverflow.Settings) { s.Status = http.StatusUnprocessableEntity })
+	resp = h.postAs("chg-2-s1", "internal", doctorBody)
+	if resp.status != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want the original 503 when the backend refuses the request", resp.status)
+	}
+	if got := h.gate.TenantTokens("platform"); got != want {
+		t.Errorf("bucket after a failed send = %v, want %v: a refused request is never charged", got, want)
+	}
+	if !ov.Available() {
+		t.Errorf("one request's 422 opened the circuit for every tenant")
+	}
+
+	h.gate.SetTenantTokensForTest("platform", 100)
+	resp = h.postAs("chg-3-s1", "internal", doctorBody)
+	if resp.status != http.StatusTooManyRequests || h.event("chg-3-s1").Reason != "tenant_tokens" {
+		t.Errorf("status = %d, reason %q, want 429 tenant_tokens: a tenant that spent its quota off-box is refused at the gate like any other", resp.status, h.event("chg-3-s1").Reason)
+	}
+	if n := len(fake.Requests()); n != 2 {
+		t.Errorf("backend saw %d requests, want 2: a request over quota never leaves", n)
+	}
+}

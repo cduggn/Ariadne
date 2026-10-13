@@ -207,6 +207,41 @@ func TestBackendErrorFailsAndOpensTheCircuitUntilTheNextProbe(t *testing.T) {
 	}
 }
 
+func TestRequestShaped4xxFailsWithoutOpeningTheCircuit(t *testing.T) {
+	ov, fake := fixture(t, DefaultConfig, "")
+	ov.Probe(context.Background())
+	for _, status := range []int{http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnprocessableEntity} {
+		fake.Set(func(s *fakeoverflow.Settings) { s.Status = status })
+		res := ov.Send(context.Background(), permit(t, decide.Internal), []byte(body))
+		if res.Outcome != Failed || res.Body != nil {
+			t.Fatalf("Send against a %d backend = %+v, want failed", status, res)
+		}
+		if !ov.Available() {
+			t.Fatalf("a %d about one request opened the circuit for every tenant", status)
+		}
+	}
+	fake.Set(func(s *fakeoverflow.Settings) { s.Status = http.StatusOK })
+	if res := ov.Send(context.Background(), permit(t, decide.Internal), []byte(body)); res.Outcome != Sent {
+		t.Fatalf("Send after request-shaped failures = %+v, want sent", res)
+	}
+}
+
+func TestOpensCircuit(t *testing.T) {
+	cases := []struct {
+		status int
+		err    error
+		want   bool
+	}{
+		{0, errors.New("dial"), true}, {401, nil, true}, {402, nil, true}, {403, nil, true}, {429, nil, true}, {500, nil, true}, {503, nil, true},
+		{400, nil, false}, {404, nil, false}, {413, nil, false}, {422, nil, false},
+	}
+	for _, c := range cases {
+		if got := opensCircuit(c.status, c.err); got != c.want {
+			t.Errorf("opensCircuit(%d, %v) = %v, want %v", c.status, c.err, got, c.want)
+		}
+	}
+}
+
 func TestTimeoutFailsWithinTheConfiguredBound(t *testing.T) {
 	cfg := DefaultConfig
 	cfg.Timeout = 50 * time.Millisecond

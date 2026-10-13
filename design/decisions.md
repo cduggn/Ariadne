@@ -552,8 +552,12 @@ access arrives.
 **Choice:** a new `gateway/internal/overflow` package: a `Backend` interface, a `Superlinked` client that posts the body
 to an OpenAI-compatible chat-completions path with a bearer key (model rewritten to `GW_OVERFLOW_MODEL`, none of the
 client's headers forwarded), a `Null` backend, and `Overflow`, the circuit the serve layer calls: a probe at startup and
-every `GW_OVERFLOW_PROBE_INTERVAL` marks the backend available or not and never fails the gateway; a failed send opens
-the circuit until the next probe; `GW_OVERFLOW_MAX_INFLIGHT` caps concurrent calls. Only a backend 200 is relayed
+every `GW_OVERFLOW_PROBE_INTERVAL` marks the backend available or not and never fails the gateway; a send that fails
+on the backend's side (no answer, 401/402/403, 429, 5xx) opens the circuit until the next probe, while a 4xx about the
+one request fails only that request, so one tenant cannot switch overflow off for the others; `GW_OVERFLOW_MAX_INFLIGHT`
+caps concurrent calls; and `Gate.ChargeOffbox`/`SettleOffbox` charge the tenant for an off-box answer with the same
+estimate and correction admission uses (`quota` keeps the 503 on the box), so overflow cannot bypass the token quota.
+Both rules came out of the commit's security review on 2026-10-13. Only a backend 200 is relayed
 (`sent`, with `X-Overflow` and `X-Gateway-Reason`); `failed`, `unavailable` and `capped` answer the original 503 byte for
 byte. `orch_overflow_total{result}` gains those three labels, `orch_overflow_backend_available` is new,
 `orch_request_duration_seconds{stage="overflow"}` is observed, `orch_completed_total{pod="overflow"}` counts off-box

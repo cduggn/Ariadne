@@ -124,7 +124,7 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 		completionTokens: counter("orch_completion_tokens_total",
 			"Completion tokens generated per pod.", "pod"),
 		overflow: counter("orch_overflow_total",
-			"Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it, sent relayed the backend's answer, failed, unavailable and capped answered the 503.", "result"),
+			"Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it, sent relayed the backend's answer; failed, unavailable, capped and quota answered the 503.", "result"),
 		hop: counter("orch_hop_total",
 			"KV hops for runs moved off a worker that still held their history: hopped, failed or busy (the worker recomputed), below_threshold or recompute_cheaper.", "result"),
 		restrictedOffbox: prometheus.NewCounter(prometheus.CounterOpts{
