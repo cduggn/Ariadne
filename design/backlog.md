@@ -20,13 +20,13 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   `gateway_env` for a small preemption budget instead of none), or keep 4 with a longer interactive queue deadline.
   Experiment on one node: `make sweep WORKERS=2 LEVELS="16 32" REPEAT=1` per setting, comparing pass rate,
   preemptions, cached share and step p95 with F36's table. About 15 min of GPU per setting.
-- [ ] **Overflow to Superlinked's hosted API** (stay or leave, end to end). The course's
-  `class-code/class10/router/overflow.py` posts OpenAI chat completions to `https://api.superlinked.com/v1` with a
-  Bearer key, leaves only on 503/529, and caps requests with `OVERFLOW_MAX_REQS`. Our `MayLeave` already makes the
-  same decision; the backend is null. First check whether the endpoint accepts `tools` and which models it serves (the
-  course uses Qwen3.5-4B). Then build `forwardOverflow` with model rewrite, a key from a Kubernetes Secret the user
-  creates, a run that has left stays remote, `orch_overflow_total{result=sent|failed|capped}`, Go tests against a fake
-  remote, and a saturation demo. About half a day. Blocked until Superlinked fixes billing (findings F22).
+- [ ] **Switch on overflow to Superlinked when the key arrives** (D-53, runbook `design/overflow.md`). The client,
+  the probed circuit, the metrics, the fake backend, the tests and `make demo OVERFLOW=1` are built; the deployment
+  carries every `GW_OVERFLOW_*` variable with the switch off. Left: with a working key, confirm with one curl that
+  `api.superlinked.com` answers `GET /v1/models` with the bearer header, which model id it serves, and that
+  `/v1/chat/completions` accepts `tools`; create Secret `gateway-overflow`; `make gateway OVERFLOW=1`; make it fire once
+  under load and keep the log line. About an hour. Still blocked on Superlinked's billing (findings F22). Later, if
+  wanted: a run that has left stays remote for its next steps, and a total spend budget next to the in-flight cap.
 - [ ] **Confirm the KV hop moves the KV** (`design/gateway.md` "KV hop"). On 2026-10-07, 8 hops completed the
   protocol on an H100 with none failed, and 45 on 2026-10-08 (findings F35, F45), but nothing showed the destination pulling the KV instead of
   recomputing it. Next session, force moves with the tunnel up and compare the hopped step's `cached_tokens` with its

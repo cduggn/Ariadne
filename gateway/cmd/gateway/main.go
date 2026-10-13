@@ -25,6 +25,7 @@ import (
 	"github.com/cduggn/ariadne/gateway/internal/fleet"
 	"github.com/cduggn/ariadne/gateway/internal/hop"
 	"github.com/cduggn/ariadne/gateway/internal/metrics"
+	"github.com/cduggn/ariadne/gateway/internal/overflow"
 	"github.com/cduggn/ariadne/gateway/internal/serve"
 )
 
@@ -49,8 +50,19 @@ func main() {
 	flag.Float64Var(&hopCfg.PrefillTokensPerS, "hop-prefill-tokens-per-s", envFloat("hop-prefill-tokens-per-s", hopCfg.PrefillTokensPerS), "measured uncached prefill rate of one worker")
 	flag.DurationVar(&hopCfg.Overhead, "hop-overhead", envDuration("hop-overhead", hopCfg.Overhead), "fixed cost of one hop")
 	flag.DurationVar(&hopCfg.Timeout, "hop-timeout", envDuration("hop-timeout", hopCfg.Timeout), "longest wait for the old worker before recomputing instead")
+	flag.DurationVar(&hopCfg.ReceiveTimeout, "hop-receive-timeout", envDuration("hop-receive-timeout", hopCfg.ReceiveTimeout), "longest wait for the new worker to answer a hopped request before sending it again without the hop")
 	flag.IntVar(&hopCfg.MaxInflight, "hop-max-inflight", envInt("hop-max-inflight", hopCfg.MaxInflight), "hops running at once; past this a moved run recomputes")
 	hopPort := flag.Int("hop-bootstrap-port", envInt("hop-bootstrap-port", hop.DefaultBootstrapPort), "workers' Mooncake bootstrap port (VLLM_MOONCAKE_BOOTSTRAP_PORT)")
+	ovCfg := overflow.DefaultConfig
+	ovOn := flag.Bool("overflow", envBool("overflow", false), "send a 503 that may leave the box to the overflow backend instead of refusing it (restricted requests never leave)")
+	flag.StringVar(&ovCfg.BaseURL, "overflow-base-url", env("overflow-base-url", ovCfg.BaseURL), "overflow backend origin, without a path")
+	flag.StringVar(&ovCfg.ChatPath, "overflow-chat-path", env("overflow-chat-path", ovCfg.ChatPath), "chat-completions path on the overflow backend")
+	flag.StringVar(&ovCfg.ProbePath, "overflow-probe-path", env("overflow-probe-path", ovCfg.ProbePath), "path the health probe fetches on the overflow backend; any 2xx passes")
+	flag.StringVar(&ovCfg.Model, "overflow-model", env("overflow-model", ""), "model name sent to the overflow backend; empty forwards the client's")
+	ovKeyEnv := flag.String("overflow-api-key-env", env("overflow-api-key-env", "GW_OVERFLOW_API_KEY"), "environment variable holding the overflow backend's bearer key")
+	flag.DurationVar(&ovCfg.Timeout, "overflow-timeout", envDuration("overflow-timeout", ovCfg.Timeout), "longest wait for the overflow backend before answering the 503")
+	flag.DurationVar(&ovCfg.ProbeInterval, "overflow-probe-interval", envDuration("overflow-probe-interval", ovCfg.ProbeInterval), "how often the overflow backend is re-probed")
+	flag.IntVar(&ovCfg.MaxInflight, "overflow-max-inflight", envInt("overflow-max-inflight", ovCfg.MaxInflight), "overflow calls running at once; past this a 503 stays a 503")
 	flag.Parse()
 	hopCfg.SharedPrefixTokens = *sharedPrefix
 
@@ -94,10 +106,30 @@ func main() {
 			fatal(err.Error())
 		}
 		opts.Hop = hopper
+		workersLoop.OnNotReady(hopper.Forget) // a worker that left Ready or restarted has a new engine id
 		log.Info("kv hop on", "min_tokens", hopCfg.MinTokens, "kv_bytes_per_token", hopCfg.KVBytesPerToken,
 			"transfer_bytes_per_s", hopCfg.TransferBytesPerS, "prefill_tokens_per_s", hopCfg.PrefillTokensPerS,
-			"overhead", hopCfg.Overhead.String(), "timeout", hopCfg.Timeout.String(), "max_inflight", hopCfg.MaxInflight,
+			"overhead", hopCfg.Overhead.String(), "timeout", hopCfg.Timeout.String(),
+			"receive_timeout", hopCfg.ReceiveTimeout.String(), "max_inflight", hopCfg.MaxInflight,
 			"bootstrap_port", *hopPort)
+	}
+	var ov *overflow.Overflow
+	if *ovOn {
+		key := os.Getenv(*ovKeyEnv) // never logged
+		backend, err := overflow.NewSuperlinked(ovCfg, key, &http.Client{})
+		if err != nil {
+			fatal(err.Error())
+		}
+		ov = overflow.New(backend, ovCfg.ProbeInterval, ovCfg.MaxInflight, time.Now, log)
+		opts.Overflow = ov
+		m.WatchOverflow(ov)
+		if key == "" {
+			log.Warn("overflow key is empty; the backend stays unavailable until a probe passes", "key_env", *ovKeyEnv)
+		}
+		log.Info("overflow on", "backend", ov.Name(), "base_url", ovCfg.BaseURL, "chat_path", ovCfg.ChatPath,
+			"probe_path", ovCfg.ProbePath, "model", ovCfg.Model, "timeout", ovCfg.Timeout.String(),
+			"probe_interval", ovCfg.ProbeInterval.String(), "max_inflight", ovCfg.MaxInflight,
+			"key_env", *ovKeyEnv, "key_set", key != "")
 	}
 	server := serve.New(gate, workersLoop, urls, opts)
 
@@ -107,6 +139,13 @@ func main() {
 	go func() {
 		defer close(fleetDone)
 		workersLoop.Run(ctx)
+	}()
+	overflowDone := make(chan struct{})
+	go func() {
+		defer close(overflowDone)
+		if ov != nil {
+			ov.Run(ctx) // probes at start and every interval; a failed probe never stops the gateway
+		}
 	}()
 
 	httpServer := &http.Server{
@@ -131,6 +170,7 @@ func main() {
 	}
 	stop()
 	<-fleetDone
+	<-overflowDone
 	log.Info("gateway stopped")
 }
 

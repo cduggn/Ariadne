@@ -64,6 +64,7 @@ TUNNEL ?= svc/gateway
 POLICY ?= prefix_then_load
 PROBES ?= 1
 HOP    ?= 0
+OVERFLOW ?= 0   # make gateway OVERFLOW=1 turns on overflow to Superlinked once the gateway-overflow Secret exists (design/overflow.md)
 MAXREP  = $(shell $(PY) -c "import json; print(json.load(open('deploy/serving.json'))['topologies']['$(TOPO)']['max_replicas'])")
 FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
 STAGGER ?= 0
@@ -283,7 +284,7 @@ gateway:
 	lam push $(GWBUILD)/ '~/gateway/' --delete
 	$(REMOTE) "kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
 	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
-	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) $(GWENV) && \
+	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) GW_OVERFLOW=$(if $(filter 1,$(OVERFLOW)),true,false) $(GWENV) && \
 	  kubectl rollout restart deployment/gateway && kubectl rollout status deployment/gateway --timeout=5m"
 
 tunnel:
@@ -306,7 +307,7 @@ grafana:
 	    kubectl -n monitoring port-forward svc/grafana 3000:80
 
 demo:
-	CONC=$(if $(filter 1,$(CONC)),8,$(CONC)) REPEAT=$(or $(REPEAT),1) lab/demo.sh
+	CONC=$(if $(filter 1,$(CONC)),8,$(CONC)) REPEAT=$(or $(REPEAT),1) OVERFLOW=$(or $(OVERFLOW),0) lab/demo.sh
 
 golden:
 	uv run -q python -m evals.run_golden --base-url $(BASE) --profile $(MODEL) --topology $(TOPO) --workers $(WORKERS) \

@@ -8,6 +8,7 @@ package metrics
 import (
 	"net/http"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -16,6 +17,7 @@ import (
 	"github.com/cduggn/ariadne/gateway/internal/decide"
 	"github.com/cduggn/ariadne/gateway/internal/fleet"
 	"github.com/cduggn/ariadne/gateway/internal/hop"
+	"github.com/cduggn/ariadne/gateway/internal/overflow"
 	"github.com/cduggn/ariadne/gateway/internal/serve"
 )
 
@@ -33,6 +35,7 @@ var MetricNames = []string{
 	"orch_prompt_tokens_total",
 	"orch_completion_tokens_total",
 	"orch_overflow_total",
+	"orch_overflow_backend_available",
 	"orch_hop_total",
 	"orch_restricted_offbox_total",
 	"orch_request_duration_seconds",
@@ -80,10 +83,19 @@ type Metrics struct {
 	promptTokens     *prometheus.CounterVec
 	completionTokens *prometheus.CounterVec
 	overflow         *prometheus.CounterVec
+	overflowUp       prometheus.GaugeFunc
 	hop              *prometheus.CounterVec
 	restrictedOffbox prometheus.Counter
 	duration         *prometheus.HistogramVec
+
+	// overflowAvailable is read on every scrape. It is the circuit's
+	// Available until WatchOverflow replaces it, and false without a backend.
+	overflowAvailable atomic.Pointer[func() bool]
 }
+
+// overflowPod is the pod label of an answer the overflow backend gave, so
+// orch_completed_total tells served-off-box from served-by-a-worker.
+const overflowPod = "overflow"
 
 // New builds the registry over g and f. pool is the pool label on every
 // replica gauge. sharedPrefix is the token length of the prefix every
@@ -112,7 +124,7 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 		completionTokens: counter("orch_completion_tokens_total",
 			"Completion tokens generated per pod.", "pod"),
 		overflow: counter("orch_overflow_total",
-			"Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it.", "result"),
+			"Overflow decisions for gateway 503s: blocked_invariant kept a restricted request on the box, no_backend had nowhere to send it, sent relayed the backend's answer, failed, unavailable and capped answered the 503.", "result"),
 		hop: counter("orch_hop_total",
 			"KV hops for runs moved off a worker that still held their history: hopped, failed or busy (the worker recomputed), below_threshold or recompute_cheaper.", "result"),
 		restrictedOffbox: prometheus.NewCounter(prometheus.CounterOpts{
@@ -121,15 +133,22 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 		}),
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "orch_request_duration_seconds",
-			Help:    "Request time by stage: gateway, queue, hop (KV copy from the run's old worker), local (upstream) and e2e.",
+			Help:    "Request time by stage: gateway, queue, hop (KV copy from the run's old worker), local (upstream), overflow (the off-box backend) and e2e.",
 			Buckets: durationBuckets,
 		}, []string{"stage"}),
 	}
+	off := func() bool { return false }
+	m.overflowAvailable.Store(&off)
+	m.overflowUp = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "orch_overflow_backend_available",
+		Help: "1 while the overflow backend's last probe passed and no send has failed since; 0 without a backend.",
+	}, func() float64 { return b2f((*m.overflowAvailable.Load())()) })
 	for _, s := range preregisteredSheds {
 		m.shed.WithLabelValues(s[0], s[1])
 	}
-	m.overflow.WithLabelValues(decide.OverflowBlocked)
-	m.overflow.WithLabelValues(decide.OverflowNoBackend)
+	for _, o := range overflow.Outcomes {
+		m.overflow.WithLabelValues(o)
+	}
 	for _, o := range hop.Outcomes {
 		m.hop.WithLabelValues(string(o))
 	}
@@ -137,10 +156,16 @@ func New(g *fleet.Gate, f *fleet.Fleet, pool string, sharedPrefix int) *Metrics 
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		m.requests, m.shed, m.pick, m.pickUnknown, m.sticky, m.completed, m.upstreamErrors,
-		m.promptTokens, m.completionTokens, m.overflow, m.hop, m.restrictedOffbox, m.duration,
+		m.promptTokens, m.completionTokens, m.overflow, m.overflowUp, m.hop, m.restrictedOffbox, m.duration,
 		newFleetCollector(g, f, pool),
 	)
 	return m
+}
+
+// WatchOverflow makes orch_overflow_backend_available read the circuit.
+func (m *Metrics) WatchOverflow(o *overflow.Overflow) {
+	fn := o.Available
+	m.overflowAvailable.Store(&fn)
 }
 
 func counter(name, help string, labels ...string) *prometheus.CounterVec {
@@ -208,8 +233,16 @@ func (m *Metrics) Observe(ev serve.Event) {
 		}
 	}
 
+	if ev.OverflowTime > 0 {
+		m.duration.WithLabelValues("overflow").Observe(ev.OverflowTime.Seconds())
+	}
 	if ev.Overflow != "" {
 		m.overflow.WithLabelValues(ev.Overflow).Inc()
+	}
+	if ev.Overflow == overflow.Sent && ev.Class == decide.Restricted {
+		// Unreachable by construction (MayLeave, the permit's Valid, the
+		// backend's own check); counted so the alert fires if it ever is.
+		m.restrictedOffbox.Inc()
 	}
 
 	status := strconv.Itoa(ev.Status)
@@ -220,6 +253,12 @@ func (m *Metrics) Observe(ev serve.Event) {
 			m.upstreamErrors.WithLabelValues(ev.Pod, "transport").Inc()
 		}
 	case answered:
+		if ev.Overflow == overflow.Sent {
+			// Off the box there is no prefix cache to split tokens by, and no
+			// worker to charge them to.
+			m.completed.WithLabelValues(overflowPod, status, ev.FinishReason).Inc()
+			return
+		}
 		m.completed.WithLabelValues(ev.Pod, status, ev.FinishReason).Inc()
 		if ev.Status != http.StatusOK {
 			m.upstreamErrors.WithLabelValues(ev.Pod, "status").Inc()

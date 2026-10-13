@@ -44,6 +44,20 @@ spec:
             - {name: GW_POLICY, value: prefix_then_load}     # make gateway POLICY=least_loaded for the A/B control arm
             - {name: GW_POOL, value: sliced}
             # GW_WORKERS defaults to vllm-0 and vllm-1 on the headless vllm Service; an absent vllm-1 is just Down.
+            # Overflow to Superlinked (D-53, design/overflow.md): off until the key arrives. The key comes from the
+            # gateway-overflow Secret, which does not exist until someone creates it:
+            #   kubectl create secret generic gateway-overflow --from-literal=api-key=<key>
+            #   make gateway OVERFLOW=1            # or: kubectl set env deployment/gateway GW_OVERFLOW=true
+            # A restricted request never leaves whatever these say; the backend is probed and falls back to the 503.
+            - {name: GW_OVERFLOW, value: "false"}
+            - {name: GW_OVERFLOW_BASE_URL, value: https://api.superlinked.com}
+            - {name: GW_OVERFLOW_MODEL, value: Qwen/Qwen3.8-27B-FP8}   # what their API served on 10-04 (F22); confirm with GET /v1/models
+            - {name: GW_OVERFLOW_TIMEOUT, value: 60s}
+            - {name: GW_OVERFLOW_PROBE_INTERVAL, value: 30s}
+            - {name: GW_OVERFLOW_MAX_INFLIGHT, value: "4"}
+            - name: GW_OVERFLOW_API_KEY
+              valueFrom:
+                secretKeyRef: {name: gateway-overflow, key: api-key, optional: true}   # optional: the pod starts without the Secret
           ports:
             - {name: http, containerPort: 8000}
           resources:
