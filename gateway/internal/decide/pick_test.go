@@ -1,6 +1,7 @@
 package decide
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -306,6 +307,103 @@ func TestParsePickPolicy(t *testing.T) {
 			got, ok := ParsePickPolicy(tc.in)
 			if got != tc.want || ok != tc.wantOK {
 				t.Errorf("ParsePickPolicy(%q) = (%q, %v), want (%q, %v)", tc.in, got, ok, tc.want, tc.wantOK)
+			}
+		})
+	}
+}
+
+// withPool sets the worker's KV pool and the tokens in use, so a test can
+// speak in tokens rather than usage fractions.
+func withPool(w WorkerState, pool, used int) WorkerState {
+	w.View.KVPoolTokens = pool
+	w.View.KVUsage = float64(used) / float64(pool)
+	return w
+}
+
+func TestPickStickyIgnoresTheRunsOwnHistory(t *testing.T) {
+	// The audit case (metrics/gateway-log-audit3-20261011-212533.jsonl, steps
+	// 21-22): one run with 14.5k tokens of history on a 51k pool, nothing in
+	// flight, the other worker idle. With its own history counted the bound
+	// worker reads 0.28 load units over the idle one, past the 0.25 slack,
+	// and the run bounces. Without it, the bound worker is as idle as the
+	// other and the run stays.
+	const pool, history = 51_000, 14_500
+	tests := []struct {
+		name       string
+		bound      WorkerState
+		wantPod    string
+		wantSticky Sticky
+	}{
+		{
+			name:       "only its own history on an idle fleet stays",
+			bound:      withPool(freshWorker("pod-a"), pool, history),
+			wantPod:    "pod-a",
+			wantSticky: StickyHit,
+		},
+		{
+			name:       "unrelated KV over the slack moves",
+			bound:      withPool(freshWorker("pod-a"), pool, history+15_000), // 0.29 of the pool is other runs
+			wantPod:    "pod-b",
+			wantSticky: StickyBrokenLoad,
+		},
+		{
+			name:       "in-flight requests over the slack move",
+			bound:      withInFlight(withPool(freshWorker("pod-a"), pool, history), 5), // 5/16 = 0.31
+			wantPod:    "pod-b",
+			wantSticky: StickyBrokenLoad,
+		},
+		{
+			name:       "unrelated load within the slack stays",
+			bound:      withInFlight(withPool(freshWorker("pod-a"), pool, history+5_000), 2), // 0.125 + 0.098
+			wantPod:    "pod-a",
+			wantSticky: StickyHit,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := fleetOf(tc.bound, withPool(freshWorker("pod-b"), pool, 0))
+			f.Bound = "pod-a"
+			f.History = history
+			got := Pick(reqRun("run1"), f, PolicyPrefixThenLoad, noRnd(t))
+			assertPlacement(t, got, tc.wantPod, 0, "", tc.wantSticky, false)
+		})
+	}
+}
+
+func TestPickHistoryOnlyDiscountsTheBoundWorker(t *testing.T) {
+	// least_loaded and p2c ignore History: the bound worker with only its own
+	// history is still the busier one, so they move the run.
+	const pool, history = 51_000, 14_500
+	for _, p := range []PickPolicy{PolicyLeastLoaded, PolicyP2C} {
+		t.Run(string(p), func(t *testing.T) {
+			f := fleetOf(withPool(freshWorker("pod-a"), pool, history), withPool(freshWorker("pod-b"), pool, 0))
+			f.Bound = "pod-a"
+			f.History = history
+			rnd := func(n int) int { return 0 }
+			got := Pick(reqRun("run1"), f, p, rnd)
+			assertPlacement(t, got, "pod-b", 0, "", StickyBrokenLoad, false)
+		})
+	}
+}
+
+func TestLoadWithout(t *testing.T) {
+	w := WorkerView{Pod: "pod-a", KVPoolTokens: 1000, KVUsage: 0.5, InFlight: 4, MaxInflight: 16}
+	tests := []struct {
+		name   string
+		w      WorkerView
+		tokens int
+		want   float64
+	}{
+		{"nothing discounted is Load", w, 0, 0.75},
+		{"part of the KV", w, 200, 0.55},
+		{"all of the KV", w, 500, 0.25},
+		{"more than the KV clamps at the in-flight term", w, 900, 0.25},
+		{"a pool of 0 discounts nothing", WorkerView{InFlight: 2, MaxInflight: 16}, 100, 1.125},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.w.LoadWithout(tc.tokens); math.Abs(got-tc.want) > 1e-9 {
+				t.Errorf("LoadWithout(%d) = %v, want %v", tc.tokens, got, tc.want)
 			}
 		})
 	}

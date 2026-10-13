@@ -25,7 +25,9 @@ import (
 // MetricsDown makes /metrics answer 503. Steps is how many read-tool calls
 // a run makes before it submits, so a demo run has the doctor's chained
 // shape. At 0 every answer submits. EngineID is the engine the bootstrap
-// registry reports.
+// registry reports. PullLatency and PullStatus, when set, replace Latency
+// and Status for a request marked do_remote_prefill only, as a destination
+// stuck or failing on a pull from an engine that is gone would behave.
 type Settings struct {
 	KVUsage     float64
 	PoolBlocks  int
@@ -35,6 +37,8 @@ type Settings struct {
 	MetricsDown bool
 	Steps       int
 	EngineID    string
+	PullLatency time.Duration
+	PullStatus  int
 }
 
 // Recorded is one chat request as the worker saw it, and the bytes it
@@ -52,6 +56,7 @@ type Worker struct {
 	mu       sync.Mutex
 	settings Settings
 	requests []Recorded
+	queries  int
 	lastBody map[decide.RunID][]byte
 }
 
@@ -69,6 +74,13 @@ func (w *Worker) Set(fn func(*Settings)) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	fn(&w.settings)
+}
+
+// Queries returns how many times the bootstrap registry has been asked.
+func (w *Worker) Queries() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.queries
 }
 
 // Requests returns a copy of every chat request so far, oldest first.
@@ -90,6 +102,7 @@ func (w *Worker) Handler() http.Handler {
 // query is the Mooncake bootstrap registry: one engine at data-parallel rank 0.
 func (w *Worker) query(rw http.ResponseWriter, r *http.Request) {
 	w.mu.Lock()
+	w.queries++
 	engine := w.settings.EngineID
 	w.mu.Unlock()
 	rw.Header().Set("Content-Type", "application/json")
@@ -150,28 +163,36 @@ func (w *Worker) chat(rw http.ResponseWriter, r *http.Request) {
 	w.requests = append(w.requests, Recorded{Header: r.Header.Clone(), Body: body})
 	w.mu.Unlock()
 
+	hop := kvTransfer(body)
+	latency, status := s.Latency, s.Status
+	if hop.DoRemotePrefill && s.PullLatency > 0 {
+		latency = s.PullLatency
+	}
+	if hop.DoRemotePrefill && s.PullStatus != 0 {
+		status = s.PullStatus
+	}
 	select {
-	case <-time.After(s.Latency):
+	case <-time.After(latency):
 	case <-r.Context().Done():
 		return
 	}
 
 	resp := completion(body, cached, s.Steps)
-	switch hop := kvTransfer(body); {
+	switch {
 	case hop.DoRemoteDecode:
 		resp = held(body)
 	case hop.DoRemotePrefill:
 		resp = completion(body, tokens(len(body)), s.Steps)
 	}
-	if s.Status != http.StatusOK {
-		resp = errorBody(s.Status)
+	if status != http.StatusOK {
+		resp = errorBody(status)
 	}
 	w.mu.Lock()
 	w.requests[idx].Response = resp
 	w.mu.Unlock()
 
 	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(s.Status)
+	rw.WriteHeader(status)
 	_, _ = rw.Write(resp) // the client is gone if this fails
 }
 

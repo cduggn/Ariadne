@@ -511,3 +511,67 @@ sheds on the one remaining worker. 15 minutes covers the measured gap between bu
 under two cold starts.
 **Revisit when:** worker start-up gets much faster (weights on a local volume, a smaller model), or traffic has longer
 quiet gaps than bursts, where the window would hold a worker that is never used.
+
+### D-52 — Stickiness ignores the run's own history; the hop forgets restarted engines and bounds the pull (2026-10-13)
+**Context:** two gateway logs from the H100 node showed the KV hop and stickiness working against each other.
+- `metrics/gateway-log-audit3-20261011-212533.jsonl`, steps 21–22 of `dx-audit-3`: one run with 14.5k tokens of
+  history on an otherwise idle fleet hopped vllm-0 → vllm-1 (`broken_load`, 408 ms) and straight back vllm-1 → vllm-0
+  (`broken_load`, 1,563 ms). `Load()` counts the run's own KV (14.5k of a 51k pool is 0.28) against the bound worker,
+  so a run long enough to be worth a hop was always more than `StickSlack` (0.25) over an idle worker and evicted
+  itself.
+- `metrics/gateway-log-recover-20261012-130245.jsonl`, `dx-audit-2` step 16: vllm-1 had restarted; the gateway still
+  held its old Mooncake engine id, the hold succeeded, and vllm-0 hung 114,085 ms pulling from the dead id before
+  the 115 s upstream timeout returned a 502. The hop's own timeout (10 s) covers only the hold.
+**Choice:** three fixes in the gateway, with tests.
+- **Stickiness without the run's own history** (`decide.WorkerView.LoadWithout`, `Fleet.History`). `prefix_then_load`
+  compares the bound worker's load minus the run's last `prompt_tokens` as a share of that worker's KV pool, clamped at
+  zero, against the best other worker plus the slack. The Gate already knew the history (it feeds the hop); it now
+  passes it to `Pick`. `least_loaded` and `p2c` are unchanged, so the A/B control arms still score full load.
+- **Forget the engine id when a worker leaves Ready** (`hop.Hopper.Forget`, `fleet.Fleet.OnNotReady`). The fleet runs
+  the hook whenever a worker enters Down or Warming, and `main` wires it to the hopper, so the next hop off a
+  restarted worker asks its bootstrap registry again.
+- **A deadline on the receive side, then recompute** (`GW_HOP_RECEIVE_TIMEOUT`, default 30 s; `serve.forwardHopped`).
+  A hopped request's destination call is bounded by it. On no answer or a 5xx the gateway forgets the source's engine
+  id, counts `orch_hop_total{result="failed"}`, and sends the original body once more to the same destination under
+  the remaining upstream timeout, with `X-Request-Id` suffixed `-recompute` because vLLM refuses an id it still holds.
+  The log line carries `hop_fallback=true`; `lab/tail.py` shows it as `failed*`. The non-hopped path is unchanged.
+**Because:** a hop should move a run once, not keep it moving, and a copy that cannot complete must cost seconds, not
+the client's whole timeout. The existing `failed` result already means "the worker recomputed", so no new label.
+**Not measured yet:** both fixes are tested against the fake worker (`serve` end-to-end tests replay the stall, the
+5xx and the restart). The next GPU session should replay a long audit with the hop on and confirm no bounce
+(`sticky=hit` after a hop) and a restarted source's hop landing with `cached_tokens ≈ prompt_tokens`.
+**Revisit when:** runs grow past a third of the pool on both workers (then the discount hides real pressure and the
+resident floor, 0.05, is the only guard), or vLLM exposes a transfer metric that lets the receive timeout follow the
+measured copy time instead of a 30 s guess.
+
+### D-53 — Overflow to Superlinked is built behind a probed circuit, off until the key exists (2026-10-13)
+**Context:** D-42 left the overflow backend null, and the backlog's "overflow to Superlinked" item was blocked on their
+billing (F22: 402 on every call). The stay-or-leave rule, `MayLeave` and the `blocked_invariant`/`no_backend` labels
+already existed; what was missing was everything after the permit, and a way to switch it on without a redeploy once
+access arrives.
+**Choice:** a new `gateway/internal/overflow` package: a `Backend` interface, a `Superlinked` client that posts the body
+to an OpenAI-compatible chat-completions path with a bearer key (model rewritten to `GW_OVERFLOW_MODEL`, none of the
+client's headers forwarded), a `Null` backend, and `Overflow`, the circuit the serve layer calls: a probe at startup and
+every `GW_OVERFLOW_PROBE_INTERVAL` marks the backend available or not and never fails the gateway; a failed send opens
+the circuit until the next probe; `GW_OVERFLOW_MAX_INFLIGHT` caps concurrent calls. Only a backend 200 is relayed
+(`sent`, with `X-Overflow` and `X-Gateway-Reason`); `failed`, `unavailable` and `capped` answer the original 503 byte for
+byte. `orch_overflow_total{result}` gains those three labels, `orch_overflow_backend_available` is new,
+`orch_request_duration_seconds{stage="overflow"}` is observed, `orch_completed_total{pod="overflow"}` counts off-box
+answers, and `orch_restricted_offbox_total` now increments if a `sent` answer ever carries a restricted class (it cannot;
+`MayLeave`, the permit's `Valid`, and the client's own check all refuse, and tests drive restricted requests under four
+header spellings through the HTTP path against a live fake backend that records nothing). The deployment sets every
+`GW_OVERFLOW_*` variable with the switch off and the key from Secret `gateway-overflow`/`api-key` (`optional`, so the pod
+starts without it). `make gateway OVERFLOW=1` turns it on; `make demo OVERFLOW=1` runs the saturation demo against
+`cmd/fakeoverflow`. The runbook is `design/overflow.md`.
+**Because:** the box-stays rule is the product's premise, so the new path had to be provably unable to send restricted
+data before it could send anything; and a paid backend that may be down or out of credit must cost at most one call per
+probe interval and never a request the client would otherwise have had. A fake backend proves the whole path end to end
+today, so enabling it later is a Secret and one env var.
+**Unconfirmed:** Superlinked's public docs (2026-10-13) list `/v1/chat/completions` and `/v1/models` as
+OpenAI-compatible routes of their engine's gateway, but describe no hosted base URL, no auth scheme and nothing about
+`tools`. The host `api.superlinked.com`, the bearer header and the model id come from the course lab and F22. All four
+are flags (`GW_OVERFLOW_BASE_URL`, `GW_OVERFLOW_CHAT_PATH`, `GW_OVERFLOW_PROBE_PATH`, `GW_OVERFLOW_MODEL`), checked by
+the probe before any request is sent.
+**Revisit when:** the key arrives (confirm the paths, the model and `tools` with one curl, then `make gateway
+OVERFLOW=1`); if a run that overflowed should stay remote for its next steps (today it re-enters admission); or if spend
+needs a total budget rather than an in-flight cap.

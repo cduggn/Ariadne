@@ -73,6 +73,7 @@ func NewMooncake(client *http.Client) *Mooncake {
 // Send makes src prefill body and hold its KV under transferID, and returns
 // the Params the destination needs. On any error it drops the cached engine
 // id, because the likeliest cause is a restarted worker with a new one.
+// Forget drops it for every other sign of a restart.
 func (m *Mooncake) Send(ctx context.Context, src Endpoint, body []byte, requestID, transferID string) (Params, error) {
 	engine, err := m.engine(ctx, src.BootstrapURL)
 	if err != nil {
@@ -161,10 +162,18 @@ func (m *Mooncake) engine(ctx context.Context, bootstrap string) (string, error)
 	return id, nil
 }
 
-func (m *Mooncake) forget(bootstrap string) {
+// Forget drops the cached engine id behind bootstrap, so the next Send asks
+// the registry again. A worker that left Ready or restarted has a new id,
+// and a hold against the old one succeeds while the pull hangs on an engine
+// that is gone. An unknown or uncached bootstrap is a no-op.
+func (m *Mooncake) Forget(bootstrap string) {
 	m.mu.Lock()
 	delete(m.engines, bootstrap)
 	m.mu.Unlock()
+}
+
+func (m *Mooncake) forget(bootstrap string) {
+	m.Forget(bootstrap)
 }
 
 // sourceBody is body capped to one token, not streamed, and marked for the

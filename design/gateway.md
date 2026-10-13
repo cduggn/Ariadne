@@ -76,13 +76,21 @@ forbids `net`, `sync` and `os`.
      exempt down to 0.05, because its history is already resident.
    - When candidates refuse for different reasons, the lowest gate wins, so a 429 always outranks a 503.
    - The policy is `prefix_then_load`: keep the bound worker if its boot counter matches and its load is within the
-     best other worker's plus 4, otherwise pick the least loaded. `least_loaded` and `p2c` exist for the A/B test
-     and for label parity. At 2 workers `p2c` is the same as `least_loaded`.
+     best other worker's plus 0.25 load units (`StickSlack`, four of sixteen in-flight slots), otherwise pick the
+     least loaded. The bound worker is scored without the run's own history (its last step's `prompt_tokens` as a
+     share of the worker's KV pool, clamped at zero), because that KV moves with the run and keeping the run costs
+     nothing extra. Before 2026-10-13 it counted, and one 14.5k-token run on an idle 51k pool read 0.28 over the
+     other worker, broke its own stickiness and bounced between workers (D-52). `least_loaded` and `p2c` exist for
+     the A/B test and for label parity, and score every worker with its full load. At 2 workers `p2c` is the same as
+     `least_loaded`.
 3. Stay or leave. Only a 503 reaches the overflow decision. `MayLeave` returns an `Offboxable` only for
-   non-restricted requests. It has unexported fields, and `forwardOverflow` calls `Valid()`, so a zero value
-   refuses too. A fuzz test asserts that no restricted input ever produces an overflow route. The shipped overflow
-   backend is null. Every saturated restricted 503 increments `orch_overflow_total{result="blocked_invariant"}`,
-   and `orch_restricted_offbox_total` is pre-registered at 0 and stays there.
+   non-restricted requests. It has unexported fields, and `overflow.Overflow.Send` and the backend client both call
+   `Valid()`, so a zero value refuses too. A fuzz test asserts that no restricted input ever produces an overflow
+   route. The overflow backend (`gateway/internal/overflow`, runbook in `design/overflow.md`, D-53) is off unless
+   `GW_OVERFLOW=true`: a Superlinked client on the OpenAI chat-completions shape behind a probed circuit, which answers
+   the original 503 whenever the backend is unavailable, errors, or is at its in-flight cap. Every saturated
+   restricted 503 increments `orch_overflow_total{result="blocked_invariant"}` whatever the switch says, and
+   `orch_restricted_offbox_total` is pre-registered at 0 and stays there.
 4. Queue. This is the only step that waits, and it lives in `fleet.Gate`. Each worker has an in-flight cap,
    `--max-inflight`, default 16 (the sweep also runs a 32 arm). Past the cap, requests wait in two lanes, and
    interactive drains first. The queue budgets are 10 s for interactive and 30 s for batch, under the client's
@@ -179,11 +187,14 @@ For today's workload a recompute takes a second or two, so the hop matters only 
 | `GW_HOP_PREFILL_TOKENS_PER_S` | 3,810 (8B slice) | Same, from the fit's prefill estimate; replace with a measured rate |
 | `GW_HOP_TRANSFER_BYTES_PER_S` | 2e9 | A guess for TCP between two pods on one host; **measure before trusting the rule** |
 | `GW_HOP_OVERHEAD`, `GW_HOP_TIMEOUT` | 50 ms, 10 s | The fixed cost of a hop; the longest wait for a busy source before recomputing |
+| `GW_HOP_RECEIVE_TIMEOUT` | 30 s | The longest wait for the destination to answer a hopped request; past it the request goes again without the hop (D-52) |
 | `GW_HOP_MAX_INFLIGHT` | 4 | Hops running at once; past it a moved run recomputes (`busy`) |
 
 **Transport (`hop.Mooncake`),** as vLLM v0.29.0's own Mooncake proxy does it:
-1. Find the source's engine id from its bootstrap registry, `GET http://<pod>:8998/query` (cached; dropped on any
-   failure, because a restarted worker has a new id).
+1. Find the source's engine id from its bootstrap registry, `GET http://<pod>:8998/query`. The id is cached per
+   worker and dropped when the hold fails, when the fleet sees the worker leave Ready or restart (`Fleet.OnNotReady`
+   → `Hopper.Forget`), and when a destination fails to pull from it, because a restarted worker has a new id and a
+   hold against the old one succeeds while the pull hangs (D-52).
 2. Send the source the request with `kv_transfer_params={do_remote_decode, transfer_id}`, `max_tokens=1` and no
    streaming. The source prefills from its own prefix cache and holds the blocks. It holds them only if it stops at the
    length cap, so the gateway checks `finish_reason == "length"`.
@@ -193,6 +204,11 @@ For today's workload a recompute takes a second or two, so the hop matters only 
 **Guarantees and limits.**
 - Any failure (registry, source error, timeout, a source that didn't hold) forwards the original body, and the
   destination recomputes. A hop can't fail a request.
+- The destination's answer to a hopped request is bounded by `GW_HOP_RECEIVE_TIMEOUT` (30 s), not the 115 s upstream
+  timeout. If it gives no answer in time, or a 5xx, the gateway forgets the source's engine id, counts the hop as
+  `failed`, and sends the request once more without `kv_transfer_params` under what is left of the upstream timeout,
+  so the destination recomputes. The second attempt carries `X-Request-Id` with a `-recompute` suffix, because vLLM
+  refuses a request id it still holds. The log line says `hop_fallback=true`. A 4xx is relayed as it is.
 - Both workers are the fleet's own pods, so a hop never sends data off the box.
 - Each hop's `transfer_id` is 128 random bits, never derived from the client's `X-Request-Id`. The id names the held
   blocks on the source, so one tenant can't name, or collide with, a transfer made for another.
@@ -215,8 +231,10 @@ For today's workload a recompute takes a second or two, so the hop matters only 
   than recomputing it.
 
 **Signals.** `orch_hop_total{result=hopped|failed|busy|below_threshold|recompute_cheaper}`, the `hop` stage of
-`orch_request_duration_seconds`, an `X-Hop` response header, and `hop`/`hop_ms` on the request log line. A successful
-hop shows on the destination as `cached_tokens ≈ prompt_tokens` for that step.
+`orch_request_duration_seconds`, an `X-Hop` response header, and `hop`/`hop_ms`/`hop_fallback` on the request log
+line (`lab/tail.py` shows the hop column, with `*` for a fallback). A successful hop shows on the destination as
+`cached_tokens ≈ prompt_tokens` for that step. A `failed` with `hop_fallback=true` means the destination could not
+pull and recomputed on the second attempt.
 
 ## Open questions
 

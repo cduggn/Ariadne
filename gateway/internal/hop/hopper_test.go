@@ -19,6 +19,7 @@ var fastRule = Config{
 	TransferBytesPerS: 1e12,
 	PrefillTokensPerS: 1,
 	Timeout:           time.Second,
+	ReceiveTimeout:    time.Second,
 	MaxInflight:       4,
 }
 
@@ -201,5 +202,40 @@ func TestMoveIsBusyPastMaxInflightAndFreesItsSlot(t *testing.T) {
 	go func() { <-entered }()
 	if _, res := h.Move(context.Background(), move(decide.StickyBrokenLoad, 5000), []byte(doctorStep)); res.Outcome != Hopped {
 		t.Fatalf("Move() after the slot freed = %+v, want hopped", res)
+	}
+}
+
+func TestForgetMakesTheNextHopAskTheRegistryAgain(t *testing.T) {
+	src := newSource(t)
+	h := newHopper(t, fastRule, src)
+	for i := 0; i < 2; i++ {
+		if _, res := h.Move(context.Background(), move(decide.StickyBrokenLoad, 5000), []byte(doctorStep)); res.Outcome != Hopped {
+			t.Fatalf("Move() #%d = %+v, want hopped", i+1, res)
+		}
+	}
+	if q, _, _ := src.seen(); q != 1 {
+		t.Fatalf("registry queried %d times for two hops, want 1", q)
+	}
+
+	h.Forget("vllm-9") // unknown pod, nothing to forget
+	h.Forget("vllm-0")
+	src.set(func(s *source) { s.engineID = "engine-vllm-0-restarted" })
+	out, res := h.Move(context.Background(), move(decide.StickyBrokenLoad, 5000), []byte(doctorStep))
+	if res.Outcome != Hopped {
+		t.Fatalf("Move() after Forget = %+v, want hopped", res)
+	}
+	var got struct {
+		Params struct {
+			EngineID string `json:"remote_engine_id"`
+		} `json:"kv_transfer_params"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	if q, _, _ := src.seen(); got.Params.EngineID != "engine-vllm-0-restarted" || q != 2 {
+		t.Errorf("after Forget: engine %q, %d queries; want the new engine and a second query", got.Params.EngineID, q)
+	}
+	if got := h.ReceiveTimeout(); got != fastRule.ReceiveTimeout {
+		t.Errorf("ReceiveTimeout() = %v, want %v", got, fastRule.ReceiveTimeout)
 	}
 }

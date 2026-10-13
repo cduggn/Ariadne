@@ -83,17 +83,6 @@ func start(t *testing.T, tn tuning) *harness {
 		WarmPasses:    2,
 		ProbeTimeout:  time.Second,
 	}, nil, time.Now)
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		h.fleet.Run(ctx)
-	}()
-	t.Cleanup(func() {
-		cancel()
-		<-done
-	})
-
 	opt := tn.options
 	if tn.hop != nil {
 		endpoints := map[string]hop.Endpoint{}
@@ -105,7 +94,19 @@ func start(t *testing.T, tn tuning) *harness {
 			t.Fatalf("hop.New() error = %v", err)
 		}
 		opt.Hop = hopper
+		h.fleet.OnNotReady(hopper.Forget) // as main wires it
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		h.fleet.Run(ctx)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
 	opt.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	opt.OnRequest = func(ev Event) {
 		h.mu.Lock()
@@ -215,6 +216,75 @@ func (h *harness) event(id string) Event {
 		return false
 	})
 	return found
+}
+
+// allReady blocks until the gate may place on both pods.
+func (h *harness) allReady() {
+	h.t.Helper()
+	eventually(h.t, "both workers ready", func() bool {
+		for _, ws := range h.gate.View() {
+			if !ws.Ready {
+				return false
+			}
+		}
+		return true
+	})
+}
+
+// load makes busy 0.5 load units busier than idle, over the 0.25 slack but
+// above the KV line, and waits for the gate to see it. A run bound to busy
+// then moves for load, and a new run lands on idle.
+func (h *harness) load(busy, idle string) {
+	h.t.Helper()
+	h.fakes[busy].Set(func(s *fakevllm.Settings) { s.KVUsage = 0.7 })
+	h.fakes[idle].Set(func(s *fakevllm.Settings) { s.KVUsage = 0.2 })
+	eventually(h.t, "the gate to see the new load", func() bool {
+		v := map[string]float64{}
+		for _, ws := range h.gate.View() {
+			v[ws.View.Pod] = ws.View.FreeRatio()
+		}
+		return v[busy] < 0.35 && v[idle] > 0.75
+	})
+}
+
+// restart takes pod Down and brings it back with a new engine id, as a
+// restarted vLLM has, and waits for it to be Ready again.
+func (h *harness) restart(pod, engine string) {
+	h.t.Helper()
+	h.fakes[pod].Set(func(s *fakevllm.Settings) { s.MetricsDown = true })
+	eventually(h.t, pod+" down", func() bool {
+		for _, st := range h.fleet.Status() {
+			if st.Pod == pod {
+				return st.Phase == fleet.Down
+			}
+		}
+		return false
+	})
+	h.fakes[pod].Set(func(s *fakevllm.Settings) { s.MetricsDown, s.EngineID = false, engine })
+	h.allReady()
+}
+
+// other returns the pod that is not pod.
+func other(pod string) string {
+	if pod == pods[0] {
+		return pods[1]
+	}
+	return pods[0]
+}
+
+// pulledEngine returns the remote_engine_id a recorded destination request
+// was told to pull from, "" when it carried no hop.
+func pulledEngine(t *testing.T, rec fakevllm.Recorded) string {
+	t.Helper()
+	var pulled struct {
+		Params struct {
+			EngineID string `json:"remote_engine_id"`
+		} `json:"kv_transfer_params"`
+	}
+	if err := json.Unmarshal(rec.Body, &pulled); err != nil {
+		t.Fatal(err)
+	}
+	return pulled.Params.EngineID
 }
 
 // inFlight sums the gate's in-flight count over both pods.
@@ -546,6 +616,7 @@ var eagerHop = hop.Config{
 	TransferBytesPerS: 1e12,
 	PrefillTokensPerS: 1,
 	Timeout:           time.Second,
+	ReceiveTimeout:    time.Second,
 	MaxInflight:       4,
 }
 
@@ -558,22 +629,8 @@ func TestMovedRunHopsItsKVAndTheNewWorkerPullsIt(t *testing.T) {
 		t.Fatalf("step 1 status = %d", first.status)
 	}
 	from := first.header.Get("X-Pod")
-	to := "vllm-1"
-	if from == to {
-		to = "vllm-0"
-	}
-
-	// The run's worker is now 0.5 load units busier than the other, over the
-	// 0.25 slack but above the KV line, so step 2 moves for load.
-	h.fakes[from].Set(func(s *fakevllm.Settings) { s.KVUsage = 0.7 })
-	h.fakes[to].Set(func(s *fakevllm.Settings) { s.KVUsage = 0.2 })
-	eventually(t, "the gate to see the new load", func() bool {
-		v := map[string]float64{}
-		for _, ws := range h.gate.View() {
-			v[ws.View.Pod] = ws.View.FreeRatio()
-		}
-		return v[from] < 0.35 && v[to] > 0.75
-	})
+	to := other(from)
+	h.load(from, to)
 
 	second := h.post("runA-s2", doctorStep2)
 	if second.status != http.StatusOK || second.header.Get("X-Pod") != to || second.header.Get("X-Hop") != string(hop.Hopped) {
@@ -668,4 +725,147 @@ func TestClientThatLeavesMidRequestIsClientGoneNotAnUpstreamError(t *testing.T) 
 		t.Fatalf("event reason %q status %d, want client_gone with no status", ev.Reason, ev.Status)
 	}
 	eventually(t, "the ticket settled", func() bool { return h.inFlight() == 0 })
+}
+
+func TestHoppedRequestThatStallsIsSentAgainWithoutTheHop(t *testing.T) {
+	// The 2026-10-12 case (metrics/gateway-log-recover-20261012-130245.jsonl,
+	// dx-audit-2 step 16): the hold succeeds, the destination pulls from an
+	// engine that is gone and hangs. The receive deadline ends the wait, the
+	// request goes again without the hop, and the client gets its answer.
+	cfg := eagerHop
+	cfg.ReceiveTimeout = 50 * time.Millisecond
+	h := start(t, tuning{hop: &cfg})
+	h.allReady()
+
+	from := h.post("runE-s1", doctorBody).header.Get("X-Pod")
+	to := other(from)
+	h.fakes[to].Set(func(s *fakevllm.Settings) { s.PullLatency = 2 * time.Second })
+	h.load(from, to)
+
+	second := h.post("runE-s2", doctorStep2)
+	if second.status != http.StatusOK || second.header.Get("X-Pod") != to || second.header.Get("X-Hop") != string(hop.Failed) {
+		t.Fatalf("step 2 = %d on %q with X-Hop %q, want 200 on %s failed",
+			second.status, second.header.Get("X-Pod"), second.header.Get("X-Hop"), to)
+	}
+	ev := h.event("runE-s2")
+	if ev.Sticky != decide.StickyBrokenLoad || ev.Hop != string(hop.Failed) || !ev.HopFallback || ev.HopTime <= 0 {
+		t.Errorf("event sticky %q hop %q fallback %v took %v, want broken_load, failed, a fallback and a hop time", ev.Sticky, ev.Hop, ev.HopFallback, ev.HopTime)
+	}
+	if ev.Upstream < 50*time.Millisecond || ev.Status != 200 || ev.Reason != "" {
+		t.Errorf("event upstream %v status %d reason %q, want the stalled attempt's time and a clean 200", ev.Upstream, ev.Status, ev.Reason)
+	}
+
+	var ids []string
+	for _, rec := range h.fakes[to].Requests() {
+		if id := rec.Header.Get("X-Request-Id"); strings.HasPrefix(id, "runE-s2") {
+			ids = append(ids, id)
+		}
+	}
+	if strings.Join(ids, ",") != "runE-s2,runE-s2-recompute" {
+		t.Fatalf("destination saw %v, want the hopped attempt then the recompute", ids)
+	}
+	if got := pulledEngine(t, h.lastRecorded("runE-s2")); got != "fake-engine" {
+		t.Errorf("first attempt pulled from %q, want fake-engine", got)
+	}
+	if got := string(h.lastRecorded("runE-s2-recompute").Body); got != doctorStep2 {
+		t.Errorf("second attempt body changed: %s", got)
+	}
+	eventually(t, "both tickets settled", func() bool { return h.inFlight() == 0 })
+
+	// The source's engine id was forgotten: the next hop off it asks the
+	// registry again.
+	if q := h.fakes[from].Queries(); q != 1 {
+		t.Fatalf("registry on %s queried %d times before the next hop, want 1", from, q)
+	}
+	h.fakes[to].Set(func(s *fakevllm.Settings) { s.PullLatency = 0 })
+	h.load(to, from)
+	if got := h.post("runF-s1", doctorBody).header.Get("X-Pod"); got != from {
+		t.Fatalf("runF step 1 on %s, want %s", got, from)
+	}
+	h.load(from, to)
+	if got := h.post("runF-s2", doctorStep2).header.Get("X-Hop"); got != string(hop.Hopped) {
+		t.Fatalf("runF step 2 X-Hop = %q, want hopped", got)
+	}
+	if q := h.fakes[from].Queries(); q != 2 {
+		t.Errorf("registry on %s queried %d times after the fallback, want 2", from, q)
+	}
+}
+
+func TestHoppedRequestAnswerDecidesTheFallback(t *testing.T) {
+	tests := []struct {
+		name       string
+		pullStatus int
+		wantStatus int
+		wantHop    string
+	}{
+		{"a 5xx on the pull recomputes", http.StatusInternalServerError, http.StatusOK, string(hop.Failed)},
+		{"a 4xx is relayed as it is", http.StatusBadRequest, http.StatusBadRequest, string(hop.Hopped)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := start(t, tuning{hop: &eagerHop})
+			h.allReady()
+			from := h.post("runG-s1", doctorBody).header.Get("X-Pod")
+			to := other(from)
+			h.fakes[to].Set(func(s *fakevllm.Settings) { s.PullStatus = tc.pullStatus })
+			h.load(from, to)
+
+			second := h.post("runG-s2", doctorStep2)
+			if second.status != tc.wantStatus || second.header.Get("X-Hop") != tc.wantHop {
+				t.Fatalf("step 2 = %d with X-Hop %q, want %d %s", second.status, second.header.Get("X-Hop"), tc.wantStatus, tc.wantHop)
+			}
+			ev := h.event("runG-s2")
+			if ev.HopFallback != (tc.wantHop == string(hop.Failed)) {
+				t.Errorf("event fallback = %v for hop %q", ev.HopFallback, tc.wantHop)
+			}
+			n := 0
+			for _, rec := range h.fakes[to].Requests() {
+				if strings.HasPrefix(rec.Header.Get("X-Request-Id"), "runG-s2") {
+					n++
+				}
+			}
+			want := 1
+			if ev.HopFallback {
+				want = 2
+			}
+			if n != want {
+				t.Errorf("destination saw %d attempts, want %d", n, want)
+			}
+			eventually(t, "both tickets settled", func() bool { return h.inFlight() == 0 })
+		})
+	}
+}
+
+func TestRestartedSourceIsAskedForItsEngineIdAgain(t *testing.T) {
+	// A hop caches the source's engine id. After the source restarts, the id
+	// is gone with the engine, so the next hop off it must ask again, or the
+	// destination pulls from a dead id.
+	h := start(t, tuning{hop: &eagerHop})
+	h.allReady()
+
+	from := h.post("runH-s1", doctorBody).header.Get("X-Pod")
+	to := other(from)
+	h.load(from, to)
+	h.post("runH-s2", doctorStep2)
+	if got := pulledEngine(t, h.lastRecorded("runH-s2")); got != "fake-engine" {
+		t.Fatalf("first hop pulled from %q, want fake-engine", got)
+	}
+
+	h.restart(from, "fake-engine-2")
+	h.load(to, from)
+	if got := h.post("runI-s1", doctorBody).header.Get("X-Pod"); got != from {
+		t.Fatalf("runI step 1 on %s, want the restarted %s", got, from)
+	}
+	h.load(from, to)
+	second := h.post("runI-s2", doctorStep2)
+	if second.status != http.StatusOK || second.header.Get("X-Hop") != string(hop.Hopped) {
+		t.Fatalf("runI step 2 = %d with X-Hop %q, want 200 hopped", second.status, second.header.Get("X-Hop"))
+	}
+	if got := pulledEngine(t, h.lastRecorded("runI-s2")); got != "fake-engine-2" {
+		t.Errorf("hop after the restart pulled from %q, want fake-engine-2", got)
+	}
+	if q := h.fakes[from].Queries(); q != 2 {
+		t.Errorf("registry on %s queried %d times, want 2: once per boot", from, q)
+	}
+	eventually(t, "both tickets settled", func() bool { return h.inFlight() == 0 })
 }

@@ -253,6 +253,48 @@ func TestOutageMarksDownAndRecoveryRestarts(t *testing.T) {
 	}
 }
 
+func TestOnNotReadyRunsOnOutageAndOnRestart(t *testing.T) {
+	fake := newFakeVLLM(t)
+	g := NewGate(DefaultConfig([]string{"vllm-0"}), time.Now, zeroRnd)
+	f := NewFleet(g, map[string]string{"vllm-0": fake.srv.URL}, fastWorkerConfig(), fake.srv.Client(), time.Now)
+	var mu sync.Mutex
+	var calls []string
+	f.OnNotReady(func(pod string) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls = append(calls, pod+":"+status(f).Phase.String())
+	})
+	seen := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), calls...)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		f.Run(ctx)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	eventually(t, "phase ready", func() bool { return status(f).Phase == Ready })
+	if got := seen(); len(got) != 1 || got[0] != "vllm-0:warming" {
+		t.Fatalf("hook calls before the outage = %v, want the startup warming only", got)
+	}
+
+	fake.set(func(f *fakeVLLM) { f.metricsFail = true })
+	eventually(t, "phase down", func() bool { return status(f).Phase == Down })
+	fake.set(func(f *fakeVLLM) { f.metricsFail = false })
+	eventually(t, "phase ready again", func() bool { return status(f).Phase == Ready })
+	want := []string{"vllm-0:warming", "vllm-0:down", "vllm-0:warming"}
+	if got := seen(); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("hook calls = %v, want %v", got, want)
+	}
+}
+
 func TestWaitingRisingComparesAgainstRisingOverAgo(t *testing.T) {
 	fake := newFakeVLLM(t)
 	g, f := startFleet(t, fake, fastWorkerConfig())

@@ -306,7 +306,9 @@ non-empty fix; `overprovisioned` needs a parseable `resize`. Error prefixes: `sc
   overflow backend is null.
 - **KV hop** (`hop`, opt-in, `HOP=1`). When the gateway moves a run off a worker that holds its history, it copies the
   KV over vLLM's MooncakeConnector if the history is long enough and the copy is cheaper than the prefill. Transfer ids
-  are random, at most `GW_HOP_MAX_INFLIGHT` hops run at once, and any failure falls back to recomputing.
+  are random, at most `GW_HOP_MAX_INFLIGHT` hops run at once, and any failure falls back to recomputing, including a
+  destination that fails or stalls past `GW_HOP_RECEIVE_TIMEOUT` while pulling (the request is sent again without the
+  hop). A worker that leaves Ready or restarts has its cached engine id forgotten.
 - **Telemetry.** `orch_*` metrics, the `Ariadne · gateway` dashboard (contract-tested) and one log line per
   request. A client that leaves is `client_gone`, not a 502 (D-44).
 - **Delivery.** `docker.io/cdugga/cluster-doctor-gateway`, public, amd64 + arm64, pinned by digest in

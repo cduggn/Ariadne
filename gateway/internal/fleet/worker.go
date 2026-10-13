@@ -135,11 +135,12 @@ type member struct {
 // pod's /metrics, feeds each scrape to the Gate and drives the pod through
 // the warm-up gate. The Gate never calls back into the Fleet.
 type Fleet struct {
-	g       *Gate
-	cfg     WorkerConfig
-	client  *http.Client
-	now     func() time.Time
-	members []*member
+	g        *Gate
+	cfg      WorkerConfig
+	client   *http.Client
+	now      func() time.Time
+	members  []*member
+	notReady func(pod string)
 }
 
 // NewFleet builds a Fleet over urls, which maps each pod to its base URL.
@@ -162,6 +163,14 @@ func NewFleet(g *Gate, urls map[string]string, cfg WorkerConfig, client *http.Cl
 	}
 	sort.Slice(f.members, func(i, j int) bool { return f.members[i].name < f.members[j].name })
 	return f
+}
+
+// OnNotReady registers fn to run each time a worker enters a phase other
+// than Ready: Down on an outage and Warming on a restart. Anything cached
+// about the worker's engine, such as the KV hop's engine id, is stale from
+// then on. It must be called before Run.
+func (f *Fleet) OnNotReady(fn func(pod string)) {
+	f.notReady = fn
 }
 
 // Run starts one loop per pod and returns once ctx ends and every loop
@@ -249,7 +258,8 @@ func (f *Fleet) tick(ctx context.Context, m *member) {
 // move applies one event to the worker and performs what entering the new
 // phase owes the Gate. Entering Warming is a restart, so the ring and the
 // pass count start over and the Gate drops the worker's bindings. Entering
-// Ready and Down set and clear the Gate's ready flag.
+// Ready and Down set and clear the Gate's ready flag. Entering Warming or
+// Down also runs the OnNotReady hook.
 func (f *Fleet) move(m *member, e event) {
 	next := step(m.st.Phase, e)
 	if next == m.st.Phase {
@@ -270,6 +280,9 @@ func (f *Fleet) move(m *member, e event) {
 		f.g.SetReady(m.name, true)
 	case Down:
 		f.g.SetReady(m.name, false)
+	}
+	if next != Ready && f.notReady != nil {
+		f.notReady(m.name)
 	}
 }
 

@@ -301,9 +301,11 @@ func (g *Gate) Restarted(pod string) {
 }
 
 // Admit decides, reserves and queues one request. It runs Pick under the
-// lock, and when a worker is chosen it charges the tenant, records the
-// reservation and binds the run before releasing the lock to wait for a
-// slot. A refusal from Pick charges nothing and returns a nil Ticket with
+// lock, giving it the run's binding and the prompt length of its last
+// settled step, so stickiness can leave the run's own history out of its
+// bound worker's load. When a worker is chosen it charges the tenant,
+// records the reservation and binds the run before releasing the lock to
+// wait for a slot. A refusal from Pick charges nothing and returns a nil Ticket with
 // a nil error. A refusal from the queue undoes the charge and the
 // reservation and returns a 503 Placement with no Pod. A context error undoes
 // the same and returns the error. The run binding outlives a queue refusal,
@@ -322,6 +324,10 @@ func (g *Gate) Admit(ctx context.Context, r decide.Request) (Decision, *Ticket, 
 		}
 	}
 	est := decide.EstimateTokens(r, prior)
+	history := 0
+	if prior != nil {
+		history = prior.PromptTokens
+	}
 
 	b := g.bucketFor(r.Tenant)
 	b.refill(start)
@@ -331,15 +337,12 @@ func (g *Gate) Admit(ctx context.Context, r decide.Request) (Decision, *Ticket, 
 		Tenant:     decide.TenantState{AvailableTokens: b.tokens, RatePerS: b.rate},
 		EstTokens:  est,
 		Bound:      bound,
+		History:    history,
 		Shed:       g.cfg.Shed,
 		Staleness:  g.cfg.Staleness,
 		StickSlack: g.cfg.StickSlack,
 	}
 	p := decide.Pick(r, fleet, g.cfg.Policy, g.rnd)
-	history := 0
-	if prior != nil {
-		history = prior.PromptTokens
-	}
 	if !p.Placed() {
 		g.mu.Unlock()
 		return Decision{Placement: p, Est: est, From: bound, History: history}, nil, nil

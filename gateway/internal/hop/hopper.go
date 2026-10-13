@@ -107,6 +107,22 @@ func (h *Hopper) Move(ctx context.Context, m Move, body []byte) ([]byte, Result)
 	return body, Result{Outcome: Failed, Plan: plan, Took: h.now().Sub(start), Err: err}
 }
 
+// Forget drops what the Hopper cached about pod's engine, so the next hop
+// off pod asks its bootstrap registry again. The fleet calls it when pod
+// leaves Ready or restarts, and the serve package when a destination fails
+// to pull from pod. An unknown pod is a no-op.
+func (h *Hopper) Forget(pod string) {
+	if src, known := h.endpoints[pod]; known {
+		h.mooncake.Forget(src.BootstrapURL)
+	}
+}
+
+// ReceiveTimeout is how long the destination request of a hopped run may
+// take before the gateway sends it again without the hop.
+func (h *Hopper) ReceiveTimeout() time.Duration {
+	return h.cfg.ReceiveTimeout
+}
+
 // newTransferID is 128 random bits, unguessable and collision-free in
 // practice.
 func newTransferID() (string, error) {

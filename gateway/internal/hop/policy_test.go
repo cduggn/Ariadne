@@ -19,6 +19,7 @@ var rule = Config{
 	PrefillTokensPerS:  1000,
 	Overhead:           10 * time.Millisecond,
 	Timeout:            time.Second,
+	ReceiveTimeout:     time.Second,
 	MaxInflight:        1,
 }
 
@@ -82,7 +83,7 @@ func TestValidateNamesEveryBadField(t *testing.T) {
 	if err == nil {
 		t.Fatal("Validate() = nil for a zero config")
 	}
-	for _, want := range []string{"min tokens", "shared prefix", "KV bytes", "transfer rate", "prefill rate", "overhead", "timeout", "in-flight"} {
+	for _, want := range []string{"min tokens", "shared prefix", "KV bytes", "transfer rate", "prefill rate", "overhead", "timeout", "receive timeout", "in-flight"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("Validate() = %q, missing %q", err, want)
 		}

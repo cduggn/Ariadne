@@ -21,6 +21,7 @@ import (
 	"github.com/cduggn/ariadne/gateway/internal/decide"
 	"github.com/cduggn/ariadne/gateway/internal/fleet"
 	"github.com/cduggn/ariadne/gateway/internal/hop"
+	"github.com/cduggn/ariadne/gateway/internal/overflow"
 )
 
 // DefaultUpstreamTimeout bounds one upstream call. It sits under the
@@ -36,7 +37,9 @@ const maxResponseBytes = 32 << 20
 // one Event per request, including refusals and 400s. Metrics, when set,
 // serves GET /metrics. The metrics package feeds the one from the other.
 // Hop, when set, copies a moved run's KV to its new worker; nil leaves every
-// moved run to recompute its history.
+// moved run to recompute its history. Overflow, when set, is offered every
+// 503 that decide.MayLeave lets leave the box; nil answers the 503, which is
+// the shipped behaviour.
 type Options struct {
 	MaxBody         int
 	Budgets         decide.Budgets
@@ -47,6 +50,7 @@ type Options struct {
 	OnRequest       func(Event)
 	Metrics         http.Handler
 	Hop             *hop.Hopper
+	Overflow        *overflow.Overflow
 }
 
 // Event is one request as the gateway saw it. Pod, Policy, Sticky, Unknown
@@ -54,10 +58,14 @@ type Options struct {
 // the client went away before anything was written. Gateway is the time
 // spent in this process outside the queue, the hop and the upstream call.
 // The token fields are set only for a 200 that carried usage. Overflow is set
-// only for a 503 the gateway refused, and names what the overflow decision
-// did. Hop is set only when the KV hop is configured and the request moved a
-// run off a worker that still held its history, and HopTime is the time the
-// hop spent with the old worker.
+// only for a 503 the gateway could not serve, and names what the overflow
+// decision did: overflow.Sent means the backend's 200 was relayed and Pod is
+// empty, every other value means the client got the 503. OverflowTime is the
+// time spent with the backend. Hop is set only when the KV hop is configured
+// and the request moved a run off a worker that still held its history, and
+// HopTime is the time the hop spent with the old worker. HopFallback is set
+// when the new worker failed to answer the hopped request and the gateway
+// sent it again without the hop; Upstream then covers both attempts.
 type Event struct {
 	RequestID        string
 	Run              decide.RunID
@@ -81,8 +89,10 @@ type Event struct {
 	CompletionTokens int
 	FinishReason     string
 	Overflow         string
+	OverflowTime     time.Duration
 	Hop              string
 	HopTime          time.Duration
+	HopFallback      bool
 }
 
 // Server is the gateway's handler set over one Gate and one Fleet. urls
@@ -173,8 +183,11 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	}
 	if t == nil {
 		ev.Status, ev.Reason = p.Verdict.Code, string(p.Verdict.Reason)
-		if !p.Verdict.Stays() {
-			ev.Overflow = decide.OverflowResult(req, p.Verdict)
+		if !p.Verdict.Stays() && s.leave(r.Context(), req, p.Verdict, body, w, &ev) {
+			return
+		}
+		if ev.Reason == "client_gone" {
+			return
 		}
 		writeRefusal(w, p.Verdict)
 		return
@@ -186,7 +199,12 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.opt.UpstreamTimeout)
 	defer cancel()
 	fwd := s.moveKV(ctx, d, req, t.Pod(), body, &ev)
-	up, err := s.forward(ctx, s.urls[t.Pod()], fwd, r.Header)
+	var up upstream
+	if ev.Hop == string(hop.Hopped) {
+		up, err = s.forwardHopped(ctx, d, req, t.Pod(), body, fwd, r.Header, &ev)
+	} else {
+		up, err = s.forward(ctx, s.urls[t.Pod()], fwd, r.Header)
+	}
 	ev.Upstream = up.took
 	if err != nil && r.Context().Err() != nil {
 		// The client went away and its cancellation stopped the forward. That is not a worker failure, so it is not
@@ -210,6 +228,40 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	relay(w, up, ev)
 }
 
+// leave is the stay-or-leave step for a 503. It records what the overflow
+// decision did on ev and, when the backend answered, relays that answer and
+// returns true. In every other case it returns false and the caller writes
+// the 503 unchanged. Without a configured backend the only effect is the
+// no_backend or blocked_invariant label, as before.
+func (s *Server) leave(ctx context.Context, req decide.Request, v decide.Verdict, body []byte, w http.ResponseWriter, ev *Event) bool {
+	permit, ok := decide.MayLeave(req, v)
+	if !ok {
+		ev.Overflow = decide.OverflowBlocked
+		return false
+	}
+	if s.opt.Overflow == nil {
+		ev.Overflow = decide.OverflowNoBackend
+		return false
+	}
+	res := s.opt.Overflow.Send(ctx, permit, body)
+	ev.Overflow, ev.OverflowTime = res.Outcome, res.Took
+	if res.Err != nil {
+		if ctx.Err() != nil {
+			ev.Status, ev.Reason = 0, "client_gone"
+			return false
+		}
+		if res.Outcome == overflow.Failed {
+			s.opt.Log.Warn("overflow failed, answering the 503", "request_id", req.ID, "backend", s.opt.Overflow.Name(), "err", res.Err)
+		}
+		return false
+	}
+	ev.Status, ev.Reason = res.Status, ""
+	u, _ := usageOf(res.Body)
+	ev.PromptTokens, ev.CachedTokens, ev.CompletionTokens, ev.FinishReason = u.prompt, u.cached, u.completion, u.finish
+	relayOverflow(w, res, v, s.opt.Overflow.Name())
+	return true
+}
+
 // moveKV asks the KV hop, when configured, to carry the run's history from
 // the worker it was bound to onto pod. It returns the body to forward, which
 // is body itself unless a hop succeeded. moveKV logs a failed hop and the
@@ -227,6 +279,52 @@ func (s *Server) moveKV(ctx context.Context, d fleet.Decision, req decide.Reques
 	ev.Hop, ev.HopTime = string(res.Outcome), res.Took
 	if res.Err != nil {
 		s.opt.Log.Warn("kv hop failed, the worker recomputes", "request_id", req.ID, "from", d.From, "to", pod, "err", res.Err)
+	}
+	return out
+}
+
+// forwardHopped sends marked, the body that tells pod to pull the run's KV
+// from d.From, bounded by the hop's receive timeout rather than the upstream
+// timeout. A destination pulling from an engine that is gone, because the
+// source restarted behind a cached engine id, otherwise hangs until the
+// upstream timeout (114 s on 2026-10-12). When the destination gives no
+// answer or a 5xx, forwardHopped forgets the source's engine id, counts the
+// hop as failed and sends body, unmarked, once more under what is left of
+// the upstream timeout, so pod recomputes the history as it would have
+// without the hop. The second attempt carries the request id with a
+// -recompute suffix, because vLLM refuses a request id it still holds, and
+// the first attempt may not have been aborted yet. A client that went away,
+// or an upstream timeout already spent, gets no second attempt.
+func (s *Server) forwardHopped(ctx context.Context, d fleet.Decision, req decide.Request, pod string, body, marked []byte, in http.Header, ev *Event) (upstream, error) {
+	recvCtx, cancel := context.WithTimeout(ctx, s.opt.Hop.ReceiveTimeout())
+	up, err := s.forward(recvCtx, s.urls[pod], marked, in)
+	cancel()
+	if ctx.Err() != nil || !hopFallback(up.status, err) {
+		return up, err
+	}
+	s.opt.Hop.Forget(d.From)
+	ev.Hop, ev.HopFallback = string(hop.Failed), true
+	s.opt.Log.Warn("hopped request failed, sending it again without the hop",
+		"request_id", req.ID, "from", d.From, "to", pod, "status", up.status, "err", err)
+	again, err := s.forward(ctx, s.urls[pod], body, recomputeHeaders(in))
+	again.took += up.took
+	return again, err
+}
+
+// hopFallback reports whether a hopped request's first answer calls for a
+// plain recompute: no answer at all (a transport error or the receive
+// deadline) or a 5xx, which is what a destination answers when its pull
+// fails. A 4xx would repeat without the hop, so it is relayed as it is.
+func hopFallback(status int, err error) bool {
+	return err != nil || status >= http.StatusInternalServerError
+}
+
+// recomputeHeaders is in with "-recompute" appended to a non-empty
+// X-Request-Id, for the second attempt of a hopped request.
+func recomputeHeaders(in http.Header) http.Header {
+	out := in.Clone()
+	if id := out.Get("X-Request-Id"); id != "" {
+		out.Set("X-Request-Id", id+"-recompute")
 	}
 	return out
 }
@@ -294,6 +392,22 @@ func relay(w http.ResponseWriter, up upstream, ev Event) {
 	_, _ = w.Write(up.body) // a failed write means the client left; the request is already recorded
 }
 
+// relayOverflow writes the backend's status and body unchanged. The headers
+// say the request left the box, why the gateway could not serve it, and how
+// long the backend took; there is no X-Pod because no worker served it.
+func relayOverflow(w http.ResponseWriter, res overflow.Result, v decide.Verdict, backend string) {
+	h := w.Header()
+	if res.ContentType != "" {
+		h.Set("Content-Type", res.ContentType)
+	}
+	h.Set("X-Overflow", res.Outcome)
+	h.Set("X-Overflow-Backend", backend)
+	h.Set("X-Gateway-Reason", string(v.Reason))
+	h.Set("Server-Timing", "overflow;dur="+millisText(res.Took))
+	w.WriteHeader(res.Status)
+	_, _ = w.Write(res.Body) // a failed write means the client left; the request is already recorded
+}
+
 // usage is what the gateway reads from a worker's answer. Every field is
 // optional in the wire shape, and a missing one reads as zero.
 type usage struct {
@@ -351,8 +465,10 @@ func (s *Server) finish(ev Event) {
 		"completion_tokens", ev.CompletionTokens,
 		"finish_reason", ev.FinishReason,
 		"overflow", ev.Overflow,
+		"overflow_ms", millis(ev.OverflowTime),
 		"hop", ev.Hop,
 		"hop_ms", millis(ev.HopTime),
+		"hop_fallback", ev.HopFallback,
 	)
 	if s.opt.OnRequest != nil {
 		s.opt.OnRequest(ev)

@@ -104,6 +104,26 @@ func (w WorkerView) Load() float64 {
 	return float64(w.InFlight+w.Queued)/float64(denom) + (1 - w.FreeRatio())
 }
 
+// LoadWithout is Load with tokens of the worker's KV left out of the KV
+// term, which never goes below 0. choosePrefixThenLoad uses it to score a
+// run's bound worker without the run's own history, which is load that
+// moves with the run and so should not count against keeping it. A pool of
+// 0 discounts nothing.
+func (w WorkerView) LoadWithout(tokens int) float64 {
+	denom := w.MaxInflight
+	if denom <= 0 {
+		denom = 1
+	}
+	kv := 1 - w.FreeRatio()
+	if w.KVPoolTokens > 0 && tokens > 0 {
+		kv -= float64(tokens) / float64(w.KVPoolTokens)
+	}
+	if kv < 0 {
+		kv = 0
+	}
+	return float64(w.InFlight+w.Queued)/float64(denom) + kv
+}
+
 // DefaultStickSlack is 0.25 load units, which is four of the default sixteen
 // in-flight slots.
 const DefaultStickSlack = 0.25
@@ -115,6 +135,7 @@ type Fleet struct {
 	Tenant     TenantState
 	EstTokens  int
 	Bound      string // pod this request's run is bound to, "" if none
+	History    int    // prompt tokens of the run's last settled step, held in Bound's KV; 0 if unknown
 	Shed       Policy // admission thresholds passed through to ShouldShed
 	Staleness  Staleness
 	StickSlack float64 // load units the bound worker may exceed the best other
@@ -328,12 +349,18 @@ func chooseP2C(r Request, f Fleet, remaining, admitted []WorkerState, rnd func(i
 
 // choosePrefixThenLoad keeps Bound while it is admitted and within
 // StickSlack load units of the best other worker. Otherwise it takes the
-// least loaded worker, and Sticky says why the binding broke. A Bound over
-// the slack cannot be the least loaded, so that fallback never reports hit.
+// least loaded worker, and Sticky says why the binding broke.
+//
+// Bound is scored without the run's own History, because that KV moves
+// with the run: it is on Bound only because the run is there, and keeping
+// the run costs nothing extra. Counting it made one long run on an idle
+// fleet break its own stickiness and bounce between workers. The fallback
+// scores every worker with Load. A Bound over the slack without its history
+// is over it with the history too, so the fallback never reports hit.
 func choosePrefixThenLoad(r Request, f Fleet, remaining, admitted []WorkerState) (WorkerState, Sticky) {
 	if bound, ok := findByPod(admitted, f.Bound); ok {
 		others := excludePod(admitted, f.Bound)
-		if len(others) == 0 || bound.View.Load() <= minLoad(others)+f.StickSlack {
+		if len(others) == 0 || bound.View.LoadWithout(f.History) <= minLoad(others)+f.StickSlack {
 			return bound, StickyHit
 		}
 	}
