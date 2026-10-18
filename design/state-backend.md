@@ -105,18 +105,11 @@ constructor keeps every existing test green.
 
 ## Phase 2: the RocksDB store
 
-Library choice, with a recommendation:
-
-- `github.com/linxGnu/grocksdb` is the maintained binding to librocksdb. It needs cgo,
-  librocksdb and its compressors in the image, and a cross C toolchain for the arm64 and
-  amd64 build in the Dockerfile. The static distroless image goes away.
-- `github.com/cockroachdb/pebble` is CockroachDB's pure-Go RocksDB. Same LSM design,
-  bidirectionally compatible file format, WriteBatch and WAL semantics, no cgo. The build
-  stays as it is.
-
-Recommendation: implement `--state rocksdb` on pebble, and keep a `grocksdb` implementation
-behind a `rocksdb_cgo` build tag only if librocksdb itself is a hard requirement. The flag
-value and the on-disk format stay RocksDB's either way.
+Library: `github.com/cockroachdb/pebble`, CockroachDB's pure-Go RocksDB. Same LSM design,
+bidirectionally compatible file format, WriteBatch and WAL semantics, no cgo, so the static
+distroless multi-arch build stays as it is. Decided 2026-10-18. `github.com/linxGnu/grocksdb`
+(cgo, librocksdb in the image, cross C toolchain) is not planned; it could sit behind a
+`rocksdb_cgo` build tag later if librocksdb itself ever becomes a requirement.
 
 Layout: one DB, key prefixes `b/<tenant>`, `r/<run id>`, `p/<pod>`, values encoded with
 `encoding/binary` behind a one-byte version. `Apply` is one WriteBatch. Writes use
@@ -132,6 +125,28 @@ an identity the worker reports: `process_start_time_seconds` from vLLM's `/metri
 runs when the scraped start time changes, and the hop's engine id handling already follows
 the same rule.
 
+## Redundancy: replication sits above the embedded store
+
+An embedded store is redundant the way RocksDB is redundant under CockroachDB, TiKV and
+Kafka Streams: the write stream is replicated between processes, never the store itself.
+Three levels, cheapest first.
+
+1. **Reattached disk.** StatefulSet, one PVC per replica. A crashed pod reschedules and
+   reopens its directory. Nothing lost, no availability during the gap. Free with phase 2.
+2. **Standby mirror, async.** Chosen. The owner of shard i commits each `Batch` locally and
+   streams it to its successor, shard i+1 mod N, which applies it under a `s/<shard>/`
+   prefix in its own pebble directory. When owner i is unreachable, the forwarder in
+   phase 3 sends shard i's requests to i+1, which promotes the mirror and serves from it.
+   When i returns it reloads from i+1 and takes the shard back. Lag is bounded by one
+   in-cluster round trip, which matches the `Sync: false` loss window already accepted.
+   Reuses `Apply(Batch)` and `--peers`. Kafka Streams' standby-task model.
+3. **Raft per shard.** Dragonboat with pebble as the log store, buckets and runs as the
+   replicated state machine, three copies, leader failover with no loss. Exact and heavy.
+   Behind the same `Store` interface if a tenant SLA ever requires exact quota.
+
+Level 2 is enough because the state is soft: a lost binding costs one recompute, a lost
+bucket refills within seconds.
+
 ## Phase 3: ownership and forwarding for N > 1
 
 - Owner of a run: `hash(run id) mod N`. A request with no run id is served locally.
@@ -143,8 +158,8 @@ the same rule.
 - A replica joining or leaving changes N and reshuffles ownership. Runs owned by the wrong
   replica for one RunTTL recompute once. No migration is needed.
 
-Exactly-global buckets, if a tenant SLA ever requires them: dragonboat Raft with pebble as
-the log store, the bucket as the replicated state machine, and the same `Store` interface.
+- Each owner mirrors its batches to its successor, as in the redundancy section. Failover
+  is the forwarder's retry to i+1 after a failed call to i.
 
 ## Verification
 
