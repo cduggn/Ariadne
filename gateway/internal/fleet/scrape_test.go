@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 )
 
 // vllmMetrics is a cut of a real vLLM /metrics body, with one engine and
@@ -21,6 +22,9 @@ vllm:num_requests_waiting{engine="0",model_name="Qwen/Qwen3-8B-AWQ"} 3.0
 # HELP vllm:kv_cache_usage_perc KV-cache usage. 1 means 100 percent usage.
 # TYPE vllm:kv_cache_usage_perc gauge
 vllm:kv_cache_usage_perc{engine="0",model_name="Qwen/Qwen3-8B-AWQ"} 0.42
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.79128655187e+09
 # HELP vllm:prompt_tokens_total Number of prefill tokens processed.
 # TYPE vllm:prompt_tokens_total counter
 vllm:prompt_tokens_total{engine="0",model_name="Qwen/Qwen3-8B-AWQ"} 812345.0
@@ -59,6 +63,9 @@ func TestParseMetricsReadsVLLMBody(t *testing.T) {
 	}
 	if s.Waiting != 3 {
 		t.Fatalf("Waiting = %v, want 3", s.Waiting)
+	}
+	if want := time.UnixMilli(1791286551870); !s.Started.Equal(want) {
+		t.Fatalf("Started = %v, want %v", s.Started, want)
 	}
 	wantBounds := []float64{0.1, 0.25, 0.5, 1, 2.5, math.Inf(1)}
 	wantCounts := []float64{0, 50, 50, 99, 100, 100}
@@ -105,6 +112,15 @@ vllm:time_to_first_token_seconds_bucket{engine="1",le="+Inf"} 7.0
 	}
 	if got := s.TTFT.Counts; len(got) != 2 || got[0] != 5 || got[1] != 12 {
 		t.Fatalf("TTFT.Counts = %v, want [5 12]", got)
+	}
+}
+
+func TestParseMetricsWithoutStartTimeHasZeroStarted(t *testing.T) {
+	s := mustParse(t, `# TYPE vllm:kv_cache_usage_perc gauge
+vllm:kv_cache_usage_perc{model_name="m"} 0.1
+`)
+	if !s.Started.IsZero() {
+		t.Fatalf("Started = %v, want zero", s.Started)
 	}
 }
 

@@ -28,6 +28,8 @@ import (
 // registry reports. PullLatency and PullStatus, when set, replace Latency
 // and Status for a request marked do_remote_prefill only, as a destination
 // stuck or failing on a pull from an engine that is gone would behave.
+// Started is the process start /metrics reports; a later Started reads to
+// the gateway as a restarted worker.
 type Settings struct {
 	KVUsage     float64
 	PoolBlocks  int
@@ -39,6 +41,7 @@ type Settings struct {
 	EngineID    string
 	PullLatency time.Duration
 	PullStatus  int
+	Started     time.Time
 }
 
 // Recorded is one chat request as the worker saw it, and the bytes it
@@ -64,7 +67,7 @@ type Worker struct {
 // reference deployment, no latency and a 200 status.
 func New() *Worker {
 	return &Worker{
-		settings: Settings{PoolBlocks: 4941, Status: http.StatusOK, EngineID: "fake-engine"},
+		settings: Settings{PoolBlocks: 4941, Status: http.StatusOK, EngineID: "fake-engine", Started: time.Now()},
 		lastBody: make(map[decide.RunID][]byte),
 	}
 }
@@ -110,8 +113,11 @@ func (w *Worker) query(rw http.ResponseWriter, r *http.Request) {
 }
 
 // metricsText is the subset of vLLM's exposition the fleet reads, with the
-// pool size, the waiting count and the KV usage filled in.
-const metricsText = `# HELP vllm:cache_config_info Information of the LLMEngine CacheConfig
+// process start, the pool size, the waiting count and the KV usage filled in.
+const metricsText = `# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds %.3f
+# HELP vllm:cache_config_info Information of the LLMEngine CacheConfig
 # TYPE vllm:cache_config_info gauge
 vllm:cache_config_info{block_size="16",num_gpu_blocks="%d"} 1
 # HELP vllm:num_requests_waiting Number of requests waiting to be processed.
@@ -139,7 +145,7 @@ func (w *Worker) metrics(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rw.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	fmt.Fprintf(rw, metricsText, s.PoolBlocks, s.Waiting, s.KVUsage)
+	fmt.Fprintf(rw, metricsText, float64(s.Started.UnixMilli())/1000, s.PoolBlocks, s.Waiting, s.KVUsage)
 }
 
 // chat records the request, waits Latency, then answers. A request whose
