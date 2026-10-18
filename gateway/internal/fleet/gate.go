@@ -251,8 +251,8 @@ type Gate struct {
 // now is the clock and rnd the random source for PolicyP2C. A configured
 // tenant starts with a full bucket, or with its kept balance capped at the
 // configured burst. When cfg has no "*" tenant, unlisted tenants share an
-// empty bucket and are refused. Kept runs idle past RunTTL are dropped, and
-// a store that fails to load is logged and the Gate starts empty.
+// empty bucket and are refused. Kept runs idle past RunTTL are dropped. A
+// store that loads only partly is logged and what it gave is used.
 func NewGate(cfg Config, now func() time.Time, rnd func(int) int) *Gate {
 	if cfg.Store == nil {
 		cfg.Store = state.Memory{}
@@ -269,8 +269,7 @@ func NewGate(cfg Config, now func() time.Time, rnd func(int) int) *Gate {
 	}
 	kept, err := g.store.Load()
 	if err != nil {
-		slog.Error("state load failed, starting empty", "err", err)
-		kept = state.Snapshot{}
+		slog.Error("state load incomplete", "err", err)
 	}
 	for _, name := range cfg.Pods {
 		p := &podState{}
