@@ -273,6 +273,24 @@ func TestOutageWithTheSameProcessStartKeepsBindings(t *testing.T) {
 	eventually(t, "phase ready again", func() bool { return status(f).Phase == Ready })
 }
 
+func TestNewProcessStartWhileReadyRewarmsAndVoidsBindings(t *testing.T) {
+	fake := newFakeVLLM(t)
+	g, f := startFleet(t, fake, fastWorkerConfig())
+	eventually(t, "phase ready", func() bool { return status(f).Phase == Ready })
+	bindRun1(t, g)
+
+	restarted := strings.Replace(vllmMetrics, startLine, "process_start_time_seconds 1.79128700000e+09", 1)
+	fake.set(func(f *fakeVLLM) { f.metrics = restarted })
+	eventually(t, "restart counted", func() bool { return status(f).Restarts == 2 })
+	if got := g.Bound("run1"); got != "" {
+		t.Fatalf("Bound(run1) = %q after a new process start, want void", got)
+	}
+	eventually(t, "phase ready again", func() bool { return status(f).Phase == Ready })
+	if !readyOf(t, g, "vllm-0") {
+		t.Fatal("gate ready = false after re-warm, want true")
+	}
+}
+
 func TestOutageWithoutAProcessStartIsARestart(t *testing.T) {
 	fake := newFakeVLLM(t)
 	withoutStart := strings.Replace(vllmMetrics, startLine, "", 1)

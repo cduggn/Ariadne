@@ -37,14 +37,16 @@ func (p Phase) String() string {
 }
 
 // event is what moved a worker. scraped is a successful scrape, warmed is
-// WarmPasses consecutive probe passes, and stale is DownAfter without a
-// successful scrape.
+// WarmPasses consecutive probe passes, stale is DownAfter without a
+// successful scrape, and restarted is a scrape whose process start differs
+// from the last one, which is a new process however briefly it was away.
 type event uint8
 
 const (
 	scraped event = iota
 	warmed
 	stale
+	restarted
 )
 
 // step is the worker's transition table. Every pair not listed keeps its
@@ -57,6 +59,8 @@ func step(p Phase, e event) Phase {
 		return Ready
 	case p != Down && e == stale:
 		return Down
+	case p != Down && e == restarted:
+		return Warming
 	}
 	return p
 }
@@ -119,9 +123,9 @@ type timed struct {
 // member is one pod's loop state. st is written only by the pod's own
 // goroutine, under mu so Status can read it. ring holds the scrapes of the
 // last Window, oldest first, and is reset on every restart because vLLM's
-// counters start over. passes counts consecutive probe passes. startKnown
-// is whether the newest scrape reported the worker's process start, in
-// which case the Gate tells restarts apart by it rather than by phase.
+// counters start over. passes counts consecutive probe passes. started is
+// the process start the newest scrape reported, zero for a worker that
+// reports none, whose restarts can only be told by phase.
 type member struct {
 	name string
 	base string
@@ -129,9 +133,9 @@ type member struct {
 	mu sync.Mutex
 	st WorkerStatus
 
-	ring       []timed
-	passes     int
-	startKnown bool
+	ring    []timed
+	passes  int
+	started time.Time
 }
 
 // Fleet keeps the Gate fed. It runs one loop per pod that scrapes the
@@ -241,7 +245,10 @@ func (f *Fleet) tick(ctx context.Context, m *member) {
 		return
 	}
 
-	m.startKnown = !s.Started.IsZero()
+	if !s.Started.IsZero() && !m.started.IsZero() && !s.Started.Equal(m.started) {
+		f.move(m, restarted)
+	}
+	m.started = s.Started
 	f.move(m, scraped)
 	m.ring = append(m.ring, timed{at: now, s: s})
 	cutoff := now.Add(-f.cfg.Window)
@@ -280,7 +287,7 @@ func (f *Fleet) move(m *member, e event) {
 	case Warming:
 		m.ring = nil
 		m.passes = 0
-		if !m.startKnown {
+		if m.started.IsZero() {
 			f.g.Restarted(m.name)
 		}
 	case Ready:
