@@ -410,3 +410,37 @@ func TestConcurrentAdmitSettleLeavesNothingHeld(t *testing.T) {
 		}
 	}
 }
+
+func TestObservedProcessStartIsTheWorkersIdentity(t *testing.T) {
+	g, clk := newTestGate(DefaultConfig([]string{"a", "b"}))
+	born := time.Date(2026, 10, 18, 9, 0, 0, 0, time.UTC)
+	g.Observe("a", Scrape{At: clk.now(), Started: born, KVPoolTokens: 100000, KVUsage: 0.2})
+	g.SetReady("a", true)
+	scrapeReady(g, clk, "b", 100000, 0.5)
+
+	d1, tk1 := mustAdmit(t, g, request(clk, "run1-s1", "platform", 7000, 768))
+	assertPlaced(t, d1, tk1, "a", decide.StickyNew, 2768)
+	assertReserved(t, g, "a", 2768)
+
+	g.Observe("a", Scrape{At: clk.now(), Started: born, KVPoolTokens: 100000, KVUsage: 0.2})
+	if got := g.Bound("run1"); got != "a" {
+		t.Fatalf("Bound(run1) = %q after a scrape with the same start, want a", got)
+	}
+	assertReserved(t, g, "a", 2768)
+
+	g.Observe("a", Scrape{At: clk.now(), Started: born.Add(time.Minute), KVPoolTokens: 100000})
+	if got := g.Bound("run1"); got != "" {
+		t.Fatalf("Bound(run1) = %q after the worker's start moved, want empty", got)
+	}
+	assertReserved(t, g, "a", 0)
+	for _, w := range g.View() {
+		if w.View.Pod == "a" && w.Ready {
+			t.Fatal("a is Ready after a restart, want not ready until warm-up")
+		}
+	}
+
+	d2, tk2 := mustAdmit(t, g, request(clk, "run1-s2", "platform", 7000, 768))
+	assertPlaced(t, d2, tk2, "b", decide.StickyNew, 2768)
+	g.Settle(tk1, Outcome{}, 7000)
+	g.Settle(tk2, Outcome{}, 7000)
+}

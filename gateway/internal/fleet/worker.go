@@ -119,7 +119,9 @@ type timed struct {
 // member is one pod's loop state. st is written only by the pod's own
 // goroutine, under mu so Status can read it. ring holds the scrapes of the
 // last Window, oldest first, and is reset on every restart because vLLM's
-// counters start over. passes counts consecutive probe passes.
+// counters start over. passes counts consecutive probe passes. startKnown
+// is whether the newest scrape reported the worker's process start, in
+// which case the Gate tells restarts apart by it rather than by phase.
 type member struct {
 	name string
 	base string
@@ -127,8 +129,9 @@ type member struct {
 	mu sync.Mutex
 	st WorkerStatus
 
-	ring   []timed
-	passes int
+	ring       []timed
+	passes     int
+	startKnown bool
 }
 
 // Fleet keeps the Gate fed. It runs one loop per pod that scrapes the
@@ -238,6 +241,7 @@ func (f *Fleet) tick(ctx context.Context, m *member) {
 		return
 	}
 
+	m.startKnown = !s.Started.IsZero()
 	f.move(m, scraped)
 	m.ring = append(m.ring, timed{at: now, s: s})
 	cutoff := now.Add(-f.cfg.Window)
@@ -257,9 +261,10 @@ func (f *Fleet) tick(ctx context.Context, m *member) {
 
 // move applies one event to the worker and performs what entering the new
 // phase owes the Gate. Entering Warming is a restart, so the ring and the
-// pass count start over and the Gate drops the worker's bindings. Entering
-// Ready and Down set and clear the Gate's ready flag. Entering Warming or
-// Down also runs the OnNotReady hook.
+// pass count start over, and for a worker that reports no process start
+// the Gate drops the worker's bindings too. Entering Ready and Down set and
+// clear the Gate's ready flag. Entering Warming or Down also runs the
+// OnNotReady hook.
 func (f *Fleet) move(m *member, e event) {
 	next := step(m.st.Phase, e)
 	if next == m.st.Phase {
@@ -275,7 +280,9 @@ func (f *Fleet) move(m *member, e event) {
 	case Warming:
 		m.ring = nil
 		m.passes = 0
-		f.g.Restarted(m.name)
+		if !m.startKnown {
+			f.g.Restarted(m.name)
+		}
 	case Ready:
 		f.g.SetReady(m.name, true)
 	case Down:
@@ -300,6 +307,7 @@ func (f *Fleet) scrapeOf(m *member, now time.Time) Scrape {
 	}
 	return Scrape{
 		At:            now,
+		Started:       cur.Started,
 		KVPoolTokens:  cur.KVPoolTokens,
 		KVUsage:       cur.KVUsage,
 		TTFTp50S:      Quantile(cur.TTFT, prev, 0.5),

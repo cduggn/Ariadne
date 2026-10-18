@@ -3,12 +3,14 @@ package fleet
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"math"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/cduggn/ariadne/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/state"
 )
 
 // TenantLimit is one tenant's token bucket shape. Burst is the bucket's
@@ -22,7 +24,9 @@ type TenantLimit struct {
 // tenant name to its limit, and the key "*" is the shared bucket for every
 // tenant not listed. ReserveGrace is how far before a scrape a reservation
 // still counts, because a scrape may not yet reflect a request dispatched
-// just before it. RunTTL is how long an idle run keeps its binding.
+// just before it. RunTTL is how long an idle run keeps its binding. Store
+// keeps the run table, the tenant balances and the worker identities across
+// restarts; nil keeps them in memory only.
 type Config struct {
 	Pods         []string
 	MaxInflight  int
@@ -35,6 +39,7 @@ type Config struct {
 	Tenants      map[string]TenantLimit
 	ReserveGrace time.Duration
 	RunTTL       time.Duration
+	Store        state.Store
 }
 
 // maxRequestTokens is the largest context plus output, 32768 tokens.
@@ -69,9 +74,11 @@ func DefaultConfig(pods []string) Config {
 
 // Scrape is one worker's telemetry as the scraper read it. At is the time
 // of the read, which the Gate uses for the worker's Age and for deciding
-// which reservations the scrape already reflects.
+// which reservations the scrape already reflects. Started is the worker's
+// process start, zero when the worker does not report one.
 type Scrape struct {
 	At            time.Time
+	Started       time.Time
 	KVPoolTokens  int
 	KVUsage       float64
 	TTFTp50S      float64
@@ -89,14 +96,16 @@ type reservation struct {
 }
 
 // podState is one worker as the Gate tracks it. Every field is guarded by
-// Gate.mu. boot counts restarts, so a run binding carries the boot it was
-// made under and is void once the worker restarts. meanServiceS is an EWMA
-// with alpha 0.2 and is 0 until the first sample.
+// Gate.mu. started is the worker's identity, its process start as the
+// worker reports it, or the time the fleet saw it restart when it reports
+// none. A run binding carries the started it was made under and is void
+// once it differs. meanServiceS is an EWMA with alpha 0.2 and is 0 until
+// the first sample.
 type podState struct {
 	scrape       Scrape
 	scraped      bool
 	ready        bool
-	boot         uint64
+	started      time.Time
 	reservations []reservation
 	meanServiceS float64
 }
@@ -133,13 +142,23 @@ func (p *podState) observeService(latency time.Duration) {
 	p.meanServiceS = 0.2*s + 0.8*p.meanServiceS
 }
 
+// restart is what a worker coming back as a new process owes the Gate:
+// its reservations are gone with the requests behind them, it is not ready
+// until warm-up says so, and every binding made under the old started is
+// void once started changes.
+func (p *podState) restart(started time.Time) {
+	p.started = started
+	p.ready = false
+	p.reservations = nil
+}
+
 // run is one agent run's binding and the usage vLLM reported for its last
-// settled step. boot is the worker's boot when the binding was made.
+// settled step. started is the worker's started when the binding was made.
 type run struct {
-	pod   string
-	boot  uint64
-	usage decide.RunUsage
-	seen  time.Time
+	pod     string
+	started time.Time
+	usage   decide.RunUsage
+	seen    time.Time
 }
 
 // bucket is one tenant's token bucket. It refills lazily on every read,
@@ -211,7 +230,9 @@ type Outcome struct {
 // reservations, the run table and the tenant buckets, all under one mutex,
 // and the Queue behind them. The mutex may be held while reading the queue's
 // Depth, and is never held while waiting in Acquire. The queue never calls
-// back into the Gate.
+// back into the Gate. Memory is authoritative: every mutation is written
+// through to the store as one batch before the lock is released, and a
+// store that fails is logged and left behind.
 type Gate struct {
 	mu      sync.Mutex
 	cfg     Config
@@ -222,13 +243,20 @@ type Gate struct {
 	runs    map[decide.RunID]*run
 	buckets map[string]*bucket
 	seq     uint64
+	store   state.Store
+	batch   state.Batch
 }
 
-// NewGate builds a Gate and its Queue from cfg. now is the clock and rnd
-// the random source for PolicyP2C. Every configured tenant starts with a
-// full bucket. When cfg has no "*" tenant, unlisted tenants share an empty
-// bucket and are refused.
+// NewGate builds a Gate and its Queue from cfg, loading what cfg.Store kept.
+// now is the clock and rnd the random source for PolicyP2C. A configured
+// tenant starts with a full bucket, or with its kept balance capped at the
+// configured burst. When cfg has no "*" tenant, unlisted tenants share an
+// empty bucket and are refused. Kept runs idle past RunTTL are dropped, and
+// a store that fails to load is logged and the Gate starts empty.
 func NewGate(cfg Config, now func() time.Time, rnd func(int) int) *Gate {
+	if cfg.Store == nil {
+		cfg.Store = state.Memory{}
+	}
 	g := &Gate{
 		cfg:     cfg,
 		now:     now,
@@ -237,25 +265,47 @@ func NewGate(cfg Config, now func() time.Time, rnd func(int) int) *Gate {
 		pods:    make(map[string]*podState, len(cfg.Pods)),
 		runs:    make(map[decide.RunID]*run),
 		buckets: make(map[string]*bucket, len(cfg.Tenants)+1),
+		store:   cfg.Store,
+	}
+	kept, err := g.store.Load()
+	if err != nil {
+		slog.Error("state load failed, starting empty", "err", err)
+		kept = state.Snapshot{}
 	}
 	for _, name := range cfg.Pods {
-		g.pods[name] = &podState{}
+		p := &podState{}
+		if k, ok := kept.Pods[name]; ok {
+			p.started, p.meanServiceS = k.Started, k.MeanServiceS
+		}
+		g.pods[name] = p
 	}
 	start := now()
 	for name, lim := range cfg.Tenants {
-		g.buckets[name] = &bucket{tokens: lim.Burst, rate: lim.RatePerS, burst: lim.Burst, last: start}
+		b := &bucket{tokens: lim.Burst, rate: lim.RatePerS, burst: lim.Burst, last: start}
+		if k, ok := kept.Buckets[name]; ok {
+			b.tokens, b.last = math.Min(lim.Burst, k.Tokens), k.Last
+		}
+		g.buckets[name] = b
 	}
 	if _, ok := g.buckets["*"]; !ok {
 		g.buckets["*"] = &bucket{last: start}
 	}
+	cutoff := start.Add(-cfg.RunTTL)
+	for id, k := range kept.Runs {
+		if k.Seen.Before(cutoff) {
+			continue
+		}
+		g.runs[id] = &run{pod: k.Pod, started: k.Started, usage: k.Usage, seen: k.Seen}
+	}
 	return g
 }
 
-// Observe records a worker's scrape and prunes runs idle past RunTTL. An
-// unknown pod is ignored.
+// Observe records a worker's scrape and prunes runs idle past RunTTL. A
+// scrape whose Started differs from the one the Gate knows is a restarted
+// worker. An unknown pod is ignored.
 func (g *Gate) Observe(pod string, s Scrape) {
 	g.mu.Lock()
-	defer g.mu.Unlock()
+	defer g.commit()
 
 	p, ok := g.pods[pod]
 	if !ok {
@@ -263,11 +313,20 @@ func (g *Gate) Observe(pod string, s Scrape) {
 	}
 	p.scrape = s
 	p.scraped = true
+	if !s.Started.IsZero() && !s.Started.Equal(p.started) {
+		if p.started.IsZero() {
+			p.started = s.Started
+		} else {
+			p.restart(s.Started)
+		}
+		g.putPod(pod)
+	}
 
 	cutoff := g.now().Add(-g.cfg.RunTTL)
 	for id, r := range g.runs {
 		if r.seen.Before(cutoff) {
 			delete(g.runs, id)
+			g.batch.DropRuns = append(g.batch.DropRuns, id)
 		}
 	}
 }
@@ -283,21 +342,18 @@ func (g *Gate) SetReady(pod string, ready bool) {
 	}
 }
 
-// Restarted records that a worker came back from a Down period. Its boot
-// advances, so every run bound under the old boot is unbound, its
-// reservations are cleared because the requests behind them are gone, and
-// it stays not ready until warm-up says otherwise.
+// Restarted records that a worker that reports no process start came back
+// from a Down period. Its started moves to now, so every run bound under
+// the old one is unbound, its reservations are cleared because the requests
+// behind them are gone, and it stays not ready until warm-up says otherwise.
 func (g *Gate) Restarted(pod string) {
 	g.mu.Lock()
-	defer g.mu.Unlock()
+	defer g.commit()
 
-	p, ok := g.pods[pod]
-	if !ok {
-		return
+	if p, ok := g.pods[pod]; ok {
+		p.restart(g.now())
+		g.putPod(pod)
 	}
-	p.boot++
-	p.ready = false
-	p.reservations = nil
 }
 
 // Admit decides, reserves and queues one request. It runs Pick under the
@@ -349,6 +405,7 @@ func (g *Gate) Admit(ctx context.Context, r decide.Request) (Decision, *Ticket, 
 	}
 
 	b.add(-float64(est))
+	g.putBucket(r.Tenant)
 	chosen := g.pods[p.Pod]
 	resID := r.ID
 	if resID == "" {
@@ -363,17 +420,19 @@ func (g *Gate) Admit(ctx context.Context, r decide.Request) (Decision, *Ticket, 
 			g.runs[r.Run] = existing
 		}
 		existing.pod = p.Pod
-		existing.boot = chosen.boot
+		existing.started = chosen.started
 		existing.seen = start
+		g.putRun(r.Run)
 	}
-	g.mu.Unlock()
+	g.commit()
 
 	slot, err := g.queue.Acquire(ctx, p.Pod, r.Priority, r.Deadline)
 	if err != nil {
 		g.mu.Lock()
 		g.bucketFor(r.Tenant).add(float64(est))
+		g.putBucket(r.Tenant)
 		chosen.unreserve(resID)
-		g.mu.Unlock()
+		g.commit()
 
 		var refusal *Refusal
 		if errors.As(err, &refusal) {
@@ -418,19 +477,14 @@ func (g *Gate) Settle(t *Ticket, o Outcome, bodyBytes int) {
 	b.refill(now)
 	if o.OK {
 		b.add(float64(t.est - o.PromptTokens - o.CompletionTokens))
-		if existing, ok := g.runs[t.run]; ok && t.run != "" {
-			existing.usage = decide.RunUsage{
-				PromptTokens:     o.PromptTokens,
-				CompletionTokens: o.CompletionTokens,
-				BodyBytes:        bodyBytes,
-			}
-			existing.seen = now
-		}
+		g.recordUsage(t.run, o, bodyBytes, now)
 		p.observeService(o.Latency)
+		g.putPod(t.pod)
 	} else {
 		b.add(float64(t.est))
 	}
-	g.mu.Unlock()
+	g.putBucket(t.tenant)
+	g.commit()
 
 	t.slot.Release()
 }
@@ -448,10 +502,11 @@ func (g *Gate) TenantTokens(tenant string) float64 {
 // SetTenantTokensForTest overwrites a tenant's bucket. Tests only.
 func (g *Gate) SetTenantTokensForTest(tenant string, tokens float64) {
 	g.mu.Lock()
-	defer g.mu.Unlock()
+	defer g.commit()
 	b := g.bucketFor(tenant)
 	b.refill(g.now())
 	b.tokens = tokens
+	g.putBucket(tenant)
 }
 
 // OffboxTicket is one overflowed request's charge against its tenant. Only
@@ -471,7 +526,7 @@ type OffboxTicket struct {
 // could spend the backend's tokens without limit whenever the box is full.
 func (g *Gate) ChargeOffbox(r decide.Request) (*OffboxTicket, bool) {
 	g.mu.Lock()
-	defer g.mu.Unlock()
+	defer g.commit()
 	var prior *decide.RunUsage
 	if r.Run != "" {
 		if existing, ok := g.runs[r.Run]; ok {
@@ -486,6 +541,7 @@ func (g *Gate) ChargeOffbox(r decide.Request) (*OffboxTicket, bool) {
 		return nil, false
 	}
 	b.add(-float64(est))
+	g.putBucket(r.Tenant)
 	return &OffboxTicket{run: r.Run, tenant: r.Tenant, est: est}, true
 }
 
@@ -497,7 +553,7 @@ func (g *Gate) SettleOffbox(t *OffboxTicket, o Outcome, bodyBytes int) {
 		return
 	}
 	g.mu.Lock()
-	defer g.mu.Unlock()
+	defer g.commit()
 	if t.settled {
 		return
 	}
@@ -507,13 +563,28 @@ func (g *Gate) SettleOffbox(t *OffboxTicket, o Outcome, bodyBytes int) {
 	b.refill(now)
 	if !o.OK {
 		b.add(float64(t.est))
+	} else {
+		b.add(float64(t.est - o.PromptTokens - o.CompletionTokens))
+		g.recordUsage(t.run, o, bodyBytes, now)
+	}
+	g.putBucket(t.tenant)
+}
+
+// recordUsage keeps a settled step's usage on its run, for the next step's
+// estimate. A request without a run, or whose run has been pruned, records
+// nothing. It must be called under the lock.
+func (g *Gate) recordUsage(id decide.RunID, o Outcome, bodyBytes int, now time.Time) {
+	existing, ok := g.runs[id]
+	if !ok || id == "" {
 		return
 	}
-	b.add(float64(t.est - o.PromptTokens - o.CompletionTokens))
-	if existing, ok := g.runs[t.run]; ok && t.run != "" {
-		existing.usage = decide.RunUsage{PromptTokens: o.PromptTokens, CompletionTokens: o.CompletionTokens, BodyBytes: bodyBytes}
-		existing.seen = now
+	existing.usage = decide.RunUsage{
+		PromptTokens:     o.PromptTokens,
+		CompletionTokens: o.CompletionTokens,
+		BodyBytes:        bodyBytes,
 	}
+	existing.seen = now
+	g.putRun(id)
 }
 
 // View returns the per-worker states Admit would build right now, in
@@ -532,25 +603,76 @@ func (g *Gate) Bound(id decide.RunID) string {
 	return g.boundPod(id)
 }
 
+// Close releases the store. The Gate must not be used after it.
+func (g *Gate) Close() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.store.Close()
+}
+
 // boundPod is Bound under the lock.
 func (g *Gate) boundPod(id decide.RunID) string {
 	r, ok := g.runs[id]
 	if !ok {
 		return ""
 	}
-	if p, ok := g.pods[r.pod]; !ok || p.boot != r.boot {
+	if p, ok := g.pods[r.pod]; !ok || !p.started.Equal(r.started) {
 		return ""
 	}
 	return r.pod
 }
 
-// bucketFor returns the tenant's own bucket, or the shared "*" bucket for
-// a tenant not in cfg.Tenants. It must be called under the lock.
-func (g *Gate) bucketFor(tenant string) *bucket {
-	if b, ok := g.buckets[tenant]; ok {
-		return b
+// bucketName is the key of the bucket a tenant charges: its own, or "*"
+// for a tenant not in cfg.Tenants.
+func (g *Gate) bucketName(tenant string) string {
+	if _, ok := g.buckets[tenant]; ok {
+		return tenant
 	}
-	return g.buckets["*"]
+	return "*"
+}
+
+// bucketFor returns the tenant's bucket. It must be called under the lock.
+func (g *Gate) bucketFor(tenant string) *bucket {
+	return g.buckets[g.bucketName(tenant)]
+}
+
+// putBucket, putRun and putPod stage an entry's current value for the
+// store. They must be called under the lock, after the change.
+func (g *Gate) putBucket(tenant string) {
+	name := g.bucketName(tenant)
+	b := g.buckets[name]
+	if g.batch.Buckets == nil {
+		g.batch.Buckets = make(map[string]state.Bucket)
+	}
+	g.batch.Buckets[name] = state.Bucket{Tokens: b.tokens, Last: b.last}
+}
+
+func (g *Gate) putRun(id decide.RunID) {
+	r := g.runs[id]
+	if g.batch.Runs == nil {
+		g.batch.Runs = make(map[decide.RunID]state.Run)
+	}
+	g.batch.Runs[id] = state.Run{Pod: r.pod, Started: r.started, Usage: r.usage, Seen: r.seen}
+}
+
+func (g *Gate) putPod(name string) {
+	p := g.pods[name]
+	if g.batch.Pods == nil {
+		g.batch.Pods = make(map[string]state.Pod)
+	}
+	g.batch.Pods[name] = state.Pod{Started: p.started, MeanServiceS: p.meanServiceS}
+}
+
+// commit writes the staged batch through to the store and releases the
+// lock. A store that fails is logged; memory stays authoritative.
+func (g *Gate) commit() {
+	if !g.batch.Empty() {
+		if err := g.store.Apply(g.batch); err != nil {
+			slog.Error("state apply failed", "err", err)
+		}
+		g.batch = state.Batch{}
+	}
+	g.mu.Unlock()
 }
 
 // workerStates builds one WorkerState per configured pod at now. A worker
