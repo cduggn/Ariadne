@@ -136,7 +136,7 @@ probes:
 LOG_SINCE ?= 6h
 gateway-log:
 	@mkdir -p metrics
-	$(REMOTE) kubectl logs deployment/gateway --since=$(LOG_SINCE) > metrics/gateway-log-$(TAG)-$(STAMP).jsonl
+	$(REMOTE) kubectl logs statefulset/gateway --since=$(LOG_SINCE) > metrics/gateway-log-$(TAG)-$(STAMP).jsonl
 	@wc -l metrics/gateway-log-$(TAG)-$(STAMP).jsonl
 
 # The verdicts for F43 (client-gone), F45 (hop) and F44 (ramp), from the newest events and gateway log for TAG.
@@ -283,9 +283,10 @@ gateway:
 	cp deploy/k8s/gateway.yaml $(GWBUILD)/
 	lam push $(GWBUILD)/ '~/gateway/' --delete
 	$(REMOTE) "kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
+	  kubectl delete deployment gateway --ignore-not-found && \
 	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
-	  kubectl set env deployment/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) GW_OVERFLOW=$(if $(filter 1,$(OVERFLOW)),true,false) $(GWENV) && \
-	  kubectl rollout restart deployment/gateway && kubectl rollout status deployment/gateway --timeout=5m"
+	  kubectl set env statefulset/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) GW_OVERFLOW=$(if $(filter 1,$(OVERFLOW)),true,false) $(GWENV) && \
+	  kubectl rollout restart statefulset/gateway && kubectl rollout status statefulset/gateway --timeout=5m"
 
 tunnel:
 	@eval "$$(lam env $(NAME))" && echo "localhost:$(PORT) → $(TUNNEL) via $$LAMBDA (Ctrl-C to close)" && \

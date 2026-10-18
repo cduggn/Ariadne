@@ -1,7 +1,8 @@
-# Gateway state backend: in-memory by default, RocksDB per shard for more than one replica
+# Gateway state backend: in-memory by default, pebble per shard for more than one replica
 
-Status: plan, not built. Companion to D-53 (overflow) and the "one replica, because the run
-table lives in memory" line in `design/decisions.md`.
+Status: phases 1 and 2 built on 2026-10-18 (`gateway/internal/state`, `--state pebble`);
+phase 3 is a plan. Companion to D-53 (overflow) and the "one replica, because the run table
+lives in memory" line in `design/decisions.md`.
 
 ## What RocksDB does and does not buy
 
@@ -24,7 +25,7 @@ store works.
 |---|---|---|
 | Tenant buckets: `bucket`, `Gate.buckets`, `bucketFor`, charge in Admit, correction in Settle, off-box charge and settle | `gateway/internal/fleet/gate.go` | 149-167, 223, 332-351, 417-431, 472-516, 547-554 |
 | Run table: `run`, `Gate.runs`, TTL prune in Observe, bind in Admit, usage in Settle and SettleOffbox, `boundPod` | `gateway/internal/fleet/gate.go` | 138-143, 222, 267-272, 359-368, 421-428, 513-516, 536-545 |
-| Per-worker gateway-side state: `podState` (scrape, ready, boot, reservations, meanServiceS), `Restarted`, `workerStates` | `gateway/internal/fleet/gate.go` | 95-134, 290-301, 561-589 |
+| Per-worker gateway-side state: `podState` (scrape, ready, started, reservations, meanServiceS), `Restarted`, `workerStates` | `gateway/internal/fleet/gate.go` | 95-134, 290-301, 561-589 |
 | Per-worker queue: `Queue`, `worker` (inFlight, lanes), `waiter`, `Slot` | `gateway/internal/fleet/queue.go` | 37-83 |
 | Scraper and warm-up: `member` (phase, ring, passes), `Fleet` | `gateway/internal/fleet/worker.go` | 104-147 |
 | Hop permits: `Hopper.slots` | `gateway/internal/hop/hopper.go` | 42, 59 |
@@ -35,11 +36,11 @@ store works.
 
 ## What is persisted, what is divided, what stays local
 
-| State | Multi-replica treatment | Persisted in RocksDB |
+| State | Multi-replica treatment | Persisted in pebble |
 |---|---|---|
 | Run table | Sharded by run id. Owner replica only. | Yes |
 | Tenant buckets | Divided: each replica gets rate/N and burst/N. | Yes (the replica's share) |
-| Pod boot, mean service EWMA | Replica-local, but kept across restart | Yes |
+| Pod process start, mean service EWMA | Replica-local, but kept across restart | Yes |
 | Reservations | Replica-local. Never persisted: the requests behind them die with the process. | No |
 | Queue, waiters, in-flight | Replica-local. max_inflight/N and max_queued/N per replica. The scrape is the truth for the worker's real load across replicas. | No |
 | Scrape, ready, warm-up ring | Replica-local, rebuilt within one scrape window | No |
@@ -52,18 +53,19 @@ Every flag keeps the `GW_<NAME>` environment default. A gateway started with no 
 behaves exactly as today.
 
 ```
---state memory|rocksdb   GW_STATE       default memory
---state-dir PATH         GW_STATE_DIR   rocksdb only, the RocksDB directory
---shard I/N              GW_SHARD       default 0/1: this replica owns every run
---peers pod=url,...      GW_PEERS       required when N > 1 unless the ingress hashes on the request id
+--state memory|pebble    GW_STATE       default memory
+--state-dir PATH         GW_STATE_DIR   pebble only, the store's directory
+--shard I/N              GW_SHARD       phase 3. default 0/1: this replica owns every run
+--peers pod=url,...      GW_PEERS       phase 3. required when N > 1 unless the ingress hashes on the request id
 ```
 
-Single instance is the default and needs nothing. `--state rocksdb --shard 0/1` is a single
+Single instance is the default and needs nothing. `--state pebble` alone is a single
 instance that survives restarts, useful on its own for rolling deploys. `--shard` with
 N > 1 divides quota and worker slots and turns on forwarding.
 
-Under Kubernetes the gateway becomes a StatefulSet with one PVC per replica for the state
-directory, `GW_SHARD` built from the pod ordinal in the hostname and the replica count.
+Under Kubernetes the gateway is a StatefulSet with one PVC per replica for the state
+directory (`deploy/k8s/gateway.yaml`, `GW_STATE=pebble`, `GW_STATE_DIR=/var/lib/gateway`).
+Phase 3 builds `GW_SHARD` from the pod ordinal in the hostname and the replica count.
 
 ## Phase 1: extract the state behind an interface, behavior unchanged
 
@@ -103,27 +105,30 @@ anything not persisted.
 Tests: `gate_test.go` becomes table-driven over the store constructors. The memory
 constructor keeps every existing test green.
 
-## Phase 2: the RocksDB store
+## Phase 2: the pebble store
 
-Library: `github.com/cockroachdb/pebble`, CockroachDB's pure-Go RocksDB. Same LSM design,
-bidirectionally compatible file format, WriteBatch and WAL semantics, no cgo, so the static
-distroless multi-arch build stays as it is. Decided 2026-10-18. `github.com/linxGnu/grocksdb`
-(cgo, librocksdb in the image, cross C toolchain) is not planned; it could sit behind a
-`rocksdb_cgo` build tag later if librocksdb itself ever becomes a requirement.
+Library: `github.com/cockroachdb/pebble/v2` v2.1.7, CockroachDB's pure-Go RocksDB. Same
+LSM design, WriteBatch and WAL semantics, no cgo, so the static distroless multi-arch build
+stays as it is. Decided 2026-10-18. `github.com/linxGnu/grocksdb` (cgo, librocksdb in the
+image, cross C toolchain) is not planned; it could sit behind a `rocksdb_cgo` build tag
+later if librocksdb itself ever becomes a requirement.
 
-Layout: one DB, key prefixes `b/<tenant>`, `r/<run id>`, `p/<pod>`, values encoded with
-`encoding/binary` behind a one-byte version. `Apply` is one WriteBatch. Writes use
-`Sync: false`: a crash may lose the last few milliseconds of quota and binding updates,
-which is acceptable for soft state, and avoids an fsync per request. `Load` is one
-prefix iteration per key family and prunes runs idle past RunTTL.
+Layout (`gateway/internal/state/pebble.go`): one DB, key prefixes `b/<tenant>`, `r/<run id>`,
+`p/<pod>`, values one format byte then JSON. `Apply` is one pebble Batch committed with
+`NoSync`: a crash may lose the last few milliseconds of quota and binding updates, which is
+acceptable for soft state, and avoids an fsync per request. `Load` is one bounded prefix
+iteration per key family; an entry that fails to decode is reported and the rest is used.
+`NewGate` prunes kept runs idle past RunTTL and caps a kept balance at the configured burst.
+Pebble's own log lines go to the gateway's slog logger at debug level.
 
-**Worker identity.** Today `Restarted` runs on every Down to Warming transition, including
-the first one at gateway start, and bumps a replica-local `boot` counter. After a restart
-every persisted binding would be void, which defeats the point. Replace the counter with
-an identity the worker reports: `process_start_time_seconds` from vLLM's `/metrics`
-(`fakevllm` emits it too). `run.boot` becomes `run.workerStart time.Time`, `Restarted`
-runs when the scraped start time changes, and the hop's engine id handling already follows
-the same rule.
+**Worker identity.** Before this change `Restarted` ran on every Down to Warming transition,
+including the first one at gateway start, and bumped a replica-local `boot` counter. After a
+restart every persisted binding would have been void, which defeats the point. The identity
+is now the one the worker reports: `process_start_time_seconds` from vLLM's `/metrics`, which
+every real body captured in `metrics/` carries, and which `fakevllm` emits too. `podState.started`
+and `run.started` are that time; `Observe` voids bindings, clears reservations and waits for
+warm-up when it changes, and a scrape outage with the same start keeps them. A worker that
+reports no start keeps the old rule: `Restarted` moves its start to now on each Warming entry.
 
 ## Redundancy: replication sits above the embedded store
 
