@@ -4,10 +4,10 @@ Status: phases 1 and 2 built on 2026-10-18 (`gateway/internal/state`, `--state p
 phase 3 is a plan. Companion to D-53 (overflow) and the "one replica, because the run table
 lives in memory" line in `design/decisions.md`.
 
-## What RocksDB does and does not buy
+## What an embedded store does and does not buy
 
-RocksDB is an embedded store: one process, one directory. It does not share state between
-gateway replicas. What it gives a replica is a durable, crash-safe copy of its own state,
+RocksDB, and pebble with it, is an embedded store. One process owns one directory. It does
+not share state between gateway replicas. What it gives a replica is a durable, crash-safe copy of its own state,
 so the replica can be rolled, rescheduled or restarted without losing run bindings and
 tenant quota. Distribution comes from **ownership**: each run id (and the quota that run
 spends) is owned by exactly one replica, chosen by a stable hash, and that replica is the
@@ -90,10 +90,10 @@ type Snapshot struct {
 }
 
 type Batch struct {
-    PutBuckets map[string]Bucket
-    PutRuns    map[decide.RunID]Run
-    DelRuns    []decide.RunID
-    PutPods    map[string]Pod
+    Buckets  map[string]Bucket
+    Runs     map[decide.RunID]Run
+    DropRuns []decide.RunID
+    Pods     map[string]Pod
 }
 ```
 
@@ -107,16 +107,16 @@ constructor keeps every existing test green.
 
 ## Phase 2: the pebble store
 
-Library: `github.com/cockroachdb/pebble/v2` v2.1.7, CockroachDB's pure-Go RocksDB. Same
-LSM design, WriteBatch and WAL semantics, no cgo, so the static distroless multi-arch build
-stays as it is. Decided 2026-10-18. `github.com/linxGnu/grocksdb` (cgo, librocksdb in the
+The library is `github.com/cockroachdb/pebble/v2` v2.1.7, CockroachDB's pure-Go RocksDB.
+It has the same LSM design, WriteBatch and WAL semantics, and no cgo, so the static
+distroless multi-arch build stays as it is. Decided 2026-10-18. `github.com/linxGnu/grocksdb` (cgo, librocksdb in the
 image, cross C toolchain) is not planned; it could sit behind a `rocksdb_cgo` build tag
 later if librocksdb itself ever becomes a requirement.
 
-Layout (`gateway/internal/state/pebble.go`): one DB, key prefixes `b/<tenant>`, `r/<run id>`,
-`p/<pod>`, values one format byte then JSON. `Apply` is one pebble Batch committed with
-`NoSync`: a crash may lose the last few milliseconds of quota and binding updates, which is
-acceptable for soft state, and avoids an fsync per request. `Load` is one bounded prefix
+The layout in `gateway/internal/state/pebble.go` is one DB with the key prefixes `b/<tenant>`,
+`r/<run id>` and `p/<pod>`, and values of one format byte then JSON. `Apply` is one pebble
+Batch committed with `NoSync`. A crash may lose the last few milliseconds of quota and binding
+updates, which is acceptable for soft state, and the gateway avoids an fsync per request. `Load` is one bounded prefix
 iteration per key family; an entry that fails to decode is reported and the rest is used.
 `NewGate` prunes kept runs idle past RunTTL and caps a kept balance at the configured burst.
 Pebble's own log lines go to the gateway's slog logger at debug level.
@@ -133,23 +133,24 @@ reports no start keeps the old rule: `Restarted` moves its start to now on each 
 ## Redundancy: replication sits above the embedded store
 
 An embedded store is redundant the way RocksDB is redundant under CockroachDB, TiKV and
-Kafka Streams: the write stream is replicated between processes, never the store itself.
-Three levels, cheapest first.
+Kafka Streams. The owners replicate the write stream between processes, never the store
+itself. There are three levels, cheapest first.
 
-1. **Reattached disk.** StatefulSet, one PVC per replica. A crashed pod reschedules and
-   reopens its directory. Nothing lost, no availability during the gap. Free with phase 2.
-2. **Standby mirror, async.** Chosen. The owner of shard i commits each `Batch` locally and
+1. **Reattached disk.** A StatefulSet with one PVC per replica. A crashed pod reschedules
+   and reopens its directory. Nothing is lost, and nothing is served during the gap. This
+   comes free with phase 2.
+2. **Standby mirror, async.** This is the chosen level. The owner of shard i commits each `Batch` locally and
    streams it to its successor, shard i+1 mod N, which applies it under a `s/<shard>/`
    prefix in its own pebble directory. When owner i is unreachable, the forwarder in
    phase 3 sends shard i's requests to i+1, which promotes the mirror and serves from it.
    When i returns it reloads from i+1 and takes the shard back. Lag is bounded by one
    in-cluster round trip, which matches the `Sync: false` loss window already accepted.
-   Reuses `Apply(Batch)` and `--peers`. Kafka Streams' standby-task model.
+   It reuses `Apply(Batch)` and `--peers`. This is Kafka Streams' standby-task model.
 3. **Raft per shard.** Dragonboat with pebble as the log store, buckets and runs as the
-   replicated state machine, three copies, leader failover with no loss. Exact and heavy.
-   Behind the same `Store` interface if a tenant SLA ever requires exact quota.
+   replicated state machine, three copies, leader failover with no loss. It is exact and
+   heavy. It sits behind the same `Store` interface if a tenant SLA ever requires exact quota.
 
-Level 2 is enough because the state is soft: a lost binding costs one recompute, a lost
+Level 2 is enough because the state is soft. A lost binding costs one recompute, and a lost
 bucket refills within seconds.
 
 ## Phase 3: ownership and forwarding for N > 1
@@ -162,7 +163,6 @@ bucket refills within seconds.
   override the share for uneven fleets.
 - A replica joining or leaving changes N and reshuffles ownership. Runs owned by the wrong
   replica for one RunTTL recompute once. No migration is needed.
-
 - Each owner mirrors its batches to its successor, as in the redundancy section. Failover
   is the forwarder's retry to i+1 after a failed call to i.
 
