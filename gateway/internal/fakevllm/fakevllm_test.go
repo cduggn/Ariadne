@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cduggn/ariadne/gateway/internal/fleet"
 )
@@ -145,6 +146,24 @@ func TestMetricsAndStatusFollowSettings(t *testing.T) {
 	}
 	if !s.OK || s.KVUsage != 0.42 || s.Waiting != 3 || s.KVPoolTokens != 79056 {
 		t.Fatalf("sample = %+v, want KV 0.42, waiting 3, pool 79056", s)
+	}
+	if s.Started.IsZero() || time.Since(s.Started) > time.Minute {
+		t.Fatalf("Started = %v, want the worker's start", s.Started)
+	}
+
+	restarted := time.Date(2026, 10, 18, 12, 0, 0, 250_000_000, time.UTC)
+	w.Set(func(s *Settings) { s.Started = restarted })
+	resp, err = http.Get(srv.URL + "/metrics")
+	if err != nil {
+		t.Fatalf("GET /metrics error = %v", err)
+	}
+	s, err = fleet.ParseMetrics(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatalf("ParseMetrics error = %v", err)
+	}
+	if !s.Started.Equal(restarted) {
+		t.Fatalf("Started = %v after a restart, want %v", s.Started, restarted)
 	}
 
 	w.Set(func(s *Settings) { s.Status = http.StatusInternalServerError; s.MetricsDown = true })

@@ -212,11 +212,13 @@ func TestSlowOrFailingProbeKeepsWorkerWarming(t *testing.T) {
 	}
 }
 
-func TestOutageMarksDownAndRecoveryRestarts(t *testing.T) {
-	fake := newFakeVLLM(t)
-	g, f := startFleet(t, fake, fastWorkerConfig())
-	eventually(t, "phase ready", func() bool { return status(f).Phase == Ready })
+// startLine is the fixture's process start metric. A fixture without it
+// plays a worker the fleet can only tell restarts of by phase.
+const startLine = "process_start_time_seconds 1.79128655187e+09"
 
+// bindRun1 admits and settles one step of run1 so it is bound to vllm-0.
+func bindRun1(t *testing.T, g *Gate) {
+	t.Helper()
 	now := time.Now()
 	_, tk := mustAdmit(t, g, decide.Request{
 		ID:        "run1-s1",
@@ -233,7 +235,12 @@ func TestOutageMarksDownAndRecoveryRestarts(t *testing.T) {
 	if got := g.Bound("run1"); got != "vllm-0" {
 		t.Fatalf("Bound(run1) = %q, want vllm-0", got)
 	}
+}
 
+// outage takes the fake's metrics away until the worker is Down, then
+// brings them back as body.
+func outage(t *testing.T, fake *fakeVLLM, g *Gate, f *Fleet, body string) {
+	t.Helper()
 	fake.set(func(f *fakeVLLM) { f.metricsFail = true })
 	eventually(t, "phase down", func() bool { return status(f).Phase == Down })
 	if readyOf(t, g, "vllm-0") {
@@ -242,8 +249,57 @@ func TestOutageMarksDownAndRecoveryRestarts(t *testing.T) {
 	if got := g.Bound("run1"); got != "vllm-0" {
 		t.Fatalf("Bound(run1) = %q during outage, want vllm-0 until a restart", got)
 	}
+	fake.set(func(f *fakeVLLM) { f.metricsFail, f.metrics = false, body })
+}
 
-	fake.set(func(f *fakeVLLM) { f.metricsFail = false })
+func TestOutageWithTheSameProcessStartKeepsBindings(t *testing.T) {
+	fake := newFakeVLLM(t)
+	g, f := startFleet(t, fake, fastWorkerConfig())
+	eventually(t, "phase ready", func() bool { return status(f).Phase == Ready })
+	bindRun1(t, g)
+
+	outage(t, fake, g, f, vllmMetrics)
+	eventually(t, "restart counted", func() bool { return status(f).Restarts == 2 })
+	if st := status(f); st.Phase == Down {
+		t.Fatalf("Phase = %s after recovery, want warming or ready", st.Phase)
+	}
+	if got := g.Bound("run1"); got != "vllm-0" {
+		t.Fatalf("Bound(run1) = %q after a scrape outage, want vllm-0: the process never restarted", got)
+	}
+
+	restarted := strings.Replace(vllmMetrics, startLine, "process_start_time_seconds 1.79128700000e+09", 1)
+	outage(t, fake, g, f, restarted)
+	eventually(t, "binding void", func() bool { return g.Bound("run1") == "" })
+	eventually(t, "phase ready again", func() bool { return status(f).Phase == Ready })
+}
+
+func TestNewProcessStartWhileReadyRewarmsAndVoidsBindings(t *testing.T) {
+	fake := newFakeVLLM(t)
+	g, f := startFleet(t, fake, fastWorkerConfig())
+	eventually(t, "phase ready", func() bool { return status(f).Phase == Ready })
+	bindRun1(t, g)
+
+	restarted := strings.Replace(vllmMetrics, startLine, "process_start_time_seconds 1.79128700000e+09", 1)
+	fake.set(func(f *fakeVLLM) { f.metrics = restarted })
+	eventually(t, "restart counted", func() bool { return status(f).Restarts == 2 })
+	if got := g.Bound("run1"); got != "" {
+		t.Fatalf("Bound(run1) = %q after a new process start, want void", got)
+	}
+	eventually(t, "phase ready again", func() bool { return status(f).Phase == Ready })
+	if !readyOf(t, g, "vllm-0") {
+		t.Fatal("gate ready = false after re-warm, want true")
+	}
+}
+
+func TestOutageWithoutAProcessStartIsARestart(t *testing.T) {
+	fake := newFakeVLLM(t)
+	withoutStart := strings.Replace(vllmMetrics, startLine, "", 1)
+	fake.set(func(f *fakeVLLM) { f.metrics = withoutStart })
+	g, f := startFleet(t, fake, fastWorkerConfig())
+	eventually(t, "phase ready", func() bool { return status(f).Phase == Ready })
+	bindRun1(t, g)
+
+	outage(t, fake, g, f, withoutStart)
 	eventually(t, "restart counted", func() bool { return status(f).Restarts == 2 })
 	if st := status(f); st.Phase == Down {
 		t.Fatalf("Phase = %s after recovery, want warming or ready", st.Phase)

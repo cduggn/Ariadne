@@ -27,6 +27,7 @@ import (
 	"github.com/cduggn/ariadne/gateway/internal/metrics"
 	"github.com/cduggn/ariadne/gateway/internal/overflow"
 	"github.com/cduggn/ariadne/gateway/internal/serve"
+	"github.com/cduggn/ariadne/gateway/internal/state"
 )
 
 const defaultWorkers = "vllm-0=http://vllm-0.vllm.default.svc.cluster.local:8000," +
@@ -42,6 +43,8 @@ func main() {
 	pool := flag.String("pool", env("pool", "sliced"), "pool label on the replica metrics")
 	sharedPrefix := flag.Int("shared-prefix-tokens", envInt("shared-prefix-tokens", 3899), "tokens every prompt shares, which split cached tokens into shared_hit and run_hit")
 	logLevel := flag.String("log-level", env("log-level", "info"), "log level: debug, info, warn or error")
+	stateMode := flag.String("state", env("state", "memory"), "where the run table, tenant balances and worker identities live: memory (lost on restart) or pebble (kept in --state-dir)")
+	stateDir := flag.String("state-dir", env("state-dir", ""), "directory for the pebble state store (required with --state pebble)")
 	hopCfg := hop.DefaultConfig
 	hopOn := flag.Bool("hop", envBool("hop", false), "copy a moved run's KV to its new worker through vLLM's MooncakeConnector (workers must run it)")
 	flag.IntVar(&hopCfg.MinTokens, "hop-min-tokens", envInt("hop-min-tokens", hopCfg.MinTokens), "shortest run history worth a hop, in tokens")
@@ -82,10 +85,15 @@ func main() {
 		fatal("read warm body: " + err.Error())
 	}
 	var level slog.Level
-	if err := level.UnmarshalText([]byte(*logLevel)); err != nil {
+	if err = level.UnmarshalText([]byte(*logLevel)); err != nil {
 		fatal("bad log level " + strconv.Quote(*logLevel))
 	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	slog.SetDefault(log)
+	store, err := openStore(*stateMode, *stateDir)
+	if err != nil {
+		fatal(err.Error())
+	}
 
 	pods := make([]string, 0, len(urls))
 	for pod := range urls {
@@ -96,6 +104,7 @@ func main() {
 	cfg.Policy = pick
 	cfg.MaxInflight = *maxInflight
 	cfg.MaxQueued = *maxQueued
+	cfg.Store = store
 	gate := fleet.NewGate(cfg, time.Now, rand.IntN)
 	workersLoop := fleet.NewFleet(gate, urls, fleet.DefaultWorkerConfig(warm), nil, time.Now)
 	m := metrics.New(gate, workersLoop, *pool, *sharedPrefix)
@@ -164,14 +173,32 @@ func main() {
 	}()
 
 	log.Info("gateway listening", "addr", *listen, "pods", pods, "policy", string(pick),
-		"max_inflight", *maxInflight, "max_queued", *maxQueued, "pool", *pool, "shared_prefix_tokens", *sharedPrefix)
+		"max_inflight", *maxInflight, "max_queued", *maxQueued, "pool", *pool, "shared_prefix_tokens", *sharedPrefix,
+		"state", *stateMode, "state_dir", *stateDir)
 	if err := httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		fatal("serve: " + err.Error())
 	}
 	stop()
 	<-fleetDone
 	<-overflowDone
+	if err := gate.Close(); err != nil {
+		log.Warn("close state", "err", err)
+	}
 	log.Info("gateway stopped")
+}
+
+// openStore builds the state store the --state flag names.
+func openStore(mode, dir string) (state.Store, error) {
+	switch mode {
+	case "memory":
+		return state.Memory{}, nil
+	case "pebble":
+		if dir == "" {
+			return nil, errors.New("--state pebble needs --state-dir")
+		}
+		return state.OpenPebble(dir)
+	}
+	return nil, errors.New("unknown state " + strconv.Quote(mode) + ", want memory or pebble")
 }
 
 // newHopper builds the KV hop over the workers, each reached for Mooncake on

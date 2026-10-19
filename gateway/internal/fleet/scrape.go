@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"time"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
@@ -27,14 +28,16 @@ type Histogram struct {
 
 // Sample is one worker's /metrics body reduced to what the Gate needs.
 // KVUsage is a 0 to 1 ratio. KVPoolTokens is the KV pool's capacity in
-// tokens, or 0 when vLLM did not export its cache config. OK is set only
-// when the body carried a KV usage metric, because without it the sample
-// says nothing about the worker's load.
+// tokens, or 0 when vLLM did not export its cache config. Started is the
+// worker's process start from process_start_time_seconds, zero when the
+// body has none. OK is set only when the body carried a KV usage metric,
+// because without it the sample says nothing about the worker's load.
 type Sample struct {
 	KVUsage      float64
 	KVPoolTokens int
 	Waiting      float64
 	TTFT         Histogram
+	Started      time.Time
 	OK           bool
 }
 
@@ -76,6 +79,9 @@ func ParseMetrics(r io.Reader) (s Sample, err error) {
 	}
 	if mf, ok := first(families, "vllm:time_to_first_token_seconds"); ok {
 		s.TTFT = histogram(mf)
+	}
+	if mf, ok := first(families, "process_start_time_seconds"); ok && len(mf.GetMetric()) > 0 {
+		s.Started = time.UnixMilli(int64(math.Round(value(mf.GetMetric()[0]) * 1000)))
 	}
 	return s, nil
 }

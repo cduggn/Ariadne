@@ -260,7 +260,7 @@ func (h *harness) restart(pod, engine string) {
 		}
 		return false
 	})
-	h.fakes[pod].Set(func(s *fakevllm.Settings) { s.MetricsDown, s.EngineID = false, engine })
+	h.fakes[pod].Set(func(s *fakevllm.Settings) { s.MetricsDown, s.EngineID, s.Started = false, engine, time.Now() })
 	h.allReady()
 }
 

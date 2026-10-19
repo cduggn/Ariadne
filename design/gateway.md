@@ -37,7 +37,8 @@ make demo               # laptop only: two fake vLLM processes, the gateway and 
 ```
 
 The doctor doesn't change. It keeps `--base-url http://127.0.0.1:8000/v1`. The gateway runs in the cluster as a
-one-replica Deployment with a ClusterIP Service on port 8000. Its image is a static binary on distroless, built for
+one-replica StatefulSet with a ClusterIP Service on port 8000 and a PersistentVolumeClaim for its pebble state
+(design/state-backend.md). Its image is a static binary on distroless, built for
 amd64 and arm64 by `gateway/Dockerfile` and pulled by digest from a public Docker Hub repository, so the node needs no
 registry credentials. (It first ran from a hostPath binary; that shortcut is ruled out by Pod Security baseline and by
 read-only nodes, so the image replaced it.) Its `prometheus.io/scrape`

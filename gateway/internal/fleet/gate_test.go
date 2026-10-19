@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cduggn/ariadne/gateway/internal/decide"
+	"github.com/cduggn/ariadne/gateway/internal/state"
 )
 
 // fakeClock is a settable clock. It starts at the real time so the queue,
@@ -37,9 +38,58 @@ func (c *fakeClock) advance(d time.Duration) {
 
 func zeroRnd(int) int { return 0 }
 
+// gateFactory builds a Gate on a fake clock over one store kind.
+type gateFactory func(cfg Config) (*Gate, *fakeClock)
+
+// newTestGate is the factory for a memory Gate, for tests outside the
+// per-store table.
 func newTestGate(cfg Config) (*Gate, *fakeClock) {
 	clk := newFakeClock()
 	return NewGate(cfg, clk.now, zeroRnd), clk
+}
+
+// stores builds each store kind in a fresh place per test.
+var stores = map[string]func(t *testing.T) state.Store{
+	"memory": func(*testing.T) state.Store { return state.Memory{} },
+	"pebble": func(t *testing.T) state.Store {
+		p, err := state.OpenPebble(t.TempDir())
+		if err != nil {
+			t.Fatalf("OpenPebble error = %v", err)
+		}
+		t.Cleanup(func() { p.Close() })
+		return p
+	},
+}
+
+// TestGateOnEveryStore runs each Gate test over each store kind, because
+// the Gate's behaviour must not depend on where its state is kept.
+func TestGateOnEveryStore(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func(t *testing.T, newGate gateFactory)
+	}{
+		{"NewRunLandsOnLessLoadedPodAndSticks", testNewRunLandsOnLessLoadedPodAndSticks},
+		{"DecisionNamesWhereAMovedRunLeftItsHistory", testDecisionNamesWhereAMovedRunLeftItsHistory},
+		{"UnusablePodsAreNeverPicked", testUnusablePodsAreNeverPicked},
+		{"ReservationsCountUntilSettledOrSuperseded", testReservationsCountUntilSettledOrSuperseded},
+		{"TenantBucketChargesAndRefunds", testTenantBucketChargesAndRefunds},
+		{"RestartBreaksBindingAndClearsReservations", testRestartBreaksBindingAndClearsReservations},
+		{"SecondAdmitWaitsForSettle", testSecondAdmitWaitsForSettle},
+		{"SettleTwiceIsNoOp", testSettleTwiceIsNoOp},
+		{"ConcurrentAdmitSettleLeavesNothingHeld", testConcurrentAdmitSettleLeavesNothingHeld},
+		{"ObservedProcessStartIsTheWorkersIdentity", testObservedProcessStartIsTheWorkersIdentity},
+	}
+	for kind, open := range stores {
+		for _, tc := range tests {
+			t.Run(kind+"/"+tc.name, func(t *testing.T) {
+				store := open(t)
+				tc.fn(t, func(cfg Config) (*Gate, *fakeClock) {
+					cfg.Store = store
+					return newTestGate(cfg)
+				})
+			})
+		}
+	}
 }
 
 // scrapeReady marks a pod ready with a fresh scrape of the given pool and
@@ -126,8 +176,8 @@ func assertPlaced(t *testing.T, d Decision, tk *Ticket, pod string, sticky decid
 	}
 }
 
-func TestNewRunLandsOnLessLoadedPodAndSticks(t *testing.T) {
-	g, clk := newTestGate(DefaultConfig([]string{"a", "b"}))
+func testNewRunLandsOnLessLoadedPodAndSticks(t *testing.T, newGate gateFactory) {
+	g, clk := newGate(DefaultConfig([]string{"a", "b"}))
 	scrapeReady(g, clk, "a", 100000, 0.5)
 	scrapeReady(g, clk, "b", 100000, 0.2)
 
@@ -153,8 +203,8 @@ func TestNewRunLandsOnLessLoadedPodAndSticks(t *testing.T) {
 	}
 }
 
-func TestDecisionNamesWhereAMovedRunLeftItsHistory(t *testing.T) {
-	g, clk := newTestGate(DefaultConfig([]string{"a", "b"}))
+func testDecisionNamesWhereAMovedRunLeftItsHistory(t *testing.T, newGate gateFactory) {
+	g, clk := newGate(DefaultConfig([]string{"a", "b"}))
 	scrapeReady(g, clk, "a", 100000, 0.5)
 	scrapeReady(g, clk, "b", 100000, 0.2)
 
@@ -182,8 +232,8 @@ func TestDecisionNamesWhereAMovedRunLeftItsHistory(t *testing.T) {
 	}
 }
 
-func TestUnusablePodsAreNeverPicked(t *testing.T) {
-	g, clk := newTestGate(DefaultConfig([]string{"a", "b", "c"}))
+func testUnusablePodsAreNeverPicked(t *testing.T, newGate gateFactory) {
+	g, clk := newGate(DefaultConfig([]string{"a", "b", "c"}))
 	g.SetReady("a", true)
 	g.Observe("b", Scrape{At: clk.now(), KVPoolTokens: 100000})
 
@@ -198,8 +248,8 @@ func TestUnusablePodsAreNeverPicked(t *testing.T) {
 	g.Settle(tk, Outcome{}, 7000)
 }
 
-func TestReservationsCountUntilSettledOrSuperseded(t *testing.T) {
-	g, clk := newTestGate(DefaultConfig([]string{"a", "b"}))
+func testReservationsCountUntilSettledOrSuperseded(t *testing.T, newGate gateFactory) {
+	g, clk := newGate(DefaultConfig([]string{"a", "b"}))
 	scrapeReady(g, clk, "a", 10000, 0)
 	scrapeReady(g, clk, "b", 10000, 0)
 	scrapedAt := clk.now()
@@ -229,13 +279,13 @@ func TestReservationsCountUntilSettledOrSuperseded(t *testing.T) {
 	assertReserved(t, g, "b", 0)
 }
 
-func TestTenantBucketChargesAndRefunds(t *testing.T) {
+func testTenantBucketChargesAndRefunds(t *testing.T, newGate gateFactory) {
 	cfg := DefaultConfig([]string{"a"})
 	cfg.Tenants = map[string]TenantLimit{
 		"platform": {RatePerS: 100, Burst: 5000},
 		"*":        {RatePerS: 10, Burst: 3000},
 	}
-	g, clk := newTestGate(cfg)
+	g, clk := newGate(cfg)
 	scrapeReady(g, clk, "a", 1000000, 0)
 
 	d := mustRefuse(t, g, request(clk, "big", "platform", 3500, 7000), 429, decide.ReasonTenantTokens)
@@ -268,8 +318,8 @@ func TestTenantBucketChargesAndRefunds(t *testing.T) {
 	g.Settle(tkX, Outcome{}, 3500)
 }
 
-func TestRestartBreaksBindingAndClearsReservations(t *testing.T) {
-	g, clk := newTestGate(DefaultConfig([]string{"a", "b"}))
+func testRestartBreaksBindingAndClearsReservations(t *testing.T, newGate gateFactory) {
+	g, clk := newGate(DefaultConfig([]string{"a", "b"}))
 	scrapeReady(g, clk, "a", 100000, 0.2)
 	scrapeReady(g, clk, "b", 100000, 0.5)
 
@@ -298,10 +348,10 @@ func TestRestartBreaksBindingAndClearsReservations(t *testing.T) {
 	assertReserved(t, g, "b", 0)
 }
 
-func TestSecondAdmitWaitsForSettle(t *testing.T) {
+func testSecondAdmitWaitsForSettle(t *testing.T, newGate gateFactory) {
 	cfg := DefaultConfig([]string{"a"})
 	cfg.MaxInflight = 1
-	g, clk := newTestGate(cfg)
+	g, clk := newGate(cfg)
 	scrapeReady(g, clk, "a", 1000000, 0)
 
 	d1, tk1 := mustAdmit(t, g, request(clk, "req-1", "platform", 7000, 768))
@@ -355,10 +405,10 @@ func TestSecondAdmitWaitsForSettle(t *testing.T) {
 	}
 }
 
-func TestSettleTwiceIsNoOp(t *testing.T) {
+func testSettleTwiceIsNoOp(t *testing.T, newGate gateFactory) {
 	cfg := DefaultConfig([]string{"a"})
 	cfg.Tenants = map[string]TenantLimit{"platform": {RatePerS: 100, Burst: 5000}}
-	g, clk := newTestGate(cfg)
+	g, clk := newGate(cfg)
 	scrapeReady(g, clk, "a", 1000000, 0)
 
 	dA, tkA := mustAdmit(t, g, request(clk, "A", "platform", 7000, 2000))
@@ -376,10 +426,10 @@ func TestSettleTwiceIsNoOp(t *testing.T) {
 	}
 }
 
-func TestConcurrentAdmitSettleLeavesNothingHeld(t *testing.T) {
+func testConcurrentAdmitSettleLeavesNothingHeld(t *testing.T, newGate gateFactory) {
 	cfg := DefaultConfig([]string{"a", "b"})
 	cfg.Tenants = map[string]TenantLimit{"platform": {RatePerS: 1000000, Burst: 1000000}}
-	g, clk := newTestGate(cfg)
+	g, clk := newGate(cfg)
 	scrapeReady(g, clk, "a", 1000000, 0)
 	scrapeReady(g, clk, "b", 1000000, 0)
 
@@ -409,4 +459,98 @@ func TestConcurrentAdmitSettleLeavesNothingHeld(t *testing.T) {
 			t.Fatalf("%s ReservedTokens/InFlight/Queued = %d/%d/%d, want 0/0/0", pod, v.ReservedTokens, v.InFlight, v.Queued)
 		}
 	}
+}
+
+func testObservedProcessStartIsTheWorkersIdentity(t *testing.T, newGate gateFactory) {
+	g, clk := newGate(DefaultConfig([]string{"a", "b"}))
+	born := time.Date(2026, 10, 18, 9, 0, 0, 0, time.UTC)
+	g.Observe("a", Scrape{At: clk.now(), Started: born, KVPoolTokens: 100000, KVUsage: 0.2})
+	g.SetReady("a", true)
+	scrapeReady(g, clk, "b", 100000, 0.5)
+
+	d1, tk1 := mustAdmit(t, g, request(clk, "run1-s1", "platform", 7000, 768))
+	assertPlaced(t, d1, tk1, "a", decide.StickyNew, 2768)
+	assertReserved(t, g, "a", 2768)
+
+	g.Observe("a", Scrape{At: clk.now(), Started: born, KVPoolTokens: 100000, KVUsage: 0.2})
+	if got := g.Bound("run1"); got != "a" {
+		t.Fatalf("Bound(run1) = %q after a scrape with the same start, want a", got)
+	}
+	assertReserved(t, g, "a", 2768)
+
+	g.Observe("a", Scrape{At: clk.now(), Started: born.Add(time.Minute), KVPoolTokens: 100000})
+	if got := g.Bound("run1"); got != "" {
+		t.Fatalf("Bound(run1) = %q after the worker's start moved, want empty", got)
+	}
+	assertReserved(t, g, "a", 0)
+	for _, w := range g.View() {
+		if w.View.Pod == "a" && w.Ready {
+			t.Fatal("a is Ready after a restart, want not ready until warm-up")
+		}
+	}
+
+	d2, tk2 := mustAdmit(t, g, request(clk, "run1-s2", "platform", 7000, 768))
+	assertPlaced(t, d2, tk2, "b", decide.StickyNew, 2768)
+	g.Settle(tk1, Outcome{}, 7000)
+	g.Settle(tk2, Outcome{}, 7000)
+}
+
+func TestGateReopensFromItsPebbleDirectory(t *testing.T) {
+	dir := t.TempDir()
+	open := func() *Gate {
+		p, err := state.OpenPebble(dir)
+		if err != nil {
+			t.Fatalf("OpenPebble error = %v", err)
+		}
+		cfg := DefaultConfig([]string{"a", "b"})
+		cfg.Tenants = map[string]TenantLimit{"platform": {RatePerS: 100, Burst: 20000}}
+		cfg.Store = p
+		return NewGate(cfg, time.Now, zeroRnd)
+	}
+	born := time.Date(2026, 10, 18, 9, 0, 0, 0, time.UTC)
+	scrape := func(g *Gate, pod string, usage float64) {
+		g.Observe(pod, Scrape{At: time.Now(), Started: born, KVPoolTokens: 100000, KVUsage: usage})
+		g.SetReady(pod, true)
+	}
+
+	g := open()
+	scrape(g, "a", 0.5)
+	scrape(g, "b", 0.2)
+	now := time.Now()
+	r := decide.Request{ID: "run1-s1", Run: "run1", Step: 1, Tenant: "platform", Priority: decide.Interactive,
+		BodyBytes: 7000, MaxOut: 768, Arrived: now, Deadline: now.Add(10 * time.Second)}
+	d, tk := mustAdmit(t, g, r)
+	assertPlaced(t, d, tk, "b", decide.StickyNew, 2768)
+	g.Settle(tk, Outcome{OK: true, PromptTokens: 2000, CompletionTokens: 500, Latency: 300 * time.Millisecond}, 7000)
+	before := g.TenantTokens("platform")
+	if before < 17500 || before > 17600 {
+		t.Fatalf("TenantTokens = %v before the restart, want 17500 plus a moment of refill", before)
+	}
+	if err := g.Close(); err != nil {
+		t.Fatalf("Close error = %v", err)
+	}
+
+	g = open()
+	defer g.Close()
+	if got := g.Bound("run1"); got != "b" {
+		t.Fatalf("Bound(run1) = %q after reopen, want b", got)
+	}
+	if got := viewOf(t, g, "b").MeanServiceS; got != 0.3 {
+		t.Fatalf("b MeanServiceS = %v after reopen, want 0.3", got)
+	}
+	after := g.TenantTokens("platform")
+	if after < before || after > before+100 {
+		t.Fatalf("TenantTokens = %v after reopen, want %v plus under a second of refill at 100/s", after, before)
+	}
+	scrape(g, "a", 0.5)
+	scrape(g, "b", 0.2)
+	if got := g.Bound("run1"); got != "b" {
+		t.Fatalf("Bound(run1) = %q after a scrape with the same start, want b", got)
+	}
+	d2, tk2 := mustAdmit(t, g, decide.Request{ID: "run1-s2", Run: "run1", Step: 2, Tenant: "platform", Priority: decide.Interactive,
+		BodyBytes: 7000, MaxOut: 768, Arrived: time.Now(), Deadline: time.Now().Add(10 * time.Second)})
+	if d2.Placement.Pod != "b" || d2.Placement.Sticky != decide.StickyHit || d2.History != 2000 {
+		t.Fatalf("step 2 after reopen = pod %q sticky %q history %d, want b, hit, 2000", d2.Placement.Pod, d2.Placement.Sticky, d2.History)
+	}
+	g.Settle(tk2, Outcome{}, 7000)
 }
