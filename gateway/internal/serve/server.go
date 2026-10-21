@@ -1,6 +1,7 @@
 // Package serve is the gateway's HTTP shell. It reads each request, asks
-// decide and fleet what to do, forwards the body to the chosen worker and
-// relays the answer. It holds no policy of its own. The body goes unchanged
+// decide and fleet what to do, forwards the body to the chosen worker, or to
+// the llm-d router when one is configured, and relays the answer. It holds
+// no policy of its own. The body goes unchanged
 // unless the optional KV hop marks it for the worker to pull a moved run's
 // cache.
 package serve
@@ -39,7 +40,9 @@ const maxResponseBytes = 32 << 20
 // Hop, when set, copies a moved run's KV to its new worker; nil leaves every
 // moved run to recompute its history. Overflow, when set, is offered every
 // 503 that decide.MayLeave lets leave the box; nil answers the 503, which is
-// the shipped behaviour.
+// the shipped behaviour. Router, when set, is the llm-d router's base URL:
+// every admitted request goes there and llm-d places, queues and sheds it,
+// so the Gate only charges the tenant and the Fleet is not consulted.
 type Options struct {
 	MaxBody         int
 	Budgets         decide.Budgets
@@ -51,6 +54,7 @@ type Options struct {
 	Metrics         http.Handler
 	Hop             *hop.Hopper
 	Overflow        *overflow.Overflow
+	Router          string
 }
 
 // Event is one request as the gateway saw it. Pod, Policy, Sticky, Unknown
@@ -124,6 +128,7 @@ func New(g *fleet.Gate, f *fleet.Fleet, urls map[string]string, opt Options) *Se
 	if opt.Now == nil {
 		opt.Now = time.Now
 	}
+	opt.Router = strings.TrimSuffix(opt.Router, "/")
 	trimmed := make(map[string]string, len(urls))
 	for pod, base := range urls {
 		trimmed[pod] = strings.TrimSuffix(base, "/")
@@ -173,6 +178,11 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	}
 	req := g.Req
 	ev.Tenant = req.Tenant
+	hdr := forwardedHeaders(r.Header)
+	if s.opt.Router != "" {
+		s.viaRouter(r.Context(), w, req, body, hdr, start, &ev)
+		return
+	}
 
 	d, t, err := s.gate.Admit(r.Context(), req)
 	p := d.Placement
@@ -201,9 +211,9 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	fwd := s.moveKV(ctx, d, req, t.Pod(), body, &ev)
 	var up upstream
 	if ev.Hop == string(hop.Hopped) {
-		up, err = s.forwardHopped(ctx, d, req, t.Pod(), body, fwd, r.Header, &ev)
+		up, err = s.forwardHopped(ctx, d, req, t.Pod(), body, fwd, hdr, &ev)
 	} else {
-		up, err = s.forward(ctx, s.urls[t.Pod()], fwd, r.Header)
+		up, err = s.forward(ctx, s.urls[t.Pod()], fwd, hdr)
 	}
 	ev.Upstream = up.took
 	if err != nil && r.Context().Err() != nil {
@@ -228,6 +238,65 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	relay(w, up, ev)
 }
 
+// viaRouter is chat's path in router mode, after the guard. The Gate charges
+// the tenant, and a tenant over quota is refused before the router hears of
+// the request. The router's capacity refusals become 503s and go through
+// the same stay-or-leave step as the Gate's own. Every other answer is
+// relayed, with a transport error as a 502, and the charge is settled
+// against the answer's usage or refunded.
+func (s *Server) viaRouter(ctx context.Context, w http.ResponseWriter, req decide.Request, body []byte, hdr http.Header, start time.Time, ev *Event) {
+	c, refused := s.gate.ChargeTenant(req)
+	if refused.Shed {
+		ev.Status, ev.Reason = refused.Code, string(refused.Reason)
+		writeRefusal(w, refused)
+		return
+	}
+	outcome := fleet.Outcome{}
+	defer func() { s.gate.SettleTenant(c, outcome, len(body)) }()
+
+	for k, v := range decide.RouterHeaders(req) {
+		hdr.Set(k, v)
+	}
+	upCtx, cancel := context.WithTimeout(ctx, s.opt.UpstreamTimeout)
+	defer cancel()
+	up, err := s.forward(upCtx, s.opt.Router, body, hdr)
+	ev.Upstream = up.took
+	ev.Policy = decide.PolicyRouter
+	if err != nil && ctx.Err() != nil {
+		ev.Reason = "client_gone"
+		return
+	}
+	if err != nil {
+		ev.Status, ev.Reason = http.StatusBadGateway, "upstream_error"
+		writeError(w, http.StatusBadGateway, "router request failed: "+err.Error(), "upstream_error", "upstream_error")
+		return
+	}
+	if v, dropped := decide.RouterDrop(up.status, up.dropped); dropped {
+		s.gate.SettleTenant(c, fleet.Outcome{}, 0) // refunded before leave charges the overflowed answer
+		ev.Status, ev.Reason = v.Code, string(v.Reason)
+		if s.leave(ctx, req, v, body, w, ev) || ev.Reason == "client_gone" {
+			return
+		}
+		writeRefusal(w, v)
+		return
+	}
+
+	// Whether Envoy passes the served endpoint back to the gateway is not
+	// verified, so "router" stands in for it.
+	ev.Pod = up.served
+	if ev.Pod == "" {
+		ev.Pod = "router"
+	}
+	ev.Status = up.status
+	if up.status == http.StatusOK {
+		u, ok := usageOf(up.body)
+		ev.PromptTokens, ev.CachedTokens, ev.CompletionTokens, ev.FinishReason = u.prompt, u.cached, u.completion, u.finish
+		outcome = fleet.Outcome{OK: ok, PromptTokens: u.prompt, CompletionTokens: u.completion, Latency: up.took}
+	}
+	ev.Gateway = s.opt.Now().Sub(start) - ev.Upstream
+	relay(w, up, *ev)
+}
+
 // leave is the stay-or-leave step for a 503. It records what the overflow
 // decision did on ev and, when the backend answered, relays that answer and
 // returns true. In every other case it returns false and the caller writes
@@ -243,15 +312,15 @@ func (s *Server) leave(ctx context.Context, req decide.Request, v decide.Verdict
 		ev.Overflow = decide.OverflowNoBackend
 		return false
 	}
-	tk, ok := s.gate.ChargeOffbox(req)
-	if !ok {
+	tk, refused := s.gate.ChargeTenant(req)
+	if refused.Shed {
 		ev.Overflow = overflow.Quota
 		return false
 	}
 	res := s.opt.Overflow.Send(ctx, permit, body)
 	ev.Overflow, ev.OverflowTime = res.Outcome, res.Took
 	if res.Err != nil {
-		s.gate.SettleOffbox(tk, fleet.Outcome{}, 0)
+		s.gate.SettleTenant(tk, fleet.Outcome{}, 0)
 		if ctx.Err() != nil {
 			ev.Status, ev.Reason = 0, "client_gone"
 			return false
@@ -264,7 +333,7 @@ func (s *Server) leave(ctx context.Context, req decide.Request, v decide.Verdict
 	ev.Status, ev.Reason = res.Status, ""
 	u, _ := usageOf(res.Body)
 	ev.PromptTokens, ev.CachedTokens, ev.CompletionTokens, ev.FinishReason = u.prompt, u.cached, u.completion, u.finish
-	s.gate.SettleOffbox(tk, fleet.Outcome{OK: true, PromptTokens: u.prompt, CompletionTokens: u.completion, Latency: res.Took}, len(body))
+	s.gate.SettleTenant(tk, fleet.Outcome{OK: true, PromptTokens: u.prompt, CompletionTokens: u.completion, Latency: res.Took}, len(body))
 	relayOverflow(w, res, v, s.opt.Overflow.Name())
 	return true
 }
@@ -302,9 +371,9 @@ func (s *Server) moveKV(ctx context.Context, d fleet.Decision, req decide.Reques
 // -recompute suffix, because vLLM refuses a request id it still holds, and
 // the first attempt may not have been aborted yet. A client that went away,
 // or an upstream timeout already spent, gets no second attempt.
-func (s *Server) forwardHopped(ctx context.Context, d fleet.Decision, req decide.Request, pod string, body, marked []byte, in http.Header, ev *Event) (upstream, error) {
+func (s *Server) forwardHopped(ctx context.Context, d fleet.Decision, req decide.Request, pod string, body, marked []byte, hdr http.Header, ev *Event) (upstream, error) {
 	recvCtx, cancel := context.WithTimeout(ctx, s.opt.Hop.ReceiveTimeout())
-	up, err := s.forward(recvCtx, s.urls[pod], marked, in)
+	up, err := s.forward(recvCtx, s.urls[pod], marked, hdr)
 	cancel()
 	if ctx.Err() != nil || !hopFallback(up.status, err) {
 		return up, err
@@ -313,7 +382,7 @@ func (s *Server) forwardHopped(ctx context.Context, d fleet.Decision, req decide
 	ev.Hop, ev.HopFallback = string(hop.Failed), true
 	s.opt.Log.Warn("hopped request failed, sending it again without the hop",
 		"request_id", req.ID, "from", d.From, "to", pod, "status", up.status, "err", err)
-	again, err := s.forward(ctx, s.urls[pod], body, recomputeHeaders(in))
+	again, err := s.forward(ctx, s.urls[pod], body, recomputeHeaders(hdr))
 	again.took += up.took
 	return again, err
 }
@@ -326,45 +395,59 @@ func hopFallback(status int, err error) bool {
 	return err != nil || status >= http.StatusInternalServerError
 }
 
-// recomputeHeaders is in with "-recompute" appended to a non-empty
+// recomputeHeaders is hdr with "-recompute" appended to a non-empty
 // X-Request-Id, for the second attempt of a hopped request.
-func recomputeHeaders(in http.Header) http.Header {
-	out := in.Clone()
+func recomputeHeaders(hdr http.Header) http.Header {
+	out := hdr.Clone()
 	if id := out.Get("X-Request-Id"); id != "" {
 		out.Set("X-Request-Id", id+"-recompute")
 	}
 	return out
 }
 
-// forwarded are the request headers copied to the worker. Everything else,
-// including hop-by-hop headers, stops at the gateway.
+// forwarded are the request headers copied to the worker or the router.
+// Everything else, including hop-by-hop headers and every x-llm-d-* or
+// x-gateway-* header a client sends, stops at the gateway. llm-d trusts
+// those as set by an authenticated ingress, so a client must never pick its
+// own fairness id, objective or endpoint.
 var forwarded = []string{
 	"Content-Type", "Authorization", "Accept",
 	"X-Request-Id", "X-Tenant", "X-App", "X-Priority", "X-Data-Class",
 }
 
-// upstream is one worker's answer, read in full.
+// forwardedHeaders copies the forwarded headers out of a client request.
+func forwardedHeaders(in http.Header) http.Header {
+	out := http.Header{}
+	for _, k := range forwarded {
+		if v := in.Get(k); v != "" {
+			out.Set(k, v)
+		}
+	}
+	return out
+}
+
+// upstream is one worker's or the router's answer, read in full. dropped
+// and served are the router's drop reason and served endpoint headers,
+// empty from a worker.
 type upstream struct {
 	status      int
 	contentType string
+	dropped     string
+	served      string
 	body        []byte
 	took        time.Duration
 }
 
-// forward posts body unchanged to base's chat endpoint and reads the whole
-// answer. A transport error, a timeout or a body read error is returned
-// with the time spent, so the caller can still report it.
-func (s *Server) forward(ctx context.Context, base string, body []byte, in http.Header) (upstream, error) {
+// forward posts body unchanged with hdr to base's chat endpoint and reads
+// the whole answer. A transport error, a timeout or a body read error is
+// returned with the time spent, so the caller can still report it.
+func (s *Server) forward(ctx context.Context, base string, body []byte, hdr http.Header) (upstream, error) {
 	start := s.opt.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return upstream{}, err
 	}
-	for _, k := range forwarded {
-		if v := in.Get(k); v != "" {
-			req.Header.Set(k, v)
-		}
-	}
+	req.Header = hdr.Clone()
 	resp, err := s.opt.Client.Do(req)
 	if err != nil {
 		return upstream{took: s.opt.Now().Sub(start)}, err
@@ -375,7 +458,14 @@ func (s *Server) forward(ctx context.Context, base string, body []byte, in http.
 	if err != nil {
 		return upstream{took: took}, err
 	}
-	return upstream{status: resp.StatusCode, contentType: resp.Header.Get("Content-Type"), body: b, took: took}, nil
+	return upstream{
+		status:      resp.StatusCode,
+		contentType: resp.Header.Get("Content-Type"),
+		dropped:     resp.Header.Get(decide.RouterDropHeader),
+		served:      resp.Header.Get(decide.RouterServedHeader),
+		body:        b,
+		took:        took,
+	}, nil
 }
 
 // relay writes the worker's status and body unchanged, plus the gateway's
@@ -482,8 +572,14 @@ func (s *Server) finish(ev Event) {
 	}
 }
 
-// readyz answers 200 while any pod is Ready, else 503.
+// readyz answers 200 while any pod is Ready, else 503. In router mode it
+// always answers 200: llm-d's EPP and its pool's readiness own worker
+// readiness there, and probing the router from here is not built yet.
 func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
+	if s.opt.Router != "" {
+		_, _ = io.WriteString(w, "ready")
+		return
+	}
 	for _, ws := range s.gate.View() {
 		if ws.Ready {
 			_, _ = io.WriteString(w, "ready")

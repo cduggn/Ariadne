@@ -66,6 +66,12 @@ var preregisteredSheds = [][2]string{
 	{string(decide.ReasonP99Spread), "503"},
 	{string(decide.ReasonNoEligiblePod), "503"},
 	{string(decide.ReasonQueueFull), "503"},
+	{string(decide.ReasonRouterSaturated), "503"},
+	{string(decide.ReasonRouterTTLExpired), "503"},
+	{string(decide.ReasonRouterEvicted), "503"},
+	{string(decide.ReasonRouterNoEndpoints), "503"},
+	{string(decide.ReasonRouterShuttingDown), "503"},
+	{string(decide.ReasonRouterUnknown), "503"},
 }
 
 // Metrics is one gateway's registry and the vectors Observe feeds.

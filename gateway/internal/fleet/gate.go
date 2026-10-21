@@ -508,22 +508,23 @@ func (g *Gate) SetTenantTokensForTest(tenant string, tokens float64) {
 	g.putBucket(tenant)
 }
 
-// OffboxTicket is one overflowed request's charge against its tenant. Only
-// ChargeOffbox builds one, and SettleOffbox closes it.
-type OffboxTicket struct {
+// Charge is one tenant charge for a request the Gate did not place: an
+// answer from the overflow backend, or one the llm-d router placed. Only
+// ChargeTenant builds one, and SettleTenant closes it.
+type Charge struct {
 	run     decide.RunID
 	tenant  string
 	est     int
 	settled bool
 }
 
-// ChargeOffbox charges a tenant for a request that is about to leave the
-// box, with the same estimate Admit would have used, and reports false
-// without charging when the bucket cannot cover it. A refused request is
-// never charged, but an overflowed one is served and paid for by someone,
-// so it spends quota exactly like a local answer. Without this, a tenant
-// could spend the backend's tokens without limit whenever the box is full.
-func (g *Gate) ChargeOffbox(r decide.Request) (*OffboxTicket, bool) {
+// ChargeTenant charges a tenant for a request the Gate does not place, with
+// the same estimate Admit would have used. When the bucket cannot cover it,
+// it charges nothing and returns the tenant_tokens refusal ShouldShed would
+// have given. Such a request is served and paid for by someone else, so it
+// spends quota exactly like a local answer. Without this, a tenant could
+// spend the overflow backend's or the router's tokens without limit.
+func (g *Gate) ChargeTenant(r decide.Request) (*Charge, decide.Verdict) {
 	g.mu.Lock()
 	defer g.commit()
 	var prior *decide.RunUsage
@@ -536,18 +537,18 @@ func (g *Gate) ChargeOffbox(r decide.Request) (*OffboxTicket, bool) {
 	est := decide.EstimateTokens(r, prior)
 	b := g.bucketFor(r.Tenant)
 	b.refill(g.now())
-	if float64(est) > b.tokens {
-		return nil, false
+	if v, shed := decide.ShouldShedTenant(est, decide.TenantState{AvailableTokens: b.tokens, RatePerS: b.rate}); shed {
+		return nil, v
 	}
 	b.add(-float64(est))
 	g.putBucket(r.Tenant)
-	return &OffboxTicket{run: r.Run, tenant: r.Tenant, est: est}, true
+	return &Charge{run: r.Run, tenant: r.Tenant, est: est}, decide.Verdict{}
 }
 
-// SettleOffbox corrects an off-box charge to the real usage, or refunds it
-// when the backend did not answer, and records the run's usage for its next
-// step's estimate. A second call is a no-op.
-func (g *Gate) SettleOffbox(t *OffboxTicket, o Outcome, bodyBytes int) {
+// SettleTenant corrects a charge to the real usage, or refunds it when the
+// request was not served, and records the run's usage for its next step's
+// estimate. A second call is a no-op.
+func (g *Gate) SettleTenant(t *Charge, o Outcome, bodyBytes int) {
 	if t == nil {
 		return
 	}
