@@ -72,7 +72,7 @@ func TestRouterHeaders(t *testing.T) {
 		{Batch, "doctor-batch"},
 	}
 	for _, c := range cases {
-		got := RouterHeaders(Request{Tenant: "acme", Priority: c.priority})
+		got := RouterHeaders(Request{Tenant: "acme", Priority: c.priority}, "acme")
 		want := map[string]string{
 			"x-llm-d-inference-fairness-id": "acme",
 			"x-llm-d-inference-objective":   c.objective,

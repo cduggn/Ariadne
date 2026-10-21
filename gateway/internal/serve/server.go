@@ -254,7 +254,7 @@ func (s *Server) viaRouter(ctx context.Context, w http.ResponseWriter, req decid
 	outcome := fleet.Outcome{}
 	defer func() { s.gate.SettleTenant(c, outcome, len(body)) }()
 
-	for k, v := range decide.RouterHeaders(req) {
+	for k, v := range decide.RouterHeaders(req, c.Flow()) {
 		hdr.Set(k, v)
 	}
 	upCtx, cancel := context.WithTimeout(ctx, s.opt.UpstreamTimeout)

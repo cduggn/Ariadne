@@ -191,13 +191,15 @@ func TestRouterGetsTheGatewaysFlowHeadersAndNeverTheClients(t *testing.T) {
 	fake := newFakeRouter(t)
 	h := startRouter(t, fake.baseURL, Options{})
 
-	for _, priority := range []string{"interactive", "batch"} {
+	// platform has its own bucket; acme shares "*" with every tenant that has none, so it shares that flow too.
+	sends := []struct{ priority, tenant string }{{"interactive", " Platform "}, {"batch", "acme"}}
+	for _, s := range sends {
 		req, _ := http.NewRequest(http.MethodPost, h.url+"/v1/chat/completions", strings.NewReader(doctorBody))
-		for k, v := range doctorHeaders("rt-6-" + priority + "-s1") {
+		for k, v := range doctorHeaders("rt-6-" + s.priority + "-s1") {
 			req.Header.Set(k, v)
 		}
-		req.Header.Set("X-Tenant", " Acme ")
-		req.Header.Set("X-Priority", priority)
+		req.Header.Set("X-Tenant", s.tenant)
+		req.Header.Set("X-Priority", s.priority)
 		req.Header.Set("x-llm-d-inference-fairness-id", "someone-else")
 		req.Header.Set("x-llm-d-inference-objective", "vip")
 		req.Header.Set("x-gateway-inference-fairness-id", "someone-else")
@@ -214,9 +216,10 @@ func TestRouterGetsTheGatewaysFlowHeadersAndNeverTheClients(t *testing.T) {
 	if len(seen) != 2 {
 		t.Fatalf("router saw %d requests, want 2", len(seen))
 	}
+	flows := []string{"platform", "*"}
 	for i, objective := range []string{"doctor-interactive", "doctor-batch"} {
-		if got := seen[i].Get("x-llm-d-inference-fairness-id"); got != "acme" {
-			t.Errorf("request %d: fairness id = %q, want the parsed tenant acme", i, got)
+		if got := seen[i].Get("x-llm-d-inference-fairness-id"); got != flows[i] {
+			t.Errorf("request %d: fairness id = %q, want the charged bucket %q", i, got, flows[i])
 		}
 		if got := seen[i].Values("x-llm-d-inference-objective"); len(got) != 1 || got[0] != objective {
 			t.Errorf("request %d: objective = %q, want only %q", i, got, objective)

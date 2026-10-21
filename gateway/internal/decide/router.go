@@ -78,16 +78,17 @@ func RouterDrop(status int, dropReason string) (Verdict, bool) {
 }
 
 // RouterHeaders are the headers the gateway sets on a request to the
-// router, after the guard has parsed the tenant and the priority. llm-d
-// trusts them as given, so they come from the parsed Request and never from
-// the client.
-func RouterHeaders(r Request) map[string]string {
+// router, after the guard has parsed the priority and the tenant has been
+// charged. llm-d trusts them as given, so they come from the parsed Request
+// and the charge, never from the client. flow is the charged bucket's name
+// (fleet.Charge.Flow), so fairness is shared exactly as the quota is.
+func RouterHeaders(r Request, flow string) map[string]string {
 	objective := ObjectiveBatch
 	if r.Priority == Interactive {
 		objective = ObjectiveInteractive
 	}
 	return map[string]string{
-		RouterFairnessHeader:  r.Tenant,
+		RouterFairnessHeader:  flow,
 		RouterObjectiveHeader: objective,
 	}
 }

@@ -514,8 +514,17 @@ func (g *Gate) SetTenantTokensForTest(tenant string, tokens float64) {
 type Charge struct {
 	run     decide.RunID
 	tenant  string
+	flow    string
 	est     int
 	settled bool
+}
+
+// Flow names the bucket the charge was taken from: the tenant's own, or "*"
+// shared by every tenant without one. The llm-d router's fairness id must be
+// this rather than the tenant, or a client inventing tenant names would get
+// one round-robin turn per name while being charged to one shared bucket.
+func (c *Charge) Flow() string {
+	return c.flow
 }
 
 // ChargeTenant charges a tenant for a request the Gate does not place, with
@@ -542,7 +551,7 @@ func (g *Gate) ChargeTenant(r decide.Request) (*Charge, decide.Verdict) {
 	}
 	b.add(-float64(est))
 	g.putBucket(r.Tenant)
-	return &Charge{run: r.Run, tenant: r.Tenant, est: est}, decide.Verdict{}
+	return &Charge{run: r.Run, tenant: r.Tenant, flow: g.bucketName(r.Tenant), est: est}, decide.Verdict{}
 }
 
 // SettleTenant corrects a charge to the real usage, or refunds it when the
