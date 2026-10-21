@@ -1,0 +1,40 @@
+# EPP for the laptop llm-d lab. The fakes publish no KV events, so this uses the approximate prefix
+# scorer from llm-d v1.0.0's no-Kubernetes guide, plus flow control sized so two slow fakes saturate
+# under a burst of six: two in flight per endpoint, one waiter per band.
+apiVersion: llm-d.ai/v1
+kind: EndpointPickerConfig
+featureGates: [flowControl]
+plugins:
+  - name: file-discovery
+    type: file-discovery
+    parameters: {path: /etc/epp/endpoints.yaml, watchFile: true}
+  - type: queue-scorer
+  - type: kv-cache-utilization-scorer
+  - type: prefix-cache-scorer
+  - type: no-hit-lru-scorer
+  - {name: metrics-source, type: metrics-data-source}
+  - {name: metrics-extractor, type: core-metrics-extractor}
+  - type: round-robin-fairness-policy
+  - type: fcfs-ordering-policy
+  - type: concurrency-detector
+    parameters: {maxConcurrency: 2, concurrencyMode: requests, headroom: 0.0}
+schedulingProfiles:
+  - name: default
+    plugins:
+      - {pluginRef: queue-scorer, weight: 2}
+      - {pluginRef: kv-cache-utilization-scorer, weight: 2}
+      - {pluginRef: prefix-cache-scorer, weight: 3}
+      - {pluginRef: no-hit-lru-scorer, weight: 2}
+flowControl:
+  maxRequests: "2"
+  defaultRequestTTL: "5s"
+  saturationDetector: {pluginRef: concurrency-detector}
+  priorityBands:
+    - {priority: 100, maxRequests: "1", fairnessPolicyRef: round-robin-fairness-policy, orderingPolicyRef: fcfs-ordering-policy}
+    - {priority: 0, maxRequests: "1", fairnessPolicyRef: round-robin-fairness-policy, orderingPolicyRef: fcfs-ordering-policy}
+dataLayer:
+  injectDefaults: false
+  discovery: {endpoints: {pluginRef: file-discovery}}
+  sources:
+    - pluginRef: metrics-source
+      extractors: [{pluginRef: metrics-extractor}]

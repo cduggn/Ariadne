@@ -1,0 +1,10 @@
+# The two fake vLLM workers, by literal IPv4 on the lab network (file-discovery resolves no names).
+endpoints:
+  - name: vllm-0
+    address: 10.88.0.10
+    port: "8000"
+    labels: {model: Qwen/Qwen3-8B-AWQ}
+  - name: vllm-1
+    address: 10.88.0.11
+    port: "8000"
+    labels: {model: Qwen/Qwen3-8B-AWQ}
