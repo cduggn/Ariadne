@@ -26,7 +26,7 @@ import re
 import sys
 from pathlib import Path
 
-from serving.profiles import ROOT, gpu, load_profile, load_serving, profiles, topology
+from serving.profiles import ROOT, attention, gpu, load_profile, load_serving, profiles, topology
 
 GIB, MIB = 1024 ** 3, 1024 ** 2
 KV_LOG = re.compile(r"GPU KV cache size:\s*([\d,]+)\s*tokens")
@@ -88,7 +88,7 @@ def fit(p: dict, topo: str, s: dict | None = None, *, metrics: Path | None = Non
     gate_n, comfy = s["gate"]["min_full_length_sequences"], s["gate"]["comfortable_full_length_sequences"]
     return {
         "model": p["name"], "topology": topo, "gpu": t["gpu"], "plan": p["plan"], "repo": p["hf"]["repo"],
-        "hybrid": bool(a.get("linear") or a.get("sliding")),
+        "hybrid": attention(a) != "full",
         "moe": a["active_params_b"] < a["params_b"], "slice_gib": t["gpumem_mib"] / 1024, "sm_share": share,
         "budget_gib": budget / GIB, "weights_gib": a["weights_gib"], "activation_gib": act / GIB, "cuda_context_gib": ctx / GIB,
         "pool_gib": pool / GIB, "kv_per_token_kib": kvt / 1024, "state_per_seq_mib": state / MIB,
@@ -115,10 +115,17 @@ def gateway_env(r: dict) -> str:
       is sized to the KV the worker really has, not to a constant chosen for another card;
     - the KV hop's cost inputs: the model's KV bytes per token and the topology's uncached prefill rate (paper
       numbers until measured)."""
-    inflight = max(1, min(GATEWAY_MAX_INFLIGHT, int(r["seqs_at_app_len_shared_prefix"])))
     kv_bytes = round(r["kv_per_token_kib"] * 1024)
-    prefill = round(r["app_len"] / r["prefill_s_app_len_uncached"])
-    return f"GW_MAX_INFLIGHT={inflight} GW_HOP_KV_BYTES_PER_TOKEN={kv_bytes} GW_HOP_PREFILL_TOKENS_PER_S={prefill}"
+    return f"GW_MAX_INFLIGHT={max_inflight(r)} GW_HOP_KV_BYTES_PER_TOKEN={kv_bytes} GW_HOP_PREFILL_TOKENS_PER_S={prefill_rate(r)}"
+
+
+def max_inflight(r: dict) -> int:
+    return max(1, min(GATEWAY_MAX_INFLIGHT, int(r["seqs_at_app_len_shared_prefix"])))
+
+
+def prefill_rate(r: dict) -> int:
+    """Uncached prefill tokens per second for one worker of the topology."""
+    return round(r["app_len"] / r["prefill_s_app_len_uncached"])
 
 
 def verdict(r: dict) -> str:

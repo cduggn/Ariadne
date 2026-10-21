@@ -142,19 +142,21 @@ tests:
         eval_time: 2m
         exp_samples: [{labels: 'doctor:vllm_demand_requests', value: 7}]
 
-  - name: Capacity sheds count per minute; tenant quota refusals do not; no sheds at all is 0
+  - name: Capacity sheds count per minute, router sheds included; tenant quota refusals do not
     interval: 1m
     input_series:
       - series: 'orch_shed_total{reason="timeout_queue",code="503"}'
         values: "0+2x10"
       - series: 'orch_shed_total{reason="kv_free",code="503"}'
         values: "0+1x10"
+      - series: 'orch_shed_total{reason="router_saturated",code="503"}'
+        values: "0+1x10"
       - series: 'orch_shed_total{reason="tenant_tokens",code="429"}'
         values: "0+50x10"
     promql_expr_test:
       - expr: doctor:gateway_capacity_sheds_per_minute
         eval_time: 8m
-        exp_samples: [{labels: 'doctor:gateway_capacity_sheds_per_minute', value: 3}]
+        exp_samples: [{labels: 'doctor:gateway_capacity_sheds_per_minute', value: 4}]
 
   - name: A gateway that has never shed reads 0
     interval: 1m
