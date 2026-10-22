@@ -15,6 +15,22 @@ roughly what it costs. Remove an item when it lands, and record it in `decisions
   the scores, so re-run the golden set afterwards.
 
 ## Gateway
+- [ ] **A/B: llm-d router mode against fleet mode on one GPU node (D-54, `design/llm-d.md`).** `make deploy LLMD=1 HOP=0
+  && make llm-d && make gateway ROUTER=1`, then `make golden` and `make sweep LEVELS="8 16 32"`, then the same on fleet
+  mode. Compare cached share, TTFT p50/p95, preemptions, `vllm:external_prefix_cache_hits_total` and pass rate. If
+  router mode is no worse, delete `pick.go`'s policies, the queue, scrape-for-placement and the hop in one wave. About
+  an hour of GPU, plus the first `free -g` and pod RSS to set a memory limit for the CPU KV tier.
+- [ ] **A warm-up gate in router mode (D-54).** EPP admits any Ready pod, so a restarted worker takes traffic while
+  CUDA graphs are still being captured. A vLLM `startupProbe` that posts the warm body would gate readiness for both
+  modes. Small; test on kind with the fake.
+- [ ] **Router readiness on `/readyz` (D-54).** Router mode answers ready unconditionally. Probe the router's proxy
+  (or EPP's `llm_d_epp_ready_endpoints`) so a dead router makes the gateway unready.
+- [ ] **Scrape the EPP with a token (D-54).** EPP's `/metrics` answers 401 to the annotation scrape. Add a ClusterRole
+  with `get` on the `/metrics` URL for Prometheus's ServiceAccount and a scrape job with its token (as
+  `lab/llm-d/kind-smoke.sh` does by hand), then an EPP row on the gateway dashboard: flow-control queue size and
+  outcomes per band, prefix-affinity decisions, ready endpoints.
+- [ ] **Remember run usage in router mode (D-54).** `ChargeTenant` does not create run entries, so every router-mode
+  step is estimated as a first step. Recording usage on settle would make the hold as exact as fleet mode's.
 - [ ] **Tune the KV-sized cap (D-43, findings F36).** Cap 4 kept vLLM healthy but finished fewer runs than cap 16 at 16
   and 32 concurrent runs, because queued requests hit the queue deadline. Try a cap of 6–8 on an H100 half (or size
   `gateway_env` for a small preemption budget instead of none), or keep 4 with a longer interactive queue deadline.

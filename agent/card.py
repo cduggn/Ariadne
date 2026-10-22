@@ -1,7 +1,8 @@
 """The cluster card: fixed facts about the cluster, placed before the task (D-23).
 
-The card is identical for every task against the same cluster, so vLLM can prefix-cache it and the
-gateway can route a cluster's investigations to the worker that already holds it. It is the analogue
+The card is identical for every task against the same cluster, so vLLM can prefix-cache it. Behind the
+llm-d router (design/llm-d.md) its blocks also draw a cluster's investigations to the worker that holds them; the
+gateway's own fleet mode routes by run id and relies on warm-up to put the card on every worker. It is the analogue
 of the trip planner's city brief. It carries inventory only (version, nodes, namespaces), never workload state,
 so it gives away no answer.
 """
