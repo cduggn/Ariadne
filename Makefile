@@ -15,6 +15,11 @@
 #   make deploy HOP=1 && make gateway HOP=1   workers run vLLM's MooncakeConnector and the gateway copies a moved
 #                                   run's KV instead of recomputing it (gateway/internal/hop). node.env turns it on
 #                                   for an H100 node; HOP=0 on the make line turns it off
+#   make deploy LLMD=1 HOP=0 && make llm-d && make gateway ROUTER=1   llm-d 1.0 picks the pod and queues (design/llm-d.md):
+#                                   workers offload KV to a CPU tier and publish KV events, the router is installed
+#                                   from deploy/serving.json, and the gateway forwards to it. ROUTER=0 goes back
+#   make llm-d-lab                  laptop only: the real llm-d EPP and Envoy behind the gateway in router mode
+#   make llm-d-kind                 laptop only: our CRDs, chart values and worker policy on a throwaway kind cluster
 #   make tunnel [TUNNEL=pod/vllm-0]      forward localhost:8000 to the gateway (default) or to one vLLM pod
 #   make demo                       laptop only: two fake vLLM workers behind the gateway, golden set at concurrency 8
 #   make models / fit [MODEL=… TOPO=…] / fit-all   model profiles (deploy/models) and whether each fits each topology (D-40)
@@ -64,6 +69,11 @@ TUNNEL ?= svc/gateway
 POLICY ?= prefix_then_load
 PROBES ?= 1
 HOP    ?= 0
+LLMD   ?= 0
+ROUTER ?= 0
+LLMD_RENDER = .cache/llm-d/$(MODEL)-$(TOPO)
+LLMD_CRDS   = $(shell $(PY) -c "import json; print(' -f '.join(json.load(open('deploy/serving.json'))['llm_d']['crds']))")
+ROUTER_URL  = http://doctor-router-proxy.default.svc.cluster.local:8081
 OVERFLOW ?= 0   # make gateway OVERFLOW=1 turns on overflow to Superlinked once the gateway-overflow Secret exists (design/overflow.md)
 MAXREP  = $(shell $(PY) -c "import json; print(json.load(open('deploy/serving.json'))['topologies']['$(TOPO)']['max_replicas'])")
 FAULTS ?= crashloop,cascade-db,port-mismatch,tls-truststore
@@ -88,7 +98,7 @@ GW_TAG  = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD -- ga
 SCRAPE  = $(if $(filter svc/gateway,$(TUNNEL)),gateway,vllm)
 PODS    = vllm-0 vllm-1
 
-.PHONY: help bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale autoscale autoscale-off logs kv tunnel dashboards grafana golden metrics down probes export gateway-log verify
+.PHONY: help llm-d llm-d-lab llm-d-kind bringup check bench resume alerts-test report demo gateway gateway-image models fit fit-all gate render prefetch matrix tools preflight sweep kubeconfig k8s-tunnel record-live watch watch-metrics inject heal prom opencost faults test lint go-lint hooks secrets vulncheck golden-build lab-up lab-record lab-down up status deploy scale autoscale autoscale-off logs kv tunnel dashboards grafana golden metrics down probes export gateway-log verify
 
 .DEFAULT_GOAL := help
 
@@ -200,7 +210,19 @@ fit-all:
 	$(PY) -m serving.fit all
 
 render:
-	$(PY) -m serving.profiles render $(MODEL) $(TOPO) --out $(RENDER) $(if $(filter 1,$(HOP)),--hop)
+	$(PY) -m serving.profiles render $(MODEL) $(TOPO) --out $(RENDER) $(if $(filter 1,$(HOP)),--hop) $(if $(filter 1,$(LLMD)),--llmd)
+
+llm-d:
+	$(PY) -m serving.llmd $(MODEL) $(TOPO) --out $(LLMD_RENDER)
+	lam push $(LLMD_RENDER)/ '~/llm-d/' --delete
+	$(REMOTE) "kubectl apply -f $(LLMD_CRDS) && helm upgrade --install doctor-router oci://ghcr.io/llm-d/charts/llm-d-router-standalone \
+	  --version v1.0.0 -f \$$HOME/llm-d/values.yaml --wait --timeout 5m"
+
+llm-d-lab:
+	lab/llm-d/e2e.sh
+
+llm-d-kind:
+	KIND=$(KIND) lab/llm-d/kind-smoke.sh
 
 matrix:
 	$(PY) -m serving.matrix
@@ -285,7 +307,8 @@ gateway:
 	$(REMOTE) "kubectl create configmap gateway-warmup --from-file=warm.json=\$$HOME/gateway/warm.json --dry-run=client -o yaml | kubectl apply -f - && \
 	  kubectl delete deployment gateway --ignore-not-found && \
 	  kubectl apply -f \$$HOME/gateway/gateway.yaml && \
-	  kubectl set env statefulset/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) GW_OVERFLOW=$(if $(filter 1,$(OVERFLOW)),true,false) $(GWENV) && \
+	  kubectl set env statefulset/gateway GW_POLICY=$(POLICY) GW_POOL=$(TOPO) GW_HOP=$(if $(filter 1,$(HOP)),true,false) GW_OVERFLOW=$(if $(filter 1,$(OVERFLOW)),true,false) $(GWENV) \
+	    GW_ROUTER_URL=$(if $(filter 1,$(ROUTER)),$(ROUTER_URL)) GW_ROUTER_POOL_SIZE=$(MAXREP) && \
 	  kubectl rollout restart statefulset/gateway && kubectl rollout status statefulset/gateway --timeout=5m"
 
 tunnel:

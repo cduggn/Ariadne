@@ -1,6 +1,8 @@
 // Command gateway is cluster-doctor's inference gateway. It guards, admits,
 // places and queues chat completions in front of a fixed set of vLLM
-// workers and forwards each body unchanged. Every flag reads its default
+// workers and forwards each body unchanged. With --router-url it instead
+// guards and charges each request and forwards it to the llm-d router,
+// which places, queues and sheds it. Every flag reads its default
 // from the environment variable GW_<NAME> with the name upper-cased and
 // dashes turned into underscores.
 package main
@@ -13,6 +15,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sort"
@@ -35,6 +38,8 @@ const defaultWorkers = "vllm-0=http://vllm-0.vllm.default.svc.cluster.local:8000
 
 func main() {
 	listen := flag.String("listen", env("listen", ":8000"), "address to serve on")
+	routerURL := flag.String("router-url", env("router-url", ""), "llm-d router base URL; when set, llm-d places every request and --workers, --policy, --max-inflight, --max-queued and --warm-body are unused")
+	routerPool := flag.Int("router-pool-size", envInt("router-pool-size", 2), "vLLM workers behind the llm-d router; sizes the platform tenant's token bucket, which in fleet mode follows --workers")
 	workers := flag.String("workers", env("workers", defaultWorkers), "comma-separated pod=url list of vLLM workers")
 	policy := flag.String("policy", env("policy", string(decide.PolicyPrefixThenLoad)), "pick policy: prefix_then_load, least_loaded or p2c")
 	maxInflight := flag.Int("max-inflight", envInt("max-inflight", 16), "in-flight requests per worker")
@@ -69,23 +74,33 @@ func main() {
 	flag.Parse()
 	hopCfg.SharedPrefixTokens = *sharedPrefix
 
-	urls, err := parseWorkers(*workers)
-	if err != nil {
-		fatal(err.Error())
+	routerMode := *routerURL != ""
+	if routerMode && *hopOn {
+		fatal("--hop needs the gateway to choose the destination worker, which llm-d does with --router-url")
 	}
+	if u, err := url.Parse(*routerURL); routerMode && (err != nil || u.Scheme == "" || u.Host == "") {
+		fatal("--router-url " + strconv.Quote(*routerURL) + " is not an absolute URL")
+	}
+	var urls map[string]string
+	var warm []byte
 	pick, ok := decide.ParsePickPolicy(*policy)
 	if !ok {
 		fatal("unknown policy " + strconv.Quote(*policy))
 	}
-	if *warmBody == "" {
-		fatal("--warm-body is required")
-	}
-	warm, err := os.ReadFile(*warmBody)
-	if err != nil {
-		fatal("read warm body: " + err.Error())
+	if !routerMode {
+		var err error
+		if urls, err = parseWorkers(*workers); err != nil {
+			fatal(err.Error())
+		}
+		if *warmBody == "" {
+			fatal("--warm-body is required")
+		}
+		if warm, err = os.ReadFile(*warmBody); err != nil {
+			fatal("read warm body: " + err.Error())
+		}
 	}
 	var level slog.Level
-	if err = level.UnmarshalText([]byte(*logLevel)); err != nil {
+	if err := level.UnmarshalText([]byte(*logLevel)); err != nil {
 		fatal("bad log level " + strconv.Quote(*logLevel))
 	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
@@ -105,10 +120,18 @@ func main() {
 	cfg.MaxInflight = *maxInflight
 	cfg.MaxQueued = *maxQueued
 	cfg.Store = store
+	if routerMode {
+		if *routerPool < 1 {
+			fatal("--router-pool-size must be at least 1")
+		}
+		cfg.Tenants = fleet.DefaultConfig(make([]string, *routerPool)).Tenants
+	}
 	gate := fleet.NewGate(cfg, time.Now, rand.IntN)
+	// In router mode urls is empty, so the Fleet has no members: Run returns
+	// at once and nothing is scraped, warmed or queued.
 	workersLoop := fleet.NewFleet(gate, urls, fleet.DefaultWorkerConfig(warm), nil, time.Now)
 	m := metrics.New(gate, workersLoop, *pool, *sharedPrefix)
-	opts := serve.Options{Log: log, OnRequest: m.Observe, Metrics: m.Handler()}
+	opts := serve.Options{Log: log, OnRequest: m.Observe, Metrics: m.Handler(), Router: *routerURL}
 	if *hopOn {
 		hopper, err := newHopper(hopCfg, urls, *hopPort)
 		if err != nil {
@@ -172,7 +195,11 @@ func main() {
 		}
 	}()
 
-	log.Info("gateway listening", "addr", *listen, "pods", pods, "policy", string(pick),
+	mode := "fleet"
+	if routerMode {
+		mode = "router"
+	}
+	log.Info("gateway listening", "addr", *listen, "mode", mode, "router_url", *routerURL, "pods", pods, "policy", string(pick),
 		"max_inflight", *maxInflight, "max_queued", *maxQueued, "pool", *pool, "shared_prefix_tokens", *sharedPrefix,
 		"state", *stateMode, "state_dir", *stateDir)
 	if err := httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {

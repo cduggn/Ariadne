@@ -1,0 +1,53 @@
+# The laptop llm-d lab (design/llm-d.md): the real llm-d v1.0.0 EPP and Envoy in front of two fake vLLM
+# workers, with our gateway in router mode in front of Envoy and a fake overflow backend behind it.
+# lab/llm-d/e2e.sh builds the binaries into $BIN and drives it; nothing here needs a GPU or Kubernetes.
+name: cd-llmd-lab
+
+x-bin: &bin
+  image: gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+  volumes: ["${BIN:?set BIN to the directory e2e.sh builds into}:/bin-lab:ro"]
+
+networks:
+  lab:
+    ipam:
+      config: [{subnet: 10.88.0.0/24}]
+
+services:
+  vllm-0:
+    <<: *bin
+    command: [/bin-lab/fakevllm, --listen, 0.0.0.0:8000, --latency, "${FAKE_LATENCY:-1500ms}"]
+    networks: {lab: {ipv4_address: 10.88.0.10}}
+  vllm-1:
+    <<: *bin
+    command: [/bin-lab/fakevllm, --listen, 0.0.0.0:8000, --latency, "${FAKE_LATENCY:-1500ms}"]
+    networks: {lab: {ipv4_address: 10.88.0.11}}
+
+  epp:
+    image: ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0
+    command: [--config-file=/etc/epp/epp-config.yaml, --pool-name=file-discovery, --pool-namespace=default,
+              --grpc-port=9002, --grpc-health-port=9003, --metrics-port=9090, --secure-serving=false,
+              --health-checking=true, --v=2]
+    volumes: ["./epp-config.yaml:/etc/epp/epp-config.yaml:ro", "./endpoints.yaml:/etc/epp/endpoints.yaml:ro"]
+    ports: ["127.0.0.1:19090:9090"]
+    networks: {lab: {ipv4_address: 10.88.0.20}}
+
+  envoy:
+    image: envoyproxy/envoy:distroless-v1.33.2
+    command: [-c, /etc/envoy/envoy.yaml]
+    volumes: ["./envoy.yaml:/etc/envoy/envoy.yaml:ro"]
+    ports: ["127.0.0.1:19000:19000"]
+    networks: {lab: {ipv4_address: 10.88.0.21}}
+
+  overflow:
+    <<: *bin
+    command: [/bin-lab/fakeoverflow, --listen, 0.0.0.0:8010, --key, lab-key]
+    networks: {lab: {ipv4_address: 10.88.0.30}}
+
+  gateway:
+    <<: *bin
+    command: [/bin-lab/gateway, --listen, 0.0.0.0:8000, --router-url, http://10.88.0.21:8081,
+              --overflow, --overflow-base-url, http://10.88.0.30:8010, --overflow-model, lab-model,
+              --overflow-probe-interval, 2s]
+    environment: {GW_OVERFLOW_API_KEY: lab-key}
+    ports: ["127.0.0.1:18100:8000"]
+    networks: {lab: {ipv4_address: 10.88.0.40}}

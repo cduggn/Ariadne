@@ -30,6 +30,23 @@ const (
 	ReasonNoEligiblePod Reason = "no_eligible_pod"
 	// ReasonQueueFull means the worker's queue was full, or an interactive arrival displaced this batch request.
 	ReasonQueueFull Reason = "queue_full"
+	// ReasonRouterSaturated means the llm-d router's flow control found
+	// every endpoint saturated and refused the request.
+	ReasonRouterSaturated Reason = "router_saturated"
+	// ReasonRouterTTLExpired means the request waited in the llm-d router's
+	// queue past its TTL.
+	ReasonRouterTTLExpired Reason = "router_ttl_expired"
+	// ReasonRouterEvicted means the llm-d router sent the request to a
+	// worker and then killed it under pressure, before it was answered.
+	ReasonRouterEvicted Reason = "router_evicted"
+	// ReasonRouterNoEndpoints means the llm-d router had no endpoint to
+	// send the request to.
+	ReasonRouterNoEndpoints Reason = "router_no_endpoints"
+	// ReasonRouterShuttingDown means the llm-d router was shutting down.
+	ReasonRouterShuttingDown Reason = "router_shutting_down"
+	// ReasonRouterUnknown means the llm-d router dropped the request for a
+	// reason the gateway does not know.
+	ReasonRouterUnknown Reason = "router_unknown"
 )
 
 // Verdict is ShouldShed's result. The zero value means admit, and then only
@@ -133,16 +150,8 @@ type Snap struct {
 //
 // A Snap that clears every gate returns Verdict{} (admit).
 func ShouldShed(r Request, s Snap) Verdict {
-	if float64(s.EstTokens) > s.Tenant.AvailableTokens {
-		return Verdict{
-			Shed:       true,
-			Code:       429,
-			Reason:     ReasonTenantTokens,
-			RetryAfter: tenantRetryAfter(s.EstTokens, s.Tenant),
-			Detail: "need " + strconv.Itoa(s.EstTokens) + " tokens, tenant has " +
-				formatFloat(s.Tenant.AvailableTokens) + " available at " +
-				formatFloat(s.Tenant.RatePerS) + "/s",
-		}
+	if v, shed := ShouldShedTenant(s.EstTokens, s.Tenant); shed {
+		return v
 	}
 
 	if v, shed := shouldShedKVFree(s); shed {
@@ -160,6 +169,24 @@ func ShouldShed(r Request, s Snap) Verdict {
 	}
 
 	return Verdict{}
+}
+
+// ShouldShedTenant applies the tenant_tokens gate alone. ShouldShed runs it
+// first, and the gateway runs it by itself for a request it does not place,
+// so both refuse an overdrawn tenant with the same 429.
+func ShouldShedTenant(estTokens int, tenant TenantState) (Verdict, bool) {
+	if float64(estTokens) <= tenant.AvailableTokens {
+		return Verdict{}, false
+	}
+	return Verdict{
+		Shed:       true,
+		Code:       429,
+		Reason:     ReasonTenantTokens,
+		RetryAfter: tenantRetryAfter(estTokens, tenant),
+		Detail: "need " + strconv.Itoa(estTokens) + " tokens, tenant has " +
+			formatFloat(tenant.AvailableTokens) + " available at " +
+			formatFloat(tenant.RatePerS) + "/s",
+	}, true
 }
 
 // tenantRetryAfter is the time until the tenant's bucket refills enough to

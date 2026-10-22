@@ -24,7 +24,7 @@ store works.
 | State | File | Lines |
 |---|---|---|
 | Tenant buckets: `bucket`, `Gate.buckets`, `bucketFor`, charge in Admit, correction in Settle, off-box charge and settle | `gateway/internal/fleet/gate.go` | 149-167, 223, 332-351, 417-431, 472-516, 547-554 |
-| Run table: `run`, `Gate.runs`, TTL prune in Observe, bind in Admit, usage in Settle and SettleOffbox, `boundPod` | `gateway/internal/fleet/gate.go` | 138-143, 222, 267-272, 359-368, 421-428, 513-516, 536-545 |
+| Run table: `run`, `Gate.runs`, TTL prune in Observe, bind in Admit, usage in Settle and SettleTenant, `boundPod` | `gateway/internal/fleet/gate.go` | 138-143, 222, 267-272, 359-368, 421-428, 513-516, 536-545 |
 | Per-worker gateway-side state: `podState` (scrape, ready, started, reservations, meanServiceS), `Restarted`, `workerStates` | `gateway/internal/fleet/gate.go` | 95-134, 290-301, 561-589 |
 | Per-worker queue: `Queue`, `worker` (inFlight, lanes), `waiter`, `Slot` | `gateway/internal/fleet/queue.go` | 37-83 |
 | Scraper and warm-up: `member` (phase, ring, passes), `Fleet` | `gateway/internal/fleet/worker.go` | 104-147 |

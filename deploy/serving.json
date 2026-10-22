@@ -128,5 +128,25 @@
       }
     },
     "bootstrap_port": 8998
+  },
+  "llm_d": {
+    "about": "Opt-in llm-d 1.0 router in front of the workers (design/llm-d.md): chart llm-d-router-standalone with the Envoy proxy as a Service the gateway forwards to, the EPP picking the pod, and every worker offloading KV to a /dev/shm CPU tier through vLLM's OffloadingConnector. serving/llmd.py renders the chart values; the CRDs are applied before the chart. Exclusive with kv_hop: two KV connectors would need a MultiConnector, and the hop needs the gateway to pick the pod.",
+    "chart": "oci://ghcr.io/llm-d/charts/llm-d-router-standalone",
+    "chart_version": "v1.0.0",
+    "release": "doctor-router",
+    "epp_image": "ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0",
+    "crds": [
+      "https://github.com/kubernetes-sigs/gateway-api-inference-extension/releases/download/v1.6.2/v1-manifests.yaml",
+      "https://github.com/llm-d/llm-d-router/releases/download/v1.0.0/manifests.yaml"
+    ],
+    "block_size": 64,
+    "kv_events": {"port": 5556, "replay_port": 5559},
+    "offload_cpu_gib": 32,
+    "offload_why": "Per worker. On the 8B that is ~233k tokens at 144 KiB/token, about 3x the 79k-token GPU pool and ~28 typical runs with the prefix held once. Two workers pin 68 GiB of host RAM with the 2 GiB scratch; the node's RAM is not recorded here, so check `free -g` on first boot before raising it.",
+    "objectives": [
+      {"name": "doctor-interactive", "priority": 100, "queue_ttl_s": 10},
+      {"name": "doctor-batch", "priority": 0, "queue_ttl_s": 30}
+    ],
+    "objectives_why": "One band per gateway priority, each waiting at most the gateway's own queue budget for that priority (decide.DefaultBudgets), so a request the gateway would have timed out is not held longer in the router."
   }
 }

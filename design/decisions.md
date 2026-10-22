@@ -579,3 +579,30 @@ the probe before any request is sent.
 **Revisit when:** the key arrives (confirm the paths, the model and `tools` with one curl, then `make gateway
 OVERFLOW=1`); if a run that overflowed should stay remote for its next steps (today it re-enters admission); or if spend
 needs a total budget rather than an in-flight cap.
+
+### D-54 — llm-d 1.0 places and queues behind the gateway; the gateway keeps what makes it multi-tenant (2026-10-22)
+**Context:** llm-d 1.0 (2026-10-20) ships placement on what each engine has really cached (precise prefix routing on
+vLLM's KV events, "sticky until saturated"), priority and fairness queueing (flow control), and KV offload to host
+memory. D-42's gateway built the first two by hand: a run table keyed by run id stands in for the cache, the stick
+slack needed D-52 to stop it miscounting a run's own KV, and its queue has priority but no fairness. llm-d ships none
+of the tenant budget, data class, stay-or-leave rule or refusal contract the doctor depends on.
+**Choice:** an opt-in router mode. `GW_ROUTER_URL` sends every request, after the guard and the tenant charge, to the
+llm-d router (chart `llm-d-router-standalone` v1.0.0, Envoy as a Service, one EPP), which picks the pod and queues.
+The gateway sets `x-llm-d-inference-fairness-id` to the charged bucket and `x-llm-d-inference-objective` to
+`doctor-interactive` (priority 100) or `doctor-batch` (0), and maps llm-d's drop reasons to 503 `router_*` refusals so
+saturation still overflows. Workers run vLLM's OffloadingConnector (32 GiB CPU tier each), and full-attention profiles
+also publish KV events for precise routing. `serving/llmd.py` renders the chart values from `serving.json`, the profile
+and fit.py. The capacity rule KEDA reads counts router sheds. Fleet mode stays the default. The per-capability ledger
+(replaced, kept, changed, not adopted, gaps) is `design/llm-d.md`.
+**Because:** llm-d answers "which pod" with the engine's own numbers, and the gateway answers "may this run, who pays,
+and may it leave the box", which llm-d does not ask. Two admission controllers in series would each see half the
+picture, so the per-pod KV line and queue move to llm-d, and the KV-sized cap (D-43) moves with them into
+`concurrency-detector.maxConcurrency`.
+**Measured:** laptop only. Against the real llm-d v1.0.0 EPP and Envoy (`lab/llm-d/e2e.sh`): repeats of one prefix stay
+on one worker, a spoofed `x-gateway-destination-endpoint` does not steer, the EPP's saturation reaches the client as
+503 `router_saturated` with Retry-After, restricted requests stay and internal ones overflow. On kind
+(`lab/llm-d/kind-smoke.sh`): the CRDs and chart install with our values, the EPP finds the workers by label, the two
+objectives land in bands 100 and 0, and the worker NetworkPolicy refuses other pods. Nothing on a GPU.
+**Not measured yet:** whether router mode beats fleet mode on cached share, TTFT, preemptions and pass rate.
+**Revisit when:** the GPU A/B in `design/llm-d.md` (**Next step**) is run: if router mode is no worse, delete fleet mode's
+placement, queue and hop in one wave; if it is worse, record why and keep router mode off.

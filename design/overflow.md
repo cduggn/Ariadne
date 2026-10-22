@@ -28,8 +28,8 @@ The circuit starts open. A probe (`GET` the probe path with the key; any 2xx pas
 `GW_OVERFLOW_PROBE_INTERVAL`. A failed probe never fails the gateway: it logs, keeps `orch_overflow_backend_available`
 at 0, and every 503 stays a 503.
 
-Before a request leaves, `Gate.ChargeOffbox` charges the tenant's bucket with the same estimate admission uses and
-`SettleOffbox` corrects it to the backend's reported usage afterwards, or refunds it when the backend did not answer. A
+Before a request leaves, `Gate.ChargeTenant` charges the tenant's bucket with the same estimate admission uses and
+`SettleTenant` corrects it to the backend's reported usage afterwards, or refunds it when the backend did not answer. A
 bucket that cannot cover the estimate keeps the 503 on the box with result `quota`. Off-box answers therefore spend
 quota exactly like local ones, so a tenant cannot spend the backend's tokens without limit whenever the box is full.
 

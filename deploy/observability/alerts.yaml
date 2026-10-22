@@ -18,9 +18,10 @@ groups:
       # KEDA divides it by the per-worker in-flight cap (GW_MAX_INFLIGHT, D-43), so it reads as workers needed.
       - record: doctor:vllm_demand_requests
         expr: (sum(orch_replica_active_requests) + sum(orch_replica_queue_depth)) or vector(0)
-      # Refusals that another worker would have prevented, per minute. tenant_tokens is a quota, not capacity.
+      # Refusals that another worker would have prevented, per minute: the gateway's own and, in router mode, llm-d's
+      # (router_*, design/llm-d.md). tenant_tokens is a quota, not capacity.
       - record: doctor:gateway_capacity_sheds_per_minute
-        expr: (sum(rate(orch_shed_total{reason=~"kv_free|queue_full|timeout_queue|no_eligible_pod|p99_spread"}[2m])) * 60) or vector(0)
+        expr: (sum(rate(orch_shed_total{reason=~"kv_free|queue_full|timeout_queue|no_eligible_pod|p99_spread|router_saturated|router_ttl_expired|router_evicted|router_no_endpoints|router_shutting_down|router_unknown"}[2m])) * 60) or vector(0)
 
   - name: cluster-doctor-serving
     rules:

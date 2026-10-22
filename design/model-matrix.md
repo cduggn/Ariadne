@@ -79,8 +79,8 @@ Each row is the newest full-set run for that model, topology and worker count. v
 
 | Model | Topology | Workers | Tasks × repeat | v2 pass [95 % CI] | v1 pass | easy | multi-hop | red-herring | rightsizing | Root found | Category | Mechanism | Abstained / failed closed | Steps / task | Step p50 / p95 s | Cached share | Correct / GPU-hour | Concurrency | Run |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| qwen3.8-27b-fp8 | h100-half | 2 | 26 × 4 | 84% [75%–90%] | 76% | 93% | 75% | 62% | 100% | 85% | 85% | 84% | 0 / 11 | 9.31 | 1.645 / 13.29 | 86% | 334 | 4 | recover-probes 20261012-121231 5ee23c3 |
 | qwen3.8-27b-fp8 | h100-half | 1 | 26 × 1 | 81% [62%–92%] | 73% | 93% | 71% | 75% | 0% | 85% | 85% | 85% | 0 / 4 | 9.23 | 1.49 / 10.986 | 88% | 207 | 1 | as-down 20261008-001004 9455fbc |
-| qwen3.8-27b-fp8 | h100-half | 2 | 26 × 2 | 75% [62%–85%] | 67% | 86% | 57% | 75% | 50% | 77% | 75% | 77% | 0 / 9 | 8.65 | 1.765 / 14.757 | 88% | 319 | 4 | q1-h100-probes 20261008-123332 06ed201 |
 | qwen3-30b-a3b-2507-awq | full | 1 | 26 × 2 | 67% [54%–78%] | 65% | 75% | 50% | 75% | 50% | 77% | 73% | 77% | 0 / 1 | 9.73 | 0.444 / 2.502 | 97% | 326 | 1 | 30b-smoke 20260928-164635 8c0ebec |
 | qwen3-8b-awq | sliced | 1 | 26 × 2 | 52% [39%–65%] | 44% | 68% | 43% | 25% | 0% | 62% | 62% | 58% | 0 / 4 | 10.98 | 0.436 / 6.481 | 95% | 267 | 1 | baseline 20260928-161531 8c0ebec |
 | qwen3-8b-awq | sliced | 2 | 26 × 2 | 52% [39%–65%] | 46% | 71% | 43% | 12% | 0% | 58% | 58% | 56% | 0 / 5 | 11 | 0.919 / 10.627 | 95% | 225 | 4 | q1-probes 20261008-101639 06ed201 |
@@ -89,8 +89,8 @@ Each row is the newest full-set run for that model, topology and worker count. v
 
 Models are ranked by v2 pass rate, then by correct diagnoses per GPU-hour. Quality is compared on the full-GPU topology, because slicing changes capacity and latency but not the answers. The chosen model then serves the slicing, routing and KV-hop demonstration on the sliced topology.
 
-1. **qwen3.8-27b-fp8** on h100-half × 1: v2 81% [62%–92%], 207 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
-2. **qwen3.8-27b-fp8** on h100-half × 2: v2 75% [62%–85%], 319 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
+1. **qwen3.8-27b-fp8** on h100-half × 2: v2 84% [75%–90%], 334 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
+2. **qwen3.8-27b-fp8** on h100-half × 1: v2 81% [62%–92%], 207 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
 3. **qwen3-30b-a3b-2507-awq** on full × 1: v2 67% [54%–78%], 326 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
 4. **qwen3-8b-awq** on sliced × 1: v2 52% [39%–65%], 267 correct diagnoses per GPU-hour. Not yet distinguishable from the next model, because the intervals overlap
 5. **qwen3-8b-awq** on sliced × 2: v2 52% [39%–65%], 225 correct diagnoses per GPU-hour
@@ -105,6 +105,15 @@ Models are ranked by v2 pass rate, then by correct diagnoses per GPU-hour. Quali
 
 | When | Tag | Model | Topology | Tasks (unique) | Repeat | v1 | v2 | Stops | Commit | Note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 20261012-132348 | audit3 | qwen3.8-27b-fp8 | h100-half | 1 | 1 | 0/1 | 0/1 | inconclusive 1 | 5ee23c3 | partial: dx-audit-3 |
+| 20261012-121231 | recover-probes | qwen3.8-27b-fp8 | h100-half | 26 | 4 | 79/104 | 87/104 | submitted 89, step_cap 3, inconclusive 11, http_503 1 | 5ee23c3 | full set |
+| 20261012-115838 | sweep-qwen3.8-27b-fp8-c32 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 9/26 | 11/26 | http_503 12, submitted 11, inconclusive 3 | 5ee23c3 | full set |
+| 20261012-115535 | sweep-qwen3.8-27b-fp8-c16 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 19/26 | 21/26 | submitted 21, inconclusive 3, http_503 2 | 5ee23c3 | full set |
+| 20261012-115250 | sweep-qwen3.8-27b-fp8-c8 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 17/26 | 20/26 | submitted 23, inconclusive 3 | 5ee23c3 | full set |
+| 20261012-114827 | sweep-qwen3.8-27b-fp8-c4 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 21/26 | 24/26 | submitted 25, inconclusive 1 | 5ee23c3 | full set |
+| 20261012-114054 | sweep-qwen3.8-27b-fp8-c1 | qwen3.8-27b-fp8 | h100-half | 26 | 1 | 21/26 | 23/26 | submitted 23, inconclusive 3 | 5ee23c3 | full set |
+| 20261012-101527 | audit3 | qwen3.8-27b-fp8 | h100-half | 1 | 1 | 0/1 | 0/1 | inconclusive 1 | 5ee23c3 | partial: dx-audit-3 |
+| 20261011-211416 | audit3 | qwen3.8-27b-fp8 | h100-half | 1 | 1 | 0/1 | 0/1 | inconclusive 1 | 5ee23c3 | partial: dx-audit-3 |
 | 20261008-123332 | q1-h100-probes | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 35/52 | 39/52 | submitted 41, inconclusive 9, http_502 2 | 06ed201 | full set |
 | 20261008-122959 | sweep-qwen3.8-27b-fp8-c32 | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 10/52 | 12/52 | http_503 33, submitted 15, inconclusive 4 | 06ed201 | full set |
 | 20261008-122501 | sweep-qwen3.8-27b-fp8-c16 | qwen3.8-27b-fp8 | h100-half | 26 | 2 | 32/52 | 33/52 | submitted 35, http_503 12, inconclusive 5 | 06ed201 | full set |
