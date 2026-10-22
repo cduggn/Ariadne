@@ -96,3 +96,34 @@ spec:
           hostPath: {path: /opt/hf-cache, type: Directory}
         - name: shm
           emptyDir: {medium: Memory, sizeLimit: 34Gi}
+---
+# Behind the llm-d router the workers take the API port from the router's Envoy proxy and its EPP (which scrapes
+# /metrics and, for precise routing, renders prompts through vLLM), from the gateway (so ROUTER=0 still works), and
+# from Prometheus. vLLM's KV events carry each block's token ids, which are the prompt, so only the EPP may
+# subscribe to them. Pod labels are the ones llm-d-router-standalone v1.0.0 sets for release doctor-router.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vllm-llm-d
+spec:
+  podSelector:
+    matchLabels: {app: vllm}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {llm-d-router-proxy: doctor-router-proxy}
+        - podSelector:
+            matchLabels: {llm-d-router-gateway: doctor-router-epp}
+        - podSelector:
+            matchLabels: {app: gateway}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: monitoring}
+      ports:
+        - {port: 8000, protocol: TCP}
+    - from:
+        - podSelector:
+            matchLabels: {llm-d-router-gateway: doctor-router-epp}
+      ports:
+        - {port: 5556, protocol: TCP}
+        - {port: 5559, protocol: TCP}

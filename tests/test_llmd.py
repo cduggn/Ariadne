@@ -91,3 +91,30 @@ def test_capacity_shed_signal_counts_every_router_refusal():
     shed = set(re.search(r'gateway_capacity_sheds_per_minute\n\s+expr: .*reason=~"([^"]+)"', rules).group(1).split("|"))
     router = {"router_saturated", "router_ttl_expired", "router_evicted", "router_no_endpoints", "router_shutting_down", "router_unknown"}
     assert router <= shed and "tenant_tokens" not in shed
+
+
+def test_llmd_workers_take_the_api_from_the_router_and_kv_events_only_from_the_epp():
+    precise = profiles.render_manifest(profiles.load_profile("qwen3-8b-awq"), "sliced", llmd=True)
+    assert precise.endswith("""  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {llm-d-router-proxy: doctor-router-proxy}
+        - podSelector:
+            matchLabels: {llm-d-router-gateway: doctor-router-epp}
+        - podSelector:
+            matchLabels: {app: gateway}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: monitoring}
+      ports:
+        - {port: 8000, protocol: TCP}
+    - from:
+        - podSelector:
+            matchLabels: {llm-d-router-gateway: doctor-router-epp}
+      ports:
+        - {port: 5556, protocol: TCP}
+        - {port: 5559, protocol: TCP}
+""")
+    approximate = profiles.render_manifest(profiles.load_profile("qwen3.5-9b"), "sliced", llmd=True)
+    assert approximate.endswith("""      ports:
+        - {port: 8000, protocol: TCP}
+""") and "name: vllm-llm-d" in approximate

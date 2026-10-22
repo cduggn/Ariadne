@@ -219,6 +219,43 @@ spec:
             matchLabels: {{app: vllm}}
 """
 
+LLMD_POLICY = """\
+---
+# Behind the llm-d router the workers take the API port from the router's Envoy proxy and its EPP (which scrapes
+# /metrics and, for precise routing, renders prompts through vLLM), from the gateway (so ROUTER=0 still works), and
+# from Prometheus. vLLM's KV events carry each block's token ids, which are the prompt, so only the EPP may
+# subscribe to them. Pod labels are the ones llm-d-router-standalone v1.0.0 sets for release {release}.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vllm-llm-d
+spec:
+  podSelector:
+    matchLabels: {{app: vllm}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {{llm-d-router-proxy: {release}-proxy}}
+        - podSelector:
+            matchLabels: {{llm-d-router-gateway: {release}-epp}}
+        - podSelector:
+            matchLabels: {{app: gateway}}
+        - namespaceSelector:
+            matchLabels: {{kubernetes.io/metadata.name: monitoring}}
+      ports:
+        - {{port: 8000, protocol: TCP}}
+{events}"""
+
+LLMD_EVENTS_RULE = """\
+    - from:
+        - podSelector:
+            matchLabels: {{llm-d-router-gateway: {release}-epp}}
+      ports:
+        - {{port: {port}, protocol: TCP}}
+        - {{port: {replay_port}, protocol: TCP}}
+"""
+
 
 def topology(s: dict, topo: str) -> dict:
     if topo not in s["topologies"]:
@@ -256,13 +293,15 @@ def render_manifest(p: dict, topo: str, s: dict | None = None, hop: bool = False
     args, ports = list(p["serve"]["args"]), ["{name: http, containerPort: 8000}"]
     env = ['{name: HF_HUB_OFFLINE, value: "1"}          # weights are fetched by `make prefetch`; never download at serve time',
            "{name: HF_HOME, value: /root/.cache/huggingface}"]
-    shm, requests = SHM_GIB, ""
+    shm, requests, policy = SHM_GIB, "", ""
     if hop:
+        policy = HOP_POLICY.format(port=s["kv_hop"]["bootstrap_port"])
         h = s["kv_hop"]
         args.append("--kv-transfer-config=" + json.dumps(h["kv_transfer_config"], separators=(",", ":")))
         ports.append(f"{{name: mooncake, containerPort: {h['bootstrap_port']}}}")
     if llmd:
         d = s["llm_d"]
+        rule = ""
         offload = {"kv_connector": "OffloadingConnector", "kv_role": "kv_both",
                    "kv_connector_extra_config": {"cpu_bytes_to_use": d["offload_cpu_gib"] << 30}}
         args.append("--kv-transfer-config=" + json.dumps(offload, separators=(",", ":")))
@@ -275,6 +314,8 @@ def render_manifest(p: dict, topo: str, s: dict | None = None, hop: bool = False
                     f'{{name: KV_EVENTS_ENDPOINT, value: "tcp://*:{ev["port"]}"}}',
                     f'{{name: KV_EVENTS_REPLAY_ENDPOINT, value: "tcp://*:{ev["replay_port"]}"}}']
             ports += [f"{{name: kv-events, containerPort: {ev['port']}}}", f"{{name: kv-replay, containerPort: {ev['replay_port']}}}"]
+            rule = LLMD_EVENTS_RULE.format(release=d["release"], port=ev["port"], replay_port=ev["replay_port"])
+        policy = LLMD_POLICY.format(release=d["release"], events=rule)
         # vLLM keeps the CPU tier in /dev/shm, which counts as the pod's memory. A request, not a limit: the worker
         # has never had a memory limit, and one needs a measured RSS first.
         shm += d["offload_cpu_gib"]
@@ -287,8 +328,7 @@ def render_manifest(p: dict, topo: str, s: dict | None = None, hop: bool = False
                            max_num_batched_tokens=e["max_num_batched_tokens"], gpu_mib=g["mib"], gpu_name=g["name"],
                            model_args="\n".join(f"            - {a}" for a in args),
                            env="\n".join(f"            - {x}" for x in env), requests=requests, shm_gib=shm,
-                           ports="\n".join(f"            - {x}" for x in ports)) + (
-        HOP_POLICY.format(port=s["kv_hop"]["bootstrap_port"]) if hop else "")
+                           ports="\n".join(f"            - {x}" for x in ports)) + policy
 
 
 def render_prefetch(p: dict, s: dict | None = None) -> str:
